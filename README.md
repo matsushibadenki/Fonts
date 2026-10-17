@@ -1,6 +1,6 @@
 # Fonts
 
-[Fonts](docs/images/Fonts-image.png)
+<img src="docs/images/Fonts-image.png">
 
 Tauri 2 + Rustで作るフォント制作アプリ。UIはWebView、文書・編集状態はRust、輪郭描画はRustのwgpu/Metalが担当します。
 
