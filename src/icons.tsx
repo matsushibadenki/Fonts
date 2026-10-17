@@ -1,4 +1,8 @@
 const paths = {
+  snippets:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+  duplicate:'M8 8h13v13H8zM3 16V3h13',
+  star:'m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z',
+  edit:'m4 16 12-12 4 4L8 20l-5 1zM14 6l4 4',
   image:'M3 4h18v16H3zM3 16l5-5 4 4 3-3 6 6M16 8h.01',
   images:'M4 4h16v16H4zM2 2h4v4H2zM18 18h4v4h-4zM9 12l3-3 5 6',
   imageAdd:'M3 4h12M3 4v16h18V10M3 16l5-5 4 4 3-3 6 6M19 2v6M16 5h6',

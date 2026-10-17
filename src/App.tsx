@@ -19,7 +19,7 @@ import {Canvas} from './Canvas';
 import {IconButton,Panel} from './Panel';
 import {Icon} from './icons';
 import type {Dock,Layout,Panel as PanelId,Snapshot} from './types';
-const panelIds:PanelId[]=['glyphs','metrics','outline'];
+const panelIds:PanelId[]=['glyphs','metrics','outline','snippets'];
 function DropZone({dock,t,onDrop}:{dock:Dock;t:(k:Key)=>string;onDrop:(p:PanelId,d:Dock)=>void}){
   const [over,setOver]=useState(false);
   return <div className={`drop-zone drop-${dock} ${over?'over':''}`} data-dock={dock} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setOver(true);}} onDragLeave={()=>setOver(false)} onDrop={e=>{e.preventDefault();setOver(false);const p=e.dataTransfer.getData('text/plain') as PanelId;if(panelIds.includes(p))onDrop(p,dock);}}><Icon name={dock}/><span>{t(dock)}</span></div>;

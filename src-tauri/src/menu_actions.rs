@@ -38,7 +38,7 @@ pub fn handle(app: &tauri::AppHandle, id: &str) {
                 error(&handle, result);
             });
         }
-        "undo" | "redo" => {
+        "undo" | "redo" | "paste" => {
             let window = app
                 .webview_windows()
                 .into_values()

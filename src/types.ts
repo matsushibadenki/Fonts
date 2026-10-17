@@ -1,13 +1,16 @@
-export type Panel = 'glyphs'|'metrics'|'outline';
+export type Panel = 'glyphs'|'metrics'|'outline'|'snippets';
 export type Dock = 'left'|'right'|'bottom';
 export type Locale = 'en'|'ja'|'zh_cn';
-export type Tool = 'nodes'|'pen'|'pan'|'images';
+export type Tool = 'nodes'|'pen'|'pan'|'images'|'snippets';
 export interface ReferenceImage {id:number;asset_id:string;center:[number,number];width:number;height:number;angle:number;opacity:number;visible:boolean;locked:boolean}
 export type Placement = {kind:'docked';dock:Dock}|{kind:'floating';return_to:Dock};
 export interface FontMetadata {style:string;weight:number;width:number;italic_angle:number;bold:boolean;italic:boolean;copyright:string;license:string;license_url:string;cid_system:{registry:string;ordering:string;supplement:number}|null}
 export interface FontProperties {family:string;metadata:FontMetadata}
 export interface ProofSettings {text:string;size:number;tracking:number;leading:number;scroll:number}
+export interface SnippetInfo {name:string;tags:string;category:string;source:string;license:string;favorite:boolean}
+export interface SnippetEntry {key:string;builtin:boolean;info:SnippetInfo;contours:number}
 export interface Snapshot {
+  snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null};
   images:ReferenceImage[];image_selected:number|null;image_editing:boolean;
   selection:{contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
   properties:FontProperties;presets:[string,number][];

@@ -51,6 +51,7 @@ pub struct Prepared {
 pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
     let chars: BTreeSet<char> = text.chars().filter(|c| !c.is_control()).collect();
     let mut copy = FontDocument {
+        snippets: Default::default(),
         reference_images: Default::default(),
         glyphs: BTreeMap::new(),
         family: doc.family.clone(),

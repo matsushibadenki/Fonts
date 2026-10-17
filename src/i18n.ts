@@ -1,5 +1,6 @@
 import type { Locale } from './types';
 const en = {
+  snippets:'Components / snippets',snippetHelp:'Select contours to register. Templates insert independent outline copies; drag the placement box, then confirm. Esc cancels.',
   newDocument:'New blank document',
   invalidUnicode:'Enter valid characters or Unicode scalar code points (U+0000–U+10FFFF, excluding surrogates).',unicodeLimit:'Limit exceeded: 65534 unique characters per batch and 65535 glyphs per project.',
   addCharacters:'Add characters',characters:'Characters',codepoints:'Code points',inputMode:'Input mode',noMatches:'No matching characters',pageNumber:'Page',previousPage:'Previous page',nextPage:'Next page',unicodeHelp:'Add literal characters or hexadecimal code points and ranges (U+3041-U+3096, U+1F600). Up to 65534 unique scalars per batch. Existing characters are preserved. Sequences are added as separate characters.',
@@ -16,11 +17,12 @@ const en = {
   drop:'Drop panel',floatHelp:'Use a dock button to return this panel. Closing the window also docks it.',
   finish:'Close contour',cancel:'Cancel edit',empty:'No contours',language:'Language',
   startup:'Open this editor with npm run tauri dev.',error:'Operation failed',retry:'Retry',
-  penHint:'Click to add points · Enter to close · Esc to cancel',nodesHint:'Drag anchors · ⌘Z undo',
+  penHint:'Click to add points · Enter to close · Esc to cancel',nodesHint:'Drag anchors · ⌘Z undo · ⌘V paste Illustrator / LumaPaint paths',
   gpuError:'GPU canvas unavailable',baseline:'Baseline',ready:'Ready',
 };
 export type Key = keyof typeof en;
 const ja:Record<Key,string> = {
+  snippets:'部品・スニペット',snippetHelp:'輪郭を選んで登録。雛形は独立した輪郭として配置されます。配置枠をドラッグして調整し、確定します。Escで取消。',
   newDocument:'新規空ドキュメント',
   invalidUnicode:'有効な文字またはコードポイントを入力してください（U+0000〜U+10FFFF、サロゲートを除く）。',unicodeLimit:'上限を超えました。1回65534文字、プロジェクト全体65535グリフまでです。',
   addCharacters:'文字を追加',characters:'文字列',codepoints:'コードポイント',inputMode:'入力方法',noMatches:'一致する文字なし',pageNumber:'ページ',previousPage:'前のページ',nextPage:'次のページ',unicodeHelp:'文字列、または16進数のコードポイントと範囲（U+3041-U+3096, U+1F600）を追加します。1回65534文字まで。登録済みの文字は保持します。結合文字列は個別の文字として追加します。',
@@ -34,9 +36,10 @@ const ja:Record<Key,string> = {
   outlineHelp:'四角い端点・丸い曲線ハンドルをドラッグして編集。ペンはクリックで点を追加し、Enterかダブルクリックで閉じます。Escで取り消し。',
   pending:'この工程は今後実装します。',native:'ネイティブGPU描画',loading:'ワークスペースを開いています…',drop:'パネルを配置',
   floatHelp:'ドックのボタンでパネルを戻せます。ウインドウを閉じても元のドックに戻ります。',finish:'輪郭を閉じる',cancel:'編集を取り消す',empty:'輪郭なし',language:'表示言語',
-  startup:'npm run tauri dev でエディターを起動してください。',error:'操作に失敗しました',retry:'再試行',penHint:'クリックで点を追加 · Enterで閉じる · Escで取り消し',nodesHint:'点をドラッグ · ⌘Zで元に戻す',gpuError:'GPU描画を開始できません',baseline:'基準線',ready:'準備完了',
+  startup:'npm run tauri dev でエディターを起動してください。',error:'操作に失敗しました',retry:'再試行',penHint:'クリックで点を追加 · Enterで閉じる · Escで取り消し',nodesHint:'点をドラッグ · ⌘Zで元に戻す · ⌘VでIllustrator・LumaPaintのパスを貼り付け',gpuError:'GPU描画を開始できません',baseline:'基準線',ready:'準備完了',
 };
 const zh:Record<Key,string> = {
+  snippets:'部件与片段',snippetHelp:'选择轮廓以注册。模板插入独立轮廓副本。拖动放置框调整后确认，Esc 取消。',
   newDocument:'新建空白文档',
   invalidUnicode:'请输入有效字符或 Unicode 标量码点（U+0000–U+10FFFF，不含代理码点）。',unicodeLimit:'超出上限：每批65534个不同字符，每个项目65535个字形。',
   addCharacters:'添加字符',characters:'字符串',codepoints:'码点',inputMode:'输入方式',noMatches:'无匹配字符',pageNumber:'页码',previousPage:'上一页',nextPage:'下一页',unicodeHelp:'添加字符串或十六进制码点与范围（U+3041-U+3096, U+1F600）。每批最多65534个不同标量。保留已有字符。序列将按单独字符添加。',
@@ -47,6 +50,6 @@ const zh:Record<Key,string> = {
   metricHelp:'前进宽度决定到下一个字符的距离。此阶段全局上下边界为只读。',outlineHelp:'拖动方形锚点或圆形曲线手柄进行编辑。钢笔：点击添加节点，按 Enter 或双击闭合，Esc 取消。',
   pending:'此步骤将在后续实现。',native:'原生 GPU 画布',loading:'正在打开工作区…',drop:'放置面板',floatHelp:'使用停靠按钮返回面板。关闭窗口也会自动停靠。',
   finish:'闭合轮廓',cancel:'取消编辑',empty:'暂无轮廓',language:'显示语言',startup:'请通过 npm run tauri dev 启动编辑器。',error:'操作失败',retry:'重试',
-  penHint:'点击添加节点 · Enter 闭合 · Esc 取消',nodesHint:'拖动锚点 · ⌘Z 撤销',gpuError:'GPU 画布不可用',baseline:'基线',ready:'就绪',
+  penHint:'点击添加节点 · Enter 闭合 · Esc 取消',nodesHint:'拖动锚点 · ⌘Z 撤销 · ⌘V 粘贴 Illustrator / LumaPaint 路径',gpuError:'GPU 画布不可用',baseline:'基线',ready:'就绪',
 };
 export const messages:Record<Locale,Record<Key,string>> = {en,ja,zh_cn:zh};

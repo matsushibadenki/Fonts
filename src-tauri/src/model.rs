@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub struct Model {
+    pub snippets: crate::snippets::State,
     pub images: crate::reference_images::Images,
     pub editor: Editor,
     pub proof: crate::proof::Proof,
@@ -65,6 +66,7 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    snippets: crate::snippets::Summary,
     images: Vec<font_core::reference_images::ReferenceImage>,
     image_selected: Option<u64>,
     image_editing: bool,
@@ -209,6 +211,7 @@ impl Model {
             polygon(&[[235., 300.], [405., 300.], [320., 565.]]),
         ];
         Self {
+            snippets: Default::default(),
             images: Default::default(),
             editor: Editor::new(doc).unwrap(),
             epoch: 0,
@@ -243,6 +246,7 @@ impl Model {
             .copied()
             .find(|id| *id != 0)
             .unwrap_or(0);
+        self.snippets = Default::default();
         self.images = Default::default();
         self.proof = crate::proof::Proof::default();
         self.editor = editor;
@@ -281,6 +285,11 @@ impl Model {
             .as_ref()
             .map(|d| d.draft.clone())
             .unwrap_or_else(|| self.editor.document().glyphs[&self.glyph].clone());
+        if let Some(d) = &self.snippets.draft {
+            if let Ok(contours) = d.source.transformed(&d.placement) {
+                g.contours.extend(contours);
+            }
+        }
         if let Some(&start) = self.pen.first() {
             g.contours.push(Contour {
                 smooth: Default::default(),
@@ -325,6 +334,7 @@ impl Model {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
         Snapshot {
+            snippets: self.snippet_summary(),
             images: self.visible_images(),
             image_selected: self.images.selected,
             image_editing: self.images.drag.is_some(),
@@ -415,6 +425,35 @@ impl Model {
         }
     }
     pub fn action(&mut self, a: Action) -> Result<(), String> {
+        if self.snippets.draft.is_some() {
+            if matches!(
+                a,
+                Action::Cancel
+                    | Action::SelectGlyph { .. }
+                    | Action::Tool { .. }
+                    | Action::Undo { .. }
+                    | Action::Redo { .. }
+            ) {
+                self.snippets.draft = None;
+                if self.tool == Tool::Snippets {
+                    self.tool = Tool::Nodes;
+                }
+            } else {
+                return Err("edit_in_progress".into());
+            }
+        }
+        if matches!(
+            a,
+            Action::SelectGlyph { .. }
+                | Action::Undo { .. }
+                | Action::Redo { .. }
+                | Action::AddCharacters { .. }
+                | Action::AddPreset { .. }
+                | Action::SplitSegment { .. }
+                | Action::DeleteSegmentEnd { .. }
+        ) {
+            self.snippets.contours.clear();
+        }
         // Modal edits cannot be interleaved with commands from a floating window.
         if self.drag.is_some() && !matches!(a, Action::Cancel) {
             return Err("edit_in_progress".into());
@@ -739,6 +778,7 @@ impl Model {
                             .and_then(|p| p.source)
                         {
                             self.selected = None;
+                            self.snippets = Default::default();
                             self.images = Default::default();
                             self.glyph = id;
                             self.proof.active = false;

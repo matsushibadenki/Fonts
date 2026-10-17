@@ -18,5 +18,10 @@
     "crates/lumapaint-core/src/transform_panel.rs": "0cb46fa21c79166c10e1b6cb254113395a4446f95f6294239b865ae74c437aab",
     "crates/lumapaint-core/src/vector.rs": "c8ba06450bddd7eb134fc7a76c46637c2401c4b2fe5a6e91ada118e8caa0e340"
   },
-  "license": "No root LICENSE or core license declaration found; confirm distribution rights before publishing."
+  "license": "MIT for LumaPaint-owned code copied into Fonts; copyright owner confirmed ownership and authorized MIT use in this task on 2026-10-17. Third-party portions retain their own licenses. Original external LumaPaint checkout was not relicensed or modified.",
+  "license_clarification": {
+    "date": "2026-10-17",
+    "authority": "Copyright owner confirmation in the project conversation",
+    "scope": "LumaPaint-owned code in the Fonts copy only; original copy hashes remain historical provenance. Cargo.toml gains an inherited MIT declaration."
+  }
 }

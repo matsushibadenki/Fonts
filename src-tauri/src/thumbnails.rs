@@ -8,13 +8,13 @@ use std::{
 };
 use tauri::Manager;
 
-type Key = (u64, u64, u32);
+type Key = (u64, u64, u64);
 const CAPACITY: usize = 512;
 #[derive(Default)]
 struct Cache {
     generation: Option<(u64, u64)>,
-    images: HashMap<u32, Vec<u8>>,
-    order: VecDeque<u32>,
+    images: HashMap<u64, Vec<u8>>,
+    order: VecDeque<u64>,
 }
 impl Cache {
     fn generation(&mut self, epoch: u64, revision: u64) {
@@ -24,13 +24,13 @@ impl Cache {
             self.order.clear();
         }
     }
-    fn get(&mut self, id: u32) -> Option<Vec<u8>> {
+    fn get(&mut self, id: u64) -> Option<Vec<u8>> {
         let bytes = self.images.get(&id)?.clone();
         self.order.retain(|key| *key != id);
         self.order.push_back(id);
         Some(bytes)
     }
-    fn insert(&mut self, id: u32, bytes: Vec<u8>) {
+    fn insert(&mut self, id: u64, bytes: Vec<u8>) {
         self.order.retain(|key| *key != id);
         self.images.insert(id, bytes);
         self.order.push_back(id);
@@ -63,12 +63,36 @@ impl Thumbnails {
                         if model.epoch != epoch || model.editor.revision() != revision {
                             return Err(409);
                         }
-                        let glyph = model.editor.document().glyphs.get(&id).ok_or(404u16)?;
                         cache.generation(epoch, revision);
                         if let Some(bytes) = cache.get(id) {
                             return Ok(bytes);
                         }
-                        let contours = glyph.contours.clone();
+                        let contours = if id & (1 << 63) != 0 {
+                            let key = format!(
+                                "{}:{}",
+                                if id & (1 << 62) != 0 {
+                                    "builtin"
+                                } else {
+                                    "user"
+                                },
+                                id & ((1 << 62) - 1)
+                            );
+                            model
+                                .snippet(&key)
+                                .map_err(|_| 404u16)?
+                                .contours
+                                .as_ref()
+                                .clone()
+                        } else {
+                            model
+                                .editor
+                                .document()
+                                .glyphs
+                                .get(&(u32::try_from(id).map_err(|_| 404u16)?))
+                                .ok_or(404u16)?
+                                .contours
+                                .clone()
+                        };
                         drop(model); // GPU work never holds the document lock.
                         if gpu.is_none() {
                             let instance = wgpu::Instance::new(
@@ -124,8 +148,15 @@ impl Thumbnails {
     }
 }
 fn parse_key(path: &str) -> Option<Key> {
-    let mut parts = path.strip_prefix('/')?.strip_suffix(".png")?.split('-');
-    let key = (
+    let (path, kind) = if let Some(p) = path.strip_prefix("/snippet-b-") {
+        (p, 3u64 << 62)
+    } else if let Some(p) = path.strip_prefix("/snippet-u-") {
+        (p, 1u64 << 63)
+    } else {
+        (path.strip_prefix('/')?, 0)
+    };
+    let mut parts = path.strip_suffix(".png")?.split('-');
+    let mut key: Key = (
         parts.next()?.parse().ok()?,
         parts.next()?.parse().ok()?,
         parts.next()?.parse().ok()?,
@@ -133,6 +164,16 @@ fn parse_key(path: &str) -> Option<Key> {
     if parts.next().is_some() {
         return None;
     }
+    if key.2
+        > if kind == 0 {
+            u64::from(u32::MAX)
+        } else {
+            9_007_199_254_740_991
+        }
+    {
+        return None;
+    }
+    key.2 |= kind;
     Some(key)
 }
 fn respond(responder: tauri::UriSchemeResponder, result: Result<Vec<u8>, u16>) {
@@ -157,7 +198,17 @@ mod tests {
     #[test]
     fn resource_paths_are_strict_and_cannot_address_files() {
         assert_eq!(parse_key("/4-9-123.png"), Some((4, 9, 123)));
+        assert_eq!(
+            parse_key("/snippet-b-4-9-2.png"),
+            Some((4, 9, (3u64 << 62) | 2))
+        );
+        assert_eq!(
+            parse_key("/snippet-u-4-9-2.png"),
+            Some((4, 9, (1u64 << 63) | 2))
+        );
         for invalid in [
+            "/snippet-x-4-9-2.png",
+            "/snippet-u-4-9-18446744073709551615.png",
             "/etc/passwd",
             "/4-9-123.png/extra",
             "/4/9/../1.png",
@@ -170,11 +221,11 @@ mod tests {
     fn cache_is_bounded_reuses_recent_entries_and_invalidates_undo() {
         let mut cache = Cache::default();
         cache.generation(1, 2);
-        for id in 0..CAPACITY as u32 {
+        for id in 0..CAPACITY as u64 {
             cache.insert(id, vec![1]);
         }
         assert_eq!(cache.get(0), Some(vec![1]));
-        cache.insert(CAPACITY as u32, vec![2]);
+        cache.insert(CAPACITY as u64, vec![2]);
         assert_eq!(cache.images.len(), CAPACITY);
         assert!(cache.get(1).is_none());
         assert!(cache.get(0).is_some());

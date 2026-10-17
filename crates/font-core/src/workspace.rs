@@ -9,14 +9,16 @@ pub enum Panel {
     Glyphs,
     Metrics,
     Outline,
+    Snippets,
 }
 impl Panel {
-    pub const ALL: [Self; 3] = [Self::Glyphs, Self::Metrics, Self::Outline];
+    pub const ALL: [Self; 4] = [Self::Glyphs, Self::Metrics, Self::Outline, Self::Snippets];
     pub fn label(self) -> &'static str {
         match self {
             Self::Glyphs => "panel-glyphs",
             Self::Metrics => "panel-metrics",
             Self::Outline => "panel-outline",
+            Self::Snippets => "panel-snippets",
         }
     }
     pub fn from_label(label: &str) -> Option<Self> {
@@ -52,6 +54,7 @@ pub enum Tool {
     Pen,
     Pan,
     Images,
+    Snippets,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -73,6 +76,7 @@ impl Default for Workspace {
             panels: [
                 (Panel::Glyphs, Placement::Docked { dock: Dock::Left }),
                 (Panel::Metrics, Placement::Docked { dock: Dock::Right }),
+                (Panel::Snippets, Placement::Docked { dock: Dock::Right }),
                 (Panel::Outline, Placement::Docked { dock: Dock::Bottom }),
             ]
             .into(),
@@ -92,7 +96,7 @@ impl Default for Workspace {
 impl Workspace {
     pub fn validate(&self) -> Result<()> {
         if self.schema_version != 1
-            || self.panels.len() != 3
+            || self.panels.len() != 4
             || !Panel::ALL.iter().all(|p| self.panels.contains_key(p))
             || !self.left_width.is_finite()
             || !(160. ..=360.).contains(&self.left_width)
@@ -189,6 +193,16 @@ impl Workspace {
     }
     /// Floating geometry is intentionally not restored until monitor recovery exists.
     pub fn restore_docked(mut self) -> Result<Self> {
+        if self.schema_version == 1
+            && self.panels.len() == 3
+            && [Panel::Glyphs, Panel::Metrics, Panel::Outline]
+                .iter()
+                .all(|p| self.panels.contains_key(p))
+        {
+            self.panels
+                .insert(Panel::Snippets, Placement::Docked { dock: Dock::Right });
+            self.active.entry(Dock::Right).or_insert(Panel::Snippets);
+        }
         self.validate()?;
         for p in Panel::ALL {
             self.redock(p)?;
@@ -228,6 +242,20 @@ mod tests {
             Placement::Docked { dock: Dock::Right }
         );
         restored.validate().unwrap();
+    }
+    #[test]
+    fn legacy_workspace_gains_snippets_without_losing_existing_panel_locations() {
+        let mut w = Workspace::default();
+        w.panels.remove(&Panel::Snippets);
+        w.left_width = 280.;
+        let restored = w.restore_docked().unwrap();
+        restored.validate().unwrap();
+        assert_eq!(restored.left_width, 280.);
+        assert_eq!(
+            restored.panels[&Panel::Snippets],
+            Placement::Docked { dock: Dock::Right }
+        );
+        assert_eq!(restored.active[&Dock::Right], Panel::Metrics);
     }
     #[test]
     fn resizes_are_bounded_and_revision_checked() {

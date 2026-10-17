@@ -1,3 +1,4 @@
+mod clipboard;
 mod files;
 mod font_activation;
 mod font_batch;
@@ -14,6 +15,7 @@ mod proof;
 mod recovery;
 mod recovery_store;
 mod reference_images;
+mod snippets;
 mod thumbnails;
 use font_core::workspace::{Dock, Panel, Placement, Workspace};
 use model::{Action, Model, Snapshot};
@@ -149,7 +151,12 @@ fn pointer(
         if m.epoch != epoch {
             return Err("Conflict".into());
         }
-        if m.tool == font_core::workspace::Tool::Images && !m.proof.active {
+        if m.snippets.draft.is_some() && !m.proof.active {
+            if m.glyph != glyph || m.editor.revision() != revision {
+                return Err("Conflict".into());
+            }
+            m.snippet_pointer(&phase, [x, y], shift, &token)?;
+        } else if m.tool == font_core::workspace::Tool::Images && !m.proof.active {
             m.image_context(epoch, revision, glyph)?;
             m.image_pointer(&phase, [x, y], shift, &token)?;
         } else {
@@ -361,10 +368,7 @@ fn confirm_discard(app: &tauri::AppHandle) -> bool {
         let m = state.0.lock().unwrap();
         (
             (m.saved_revision != Some(m.editor.revision()) || m.has_draft())
-                && !(m.epoch == 0
-                    && m.editor.revision() == 0
-                    && m.drag.is_none()
-                    && m.pen.is_empty()),
+                && !(m.epoch == 0 && m.editor.revision() == 0 && !m.has_draft()),
             m.workspace.locale,
         )
     };
@@ -398,7 +402,10 @@ fn confirm_discard(app: &tauri::AppHandle) -> bool {
 fn main() {
     tauri::Builder::default()
         .register_asynchronous_uri_scheme_protocol("thumbnail", |context, request, responder| {
-            if context.webview_label() != "main" && context.webview_label() != "panel-glyphs" {
+            if context.webview_label() != "main"
+                && context.webview_label() != "panel-glyphs"
+                && context.webview_label() != "panel-snippets"
+            {
                 responder.respond(
                     tauri::http::Response::builder()
                         .status(403)
@@ -443,6 +450,16 @@ fn main() {
                 let state = window.state::<AppState>();
                 if let Ok(mut m) = state.0.lock() {
                     m.text_focus.remove(window.label());
+                    if m.snippets
+                        .draft
+                        .as_ref()
+                        .is_some_and(|d| d.owner == window.label() || window.label() == "main")
+                    {
+                        m.snippets.draft = None;
+                        if m.tool == font_core::workspace::Tool::Snippets {
+                            m.tool = font_core::workspace::Tool::Nodes;
+                        }
+                    }
                     if m.images
                         .drag
                         .as_ref()
@@ -488,6 +505,8 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            clipboard::paste_paths,
+            clipboard::paste_text,
             font_batch::font_batch_start,
             font_batch::font_batch_query,
             font_batch::font_batch_cancel,
@@ -496,6 +515,7 @@ fn main() {
             recovery::recovery_action,
             reference_images::reference_import,
             reference_images::reference_action,
+            snippets::snippet_action,
             snapshot,
             edit,
             pointer,

@@ -18,9 +18,9 @@ export function useWorkspace(){
     void Promise.all([listen('state-changed',()=>void refresh()),listen<string>('canvas-error',e=>setError(e.payload)),listen<string>('menu-edit',e=>{
       const target=document.activeElement;
       if(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||(target instanceof HTMLElement&&target.isContentEditable)){
-        document.execCommand(e.payload==='redo'?'redo':'undo');return;
+        if(e.payload==='paste'){void invoke('paste_text').catch(e=>setError(String(e)));}else{document.execCommand(e.payload==='redo'?'redo':'undo');}return;
       }
-      const s=current.current;if(!s||(e.payload==='undo'?!s.can_undo:!s.can_redo))return;
+      const s=current.current;if(e.payload==='paste'){if(s)void invoke('paste_paths',{epoch:s.epoch,revision:s.revision,glyph:s.glyph}).then(()=>setError('')).catch(e=>setError(String(e)));return;}if(!s||(e.payload==='undo'?!s.can_undo:!s.can_redo))return;
       void invoke('edit',{epoch:s.epoch,action:{type:e.payload,revision:s.revision}}).catch(e=>setError(String(e)));
     })]).then(([a,b,c])=>{if(disposed){a();b();c();}else{unlisten=a;unerror=b;unmenu=c;void refresh();}}).catch(e=>setError(String(e)));
     const focus=()=>{const el=document.activeElement;void invoke('text_focus',{focused:el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement||(el instanceof HTMLElement&&el.isContentEditable)}).catch(()=>{});};

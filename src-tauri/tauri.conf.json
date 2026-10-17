@@ -37,7 +37,10 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "resources/FONT_ENGINE_NOTICES.txt"
+      "resources/FONT_ENGINE_NOTICES.txt",
+      "resources/LICENSE-MIT.txt",
+      "resources/THIRD_PARTY_NOTICES.txt",
+      "resources/licenses/"
     ]
   }
 }

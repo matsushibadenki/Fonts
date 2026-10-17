@@ -22,5 +22,10 @@
     "renderer/surface drop before native view",
     "main-thread window creation and channel response"
   ],
-  "license_status": "Root LICENSE and source license declaration not found. Confirm distribution rights before release."
+  "license_status": "MIT for LumaPaint-owned code copied into Fonts; copyright owner confirmed ownership and authorized MIT use in this task on 2026-10-17. Third-party portions retain their own licenses. Original external LumaPaint checkout was not relicensed or modified.",
+  "license_clarification": {
+    "date": "2026-10-17",
+    "authority": "Copyright owner confirmation in the project conversation",
+    "scope": "LumaPaint-owned code in the Fonts copy only; original copy hashes remain historical provenance. Cargo.toml gains an inherited MIT declaration."
+  }
 }

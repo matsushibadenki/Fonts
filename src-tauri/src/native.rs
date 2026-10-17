@@ -174,6 +174,13 @@ fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
             );
         }
     }
+    let mut images = model.visible_images();
+    if let Some(d) = &model.snippets.draft {
+        let mut bounds = d.placement.clone();
+        bounds.id = u64::MAX;
+        bounds.asset_id.clear();
+        images.push(bounds);
+    }
     c.renderer.draw(
         c.size,
         &model.visible_glyph(),
@@ -184,11 +191,15 @@ fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
         },
         font_renderer::EditorOverlay {
             node: model.selected,
-            images: &model.visible_images(),
+            images: &images,
             assets: model.editor.document().reference_images.assets(),
-            selected_image: (model.tool == font_core::workspace::Tool::Images)
-                .then_some(model.images.selected)
-                .flatten(),
+            selected_image: if model.snippets.draft.is_some() {
+                Some(u64::MAX)
+            } else {
+                (model.tool == font_core::workspace::Tool::Images)
+                    .then_some(model.images.selected)
+                    .flatten()
+            },
         },
     )
 }

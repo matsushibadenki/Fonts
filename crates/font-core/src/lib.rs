@@ -2,9 +2,11 @@
 pub mod font_formats;
 pub mod font_io;
 pub mod geometry;
+pub mod path_paste;
 pub mod proof;
 pub mod reference_images;
 pub mod reference_transform;
+pub mod snippets;
 pub mod storage;
 pub mod unicode;
 pub mod workspace;
@@ -143,6 +145,8 @@ pub struct FontMetadata {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FontDocument {
+    #[serde(default, skip_serializing_if = "snippets::Library::is_empty")]
+    pub snippets: snippets::Library,
     #[serde(
         default,
         skip_serializing_if = "reference_images::ReferenceImages::is_default"
@@ -178,6 +182,7 @@ impl FontDocument {
             glyphs.insert(id, Glyph::new(id, c));
         }
         let document = Self {
+            snippets: Default::default(),
             reference_images: Default::default(),
             schema_version: 1,
             family: family.into(),
@@ -229,6 +234,7 @@ impl FontDocument {
             return Err(Error::InvalidDocument);
         }
         self.reference_images.validate(&self.glyphs)?;
+        self.snippets.validate()?;
         let mut cids = BTreeSet::new();
         let mut codes = BTreeSet::new();
         let mut names = BTreeSet::new();
@@ -256,6 +262,8 @@ pub struct FontProperties {
 }
 #[derive(Clone, Default)]
 struct Change {
+    before_snippets: Option<snippets::Library>,
+    after_snippets: Option<snippets::Library>,
     before_references: Option<reference_images::ReferenceImages>,
     after_references: Option<reference_images::ReferenceImages>,
     before: Vec<Glyph>,
@@ -512,6 +520,9 @@ impl Editor {
         if let Some(references) = &change.before_references {
             self.document.reference_images = references.clone();
         }
+        if let Some(s) = &change.before_snippets {
+            self.document.snippets = s.clone();
+        }
         self.redo.push(change);
         self.revision = revision;
         Ok(revision)
@@ -528,6 +539,9 @@ impl Editor {
         }
         if let Some(references) = &change.after_references {
             self.document.reference_images = references.clone();
+        }
+        if let Some(s) = &change.after_snippets {
+            self.document.snippets = s.clone();
         }
         self.undo.push_back(change);
         self.revision = revision;

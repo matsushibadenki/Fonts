@@ -2,6 +2,7 @@
 name = "font-core"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde.workspace = true
@@ -14,3 +15,6 @@ freetype-rs = { version = "=0.38.0", features = ["bundled"] }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 base64 = "=0.22.1"
 sha2 = "=0.11.1"
+svgtypes = "=0.16.1"
+roxmltree = "=0.21.1"
+lopdf = { version = "=0.45.0", default-features = false }

@@ -200,6 +200,51 @@ mod tests {
         ))
     }
     #[test]
+    fn pasted_paths_survive_checkpoint_and_restart() {
+        let root = root("clipboard");
+        let store = Store::new(root.clone()).unwrap();
+        let mut editor =
+            font_core::Editor::new(FontDocument::new("Clipboard QA", "A").unwrap()).unwrap();
+        let contours = font_core::path_paste::decode(
+            "svg",
+            br#"<svg><path d="M0 0Q50 100 100 0L0 0Z"/></svg>"#,
+        )
+        .unwrap();
+        editor.paste_paths(0, 1, contours).unwrap();
+        store
+            .checkpoint(editor.document(), 1, editor.revision(), None)
+            .unwrap();
+        let id = store.id.clone();
+        drop(store);
+        let next = Store::new(root.clone()).unwrap();
+        let (doc, lease) = next.candidate(&id).unwrap();
+        assert_eq!(&doc, editor.document());
+        drop(lease);
+        drop(next);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn registered_snippets_and_independent_outlines_survive_crash_recovery() {
+        use font_core::{snippets, Editor};
+        let root = root("snippets");
+        let store = Store::new(root.clone()).unwrap();
+        let mut editor = Editor::new(FontDocument::new("部首 中文", "A").unwrap()).unwrap();
+        let source = snippets::builtins()[&5].clone();
+        editor.add_snippet(0, source.clone()).unwrap();
+        let p = source.placement(1000, [300., 300.]).unwrap();
+        editor.insert_snippet(1, 1, &source, &p).unwrap();
+        store.checkpoint(editor.document(), 3, 2, None).unwrap();
+        let id = store.id.clone();
+        drop(store);
+        let next = Store::new(root.clone()).unwrap();
+        let (doc, lease) = next.candidate(&id).unwrap();
+        assert_eq!(&doc, editor.document());
+        assert_eq!(doc.snippets.entries.len(), 1);
+        drop(lease);
+        drop(next);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn embedded_reference_image_survives_crash_without_original_file() {
         use font_core::{reference_images::ImageAsset, Editor};
         let root = root("images");

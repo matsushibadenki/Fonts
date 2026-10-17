@@ -1,3 +1,5 @@
+import {Snippets} from './Snippets';
+import {snippetCommand,snippetError,snippetLabels} from './snippet-i18n';
 import {ReferenceImages} from './ReferenceImages';
 import {GlyphThumbnail} from './GlyphThumbnail';
 import {ContourEditor} from './ContourEditor';
@@ -15,6 +17,7 @@ export function IconButton({icon,label,onClick,active=false,disabled=false}:{ico
   return <button type="button" className={`icon-button ${active?'selected':''}`} title={label} aria-label={label} aria-pressed={active} onClick={onClick} disabled={disabled}><Icon name={icon}/></button>;
 }
 export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId;state:Snapshot;t:T;edit:(a:Edit)=>Promise<void>;layout:(a:Layout)=>Promise<void>;floating?:boolean;onDrag?:(p:PanelId|null)=>void}){
+  const [snippetFailure,setSnippetFailure]=useState('');
   const [search,setSearch]=useState('');
   const [adding,setAdding]=useState(false);
   const [input,setInput]=useState('');
@@ -35,7 +38,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
       onPointerUp={()=>{dragStart.current=null;started.current=false;}}
       onPointerCancel={()=>{dragStart.current=null;started.current=false;onDrag?.(null);}}>
       <span className="grip"><Icon name="grip"/></span><strong>{t(id)}</strong>
-      <span className="panel-help" tabIndex={0} role="img" aria-label={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':'outlineHelp')} title={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':'outlineHelp')}><Icon name="info"/></span>
+      <span className="panel-help" tabIndex={0} role="img" aria-label={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':id==='snippets'?'snippetHelp':'outlineHelp')} title={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':id==='snippets'?'snippetHelp':'outlineHelp')}><Icon name="info"/></span>
       {!floating && <IconButton icon="popout" label={t('popout')} onClick={()=>void layout({type:'float',panel:id})}/>}
     </header>
     {floating && <div className="float-docks" title={t('floatHelp')}>{(['left','right','bottom'] as const).map(d=><IconButton key={d} icon={d} label={t(d)} onClick={()=>void layout({type:'dock',panel:id,dock:d})}/>)}</div>}
@@ -49,6 +52,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
         </form>}
     </div>}
     <div className="panel-body">
+      {snippetFailure&&<div className="reference-error" role="alert">{snippetFailure}</div>}
       {id==='glyphs' && <>
         <div className="glyph-grid">{filtered.slice(currentPage*256,(currentPage+1)*256).map(g=><button key={g.id} className={`glyph ${g.id===state.glyph?'current':''}`} onClick={()=>void edit({type:'select_glyph',id:g.id})} title={`${g.name}${g.cid!==null?` · CID ${g.cid}`:''} · ${g.codepoints.map(unicodeCode).join(', ')}`} aria-label={`${g.name}${g.cid!==null?` CID ${g.cid}`:''} ${glyphLabel(g.character)} ${g.codepoints.map(unicodeCode).join(', ')}`} aria-pressed={g.id===state.glyph}>
           <GlyphThumbnail key={`${state.epoch}-${state.revision}-${g.id}`} glyph={g} epoch={state.epoch} revision={state.revision} locale={state.workspace.locale}/><small>{g.codepoints.length?g.codepoints[0].toString(16).toUpperCase().padStart(4,'0'):g.cid!==null?`CID${g.cid}`:'—'}</small><i className={g.reviewed?'reviewed':g.has_outline?'drawn':''}/>
@@ -57,6 +61,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
 
 
       </>}
+      {id==='snippets'&&<Snippets state={state}/>}
       {id==='metrics' && <div className="metrics-form">
         <label className="metric"><span>{t('advance')}</span><input key={`${state.glyph}-${state.advance}`} type="number" min="0" max="65535" step="1" aria-label={t('advance')} defaultValue={state.advance} onBlur={e=>{if(e.target.value!==''&&Number(e.target.value)!==state.advance)void edit({type:'advance',value:Number(e.target.value),revision:state.revision,id:state.glyph});}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
         <UnicodeAssignment key={`${state.epoch}-${state.glyph}`} state={state}/>
@@ -66,7 +71,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
       </div>}
       {id==='outline' && <div className="outline-sections"><ReferenceImages key={`${state.epoch}-${state.glyph}`} state={state}/><div>
         <div className="panel-count">{state.contours.length} {t('contours')}</div>
-        {state.contours.length===0?<p className="empty">{t('empty')}</p>:<div className="contour-list">{state.contours.map((c,i)=><div className="contour-item" key={i}><div className="contour-row"><Icon name="contour"/><span>#{i+1}</span><span>{c.nodes} {t('points')}</span><span className="contour-state" title={t(c.closed?'closed':'open')}>{c.closed?'○':'⌒'}</span></div><ContourEditor key={`${state.epoch}-${state.glyph}-${i}`} state={state} index={i} edit={edit}/></div>)}</div>}
+        {state.contours.length===0?<p className="empty">{t('empty')}</p>:<div className="contour-list">{state.contours.map((c,i)=><div className="contour-item" key={i}><div className="contour-row"><input type="checkbox" aria-label={`${snippetLabels[state.workspace.locale].selectContour} #${i+1}`} checked={state.snippets.contours.includes(i)} disabled={!!state.snippets.placement} onChange={e=>void snippetCommand(state,{type:'contour',index:i,selected:e.target.checked}).then(()=>setSnippetFailure('')).catch(e=>setSnippetFailure(snippetError(state.workspace.locale,e)))}/><Icon name="contour"/><span>#{i+1}</span><span>{c.nodes} {t('points')}</span><span className="contour-state" title={t(c.closed?'closed':'open')}>{c.closed?'○':'⌒'}</span></div><ContourEditor key={`${state.epoch}-${state.glyph}-${i}`} state={state} index={i} edit={edit}/></div>)}</div>}
       </div></div>}
     </div>
     {id==='glyphs'&&<footer className="panel-footer glyph-footer">{pages>1&&<div className="glyph-pages"><button disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} aria-label={t('previousPage')}>‹</button><input className="glyph-page-input" type="number" min={1} max={pages} aria-label={t('pageNumber')} value={currentPage+1} onChange={e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=pages)setPage(n-1);}}/><span>/ {pages}</span><button disabled={currentPage===pages-1} onClick={()=>setPage(currentPage+1)} aria-label={t('nextPage')}>›</button></div>}<span>{state.glyphs.filter(g=>g.reviewed).length} / {state.glyphs.length}</span><span>{t('reviewed')}</span></footer>}

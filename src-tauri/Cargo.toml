@@ -2,6 +2,7 @@
 name = "fonts-app"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [build-dependencies]
 tauri-build = { version = "=2.7.3", features = [] }
@@ -10,6 +11,7 @@ tauri-build = { version = "=2.7.3", features = [] }
 tauri = { version = "=2.12.4", features = [] }
 serde.workspace = true
 serde_json = "1"
+futures-channel = "0.3"
 font-core = { path = "../crates/font-core" }
 font-renderer = { path = "../crates/font-renderer" }
 rfd = "=0.17.2"
@@ -28,5 +30,5 @@ windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Grap
 [target.'cfg(target_os = "macos")'.dependencies]
 raw-window-handle = "0.6.2"
 objc2 = "=0.6.5"
-objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSView", "NSWindow", "NSResponder"] }
-objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSGeometry", "NSObject"] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSView", "NSWindow", "NSResponder", "NSPasteboard", "NSApplication"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSGeometry", "NSObject", "NSString", "NSData", "NSArray"] }

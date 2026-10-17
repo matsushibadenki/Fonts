@@ -38,7 +38,10 @@ pub enum Action {
 }
 impl Model {
     pub fn has_draft(&self) -> bool {
-        self.drag.is_some() || self.images.drag.is_some() || !self.pen.is_empty()
+        self.drag.is_some()
+            || self.images.drag.is_some()
+            || self.snippets.draft.is_some()
+            || !self.pen.is_empty()
     }
     pub fn visible_images(&self) -> Vec<ReferenceImage> {
         self.editor
@@ -70,7 +73,11 @@ impl Model {
         if self.epoch != epoch || self.editor.revision() != revision || self.glyph != glyph {
             return Err("Conflict".into());
         }
-        if self.proof.active || self.drag.is_some() || !self.pen.is_empty() {
+        if self.proof.active
+            || self.drag.is_some()
+            || self.snippets.draft.is_some()
+            || !self.pen.is_empty()
+        {
             return Err("edit_in_progress".into());
         }
         Ok(())

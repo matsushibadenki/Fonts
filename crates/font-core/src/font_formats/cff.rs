@@ -212,6 +212,7 @@ pub fn opentype(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
     let cff = encode(doc, cid)?;
     // Seed shared SFNT metadata without converting cubic curves through glyf.
     let metrics = FontDocument {
+        snippets: Default::default(),
         reference_images: Default::default(),
         schema_version: doc.schema_version,
         family: doc.family.clone(),

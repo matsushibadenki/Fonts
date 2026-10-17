@@ -47,9 +47,10 @@ enum Word {
     ShowAll,
     Quit,
     Library,
+    Snippets,
 }
 fn text(locale: Locale, key: Word) -> &'static str {
-    const EN: [&str; 37] = [
+    const EN: [&str; 38] = [
         "File",
         "Edit",
         "View",
@@ -87,8 +88,9 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "Show All",
         "Quit Fonts",
         "Font Library…",
+        "Components / Snippets",
     ];
-    const JA: [&str; 37] = [
+    const JA: [&str; 38] = [
         "ファイル",
         "編集",
         "表示",
@@ -126,8 +128,9 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "すべてを表示",
         "Fontsを終了",
         "フォントライブラリ…",
+        "部品・スニペット",
     ];
-    const ZH: [&str; 37] = [
+    const ZH: [&str; 38] = [
         "文件",
         "编辑",
         "显示",
@@ -165,6 +168,7 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "显示全部",
         "退出 Fonts",
         "字体库…",
+        "部件与片段",
     ];
     (match locale {
         Locale::En => EN,
@@ -178,6 +182,10 @@ pub fn build(app: &tauri::AppHandle, locale: Locale) -> tauri::Result<Menu<tauri
     let item = |id, key, shortcut| MenuItem::with_id(app, id, t(key), true, shortcut);
     let check = |id, key| CheckMenuItem::with_id(app, id, t(key), true, false, None::<&str>);
     let separator = || PredefinedMenuItem::separator(app);
+    #[cfg(target_os = "macos")]
+    let paste = MenuItem::with_id(app, "paste", t(Paste), true, Some("CmdOrCtrl+V"))?;
+    #[cfg(not(target_os = "macos"))]
+    let paste = PredefinedMenuItem::paste(app, Some(t(Paste)))?;
     Menu::with_items(
         app,
         &[
@@ -228,7 +236,7 @@ pub fn build(app: &tauri::AppHandle, locale: Locale) -> tauri::Result<Menu<tauri
                     &separator()?,
                     &PredefinedMenuItem::cut(app, Some(t(Cut)))?,
                     &PredefinedMenuItem::copy(app, Some(t(Copy)))?,
-                    &PredefinedMenuItem::paste(app, Some(t(Paste)))?,
+                    &paste,
                     &PredefinedMenuItem::select_all(app, Some(t(All)))?,
                 ],
             )?,
@@ -264,6 +272,7 @@ pub fn build(app: &tauri::AppHandle, locale: Locale) -> tauri::Result<Menu<tauri
                             &item("panel_glyphs", Glyphs, None)?,
                             &item("panel_metrics", Metrics, None)?,
                             &item("panel_outline", Outline, None)?,
+                            &item("panel_snippets", Snippets, None)?,
                         ],
                     )?,
                     &item("reset_panels", Reset, None)?,
@@ -333,6 +342,7 @@ pub fn panel(id: &str) -> Option<Panel> {
         "panel_glyphs" => Some(Panel::Glyphs),
         "panel_metrics" => Some(Panel::Metrics),
         "panel_outline" => Some(Panel::Outline),
+        "panel_snippets" => Some(Panel::Snippets),
         _ => None,
     }
 }
