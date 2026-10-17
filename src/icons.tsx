@@ -1,0 +1,34 @@
+const paths = {
+  image:'M3 4h18v16H3zM3 16l5-5 4 4 3-3 6 6M16 8h.01',
+  images:'M4 4h16v16H4zM2 2h4v4H2zM18 18h4v4h-4zM9 12l3-3 5 6',
+  imageAdd:'M3 4h12M3 4v16h18V10M3 16l5-5 4 4 3-3 6 6M19 2v6M16 5h6',
+  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+  eyeOff:'M3 3l18 18M9 5a12 12 0 0 1 13 7 16 16 0 0 1-3 4M6 6a16 16 0 0 0-4 6s4 7 10 7a12 12 0 0 0 4-1',
+  lock:'M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0v4M12 14v3',
+  unlock:'M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0M12 14v3',
+  layerUp:'M3 15l9 6 9-6M3 10l9 6 9-6M12 2v8M8 6l4-4 4 4',
+  layerDown:'M3 9l9-6 9 6M3 14l9-6 9 6M12 14v8M8 18l4 4 4-4',
+  trash:'M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7',
+
+  newDocument:'M14 3H4v18h16V9zM14 3v6h6M8 15h8M12 11v8',
+  settings:'M9.5 3h5l.5 2.5 2 1.2 2.4-.8 2.5 4.2-1.9 1.6v2.6l1.9 1.6-2.5 4.2-2.4-.8-2 1.2-.5 2.5h-5L9 20.5l-2-1.2-2.4.8-2.5-4.2L4 14.3v-2.6l-1.9-1.6 2.5-4.2 2.4.8 2-1.2zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
+
+  recovery:'M3 11a9 9 0 1 1 2.5 7M3 4v7h7M12 7v5l3 2',
+  library:'M4 3h5v18H4zM11 3h4v18h-4zM17 4l3-1 4 17-3 1z',
+  folder:'M3 7V4h7l2 3h9v13H3z',refresh:'M20 7a9 9 0 10.5 9M20 3v5h-5',
+  download:'M12 3v12m-5-5l5 5 5-5M4 16v5h16v-5',upload:'M12 16V3m-5 5l5-5 5 5M4 16v5h16v-5',power:'M12 2v10M7 5a9 9 0 1010 0', 
+  nodes:'M4 4h5v5H4zM15 15h5v5h-5zM8 8l8 8M15 4h5v5h-5zM4 15h5v5H4z',
+  pen:'M12 3l8 8-7 9-9 1 1-9zM12 3l-1 10 9-2M4 21l7-8',
+  pan:'M8 12V6a2 2 0 014 0v5-7a2 2 0 014 0v7-4a2 2 0 014 0v8c0 5-3 7-7 7-3 0-4-2-6-4l-3-4a2 2 0 013-2l2 2',
+  undo:'M9 5L4 10l5 5M4 10h10a6 6 0 016 6v3',redo:'M15 5l5 5-5 5m5-5H10a6 6 0 00-6 6v3',
+  save:'M4 3h13l4 4v14H3V3h1zm3 0v7h10V3M7 21v-7h10v7',
+  popout:'M13 3h8v8m0-8L10 14M9 5H3v16h16v-6',
+  left:'M3 4h18v16H3zM9 4v16',right:'M3 4h18v16H3zM15 4v16',bottom:'M3 4h18v16H3zM3 14h18',
+  reset:'M4 9a8 8 0 111 9M4 3v6h6',info:'M12 11v6m0-10v.1M21 12a9 9 0 11-18 0 9 9 0 0118 0',
+  grip:'M8 5h.1M16 5h.1M8 12h.1M16 12h.1M8 19h.1M16 19h.1',
+  check:'M5 12l4 4L20 5',fill:'M12 3l8 9a8 8 0 11-16 0z',fit:'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6',
+  minus:'M5 12h14',plus:'M5 12h14M12 5v14',search:'M21 21l-5-5M18 10a8 8 0 11-16 0 8 8 0 0116 0',
+  close:'M6 6l12 12M6 18L18 6',contour:'M5 5h14v14H5zM3 3h4v4H3zM17 17h4v4h-4z',
+} as const;
+export type IconName=keyof typeof paths;
+export function Icon({name}:{name:IconName}){return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={name==='grip'?3:1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]}/></svg>}

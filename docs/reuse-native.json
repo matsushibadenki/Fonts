@@ -1,0 +1,26 @@
+{
+  "source_project": "LumaPaint",
+  "source_commit": "8a1b93a3191a46647c6c0dc33194c2059a1b437f",
+  "files": [
+    {
+      "source_path": "src-tauri/src/canvas_macos.rs",
+      "source_file_sha256": "8987a2b7b884268683e3ac12f502e366b4624c6868aba280a912dfede13b9b17",
+      "copied_section": "native_frame",
+      "copied_section_sha256": "e8dc3ff77ad40b666320d70cba2c963ae3433757cce75f14d3ac0e253a20cf68",
+      "destination": "src-tauri/src/native_frame.rs",
+      "destination_sha256": "b5c079e7ea45f1161a4d6847ef76bb543d2841af18d23255f488afe2e1d8a4b5",
+      "adaptations": [
+        "pub(super) visibility",
+        "local CanvasRequest imports",
+        "formatting",
+        "safe-area tests"
+      ]
+    }
+  ],
+  "patterns_adapted": [
+    "retained NSView before Metal surface construction",
+    "renderer/surface drop before native view",
+    "main-thread window creation and channel response"
+  ],
+  "license_status": "Root LICENSE and source license declaration not found. Confirm distribution rights before release."
+}

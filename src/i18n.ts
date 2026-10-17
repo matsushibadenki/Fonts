@@ -1,0 +1,52 @@
+import type { Locale } from './types';
+const en = {
+  newDocument:'New blank document',
+  invalidUnicode:'Enter valid characters or Unicode scalar code points (U+0000–U+10FFFF, excluding surrogates).',unicodeLimit:'Limit exceeded: 65534 unique characters per batch and 65535 glyphs per project.',
+  addCharacters:'Add characters',characters:'Characters',codepoints:'Code points',inputMode:'Input mode',noMatches:'No matching characters',pageNumber:'Page',previousPage:'Previous page',nextPage:'Next page',unicodeHelp:'Add literal characters or hexadecimal code points and ranges (U+3041-U+3096, U+1F600). Up to 65534 unique scalars per batch. Existing characters are preserved. Sequences are added as separate characters.',
+  glyphs:'Glyphs',metrics:'Metrics',outline:'Outline',draw:'Draw',space:'Space',test:'Test',export:'Export',
+  nodes:'Edit nodes',pen:'Pen',pan:'Pan',undo:'Undo',redo:'Redo',save:'Save project',
+  popout:'Float panel',left:'Dock left',right:'Dock right',bottom:'Dock bottom',reset:'Reset panels',
+  advance:'Advance width',ascender:'Ascender',descender:'Descender',upm:'Units per em',
+  review:'Mark reviewed',reviewed:'Reviewed',draft:'Draft',fill:'Filled preview',showNodes:'Show nodes',fit:'Fit view',
+  search:'Character / U+ / name',contours:'contours',points:'nodes',closed:'Closed',open:'Open',
+  glyphHelp:'Choose a character. Drag this panel header to another dock.',
+  metricHelp:'Advance width controls the distance to the next character. Global metrics are read-only in this stage.',
+  outlineHelp:'Drag square anchors or round curve handles to edit. Pen: click to add points, Enter or double-click to close. Esc cancels.',
+  pending:'This step is planned.',native:'Native GPU canvas',loading:'Opening workspace…',
+  drop:'Drop panel',floatHelp:'Use a dock button to return this panel. Closing the window also docks it.',
+  finish:'Close contour',cancel:'Cancel edit',empty:'No contours',language:'Language',
+  startup:'Open this editor with npm run tauri dev.',error:'Operation failed',retry:'Retry',
+  penHint:'Click to add points · Enter to close · Esc to cancel',nodesHint:'Drag anchors · ⌘Z undo',
+  gpuError:'GPU canvas unavailable',baseline:'Baseline',ready:'Ready',
+};
+export type Key = keyof typeof en;
+const ja:Record<Key,string> = {
+  newDocument:'新規空ドキュメント',
+  invalidUnicode:'有効な文字またはコードポイントを入力してください（U+0000〜U+10FFFF、サロゲートを除く）。',unicodeLimit:'上限を超えました。1回65534文字、プロジェクト全体65535グリフまでです。',
+  addCharacters:'文字を追加',characters:'文字列',codepoints:'コードポイント',inputMode:'入力方法',noMatches:'一致する文字なし',pageNumber:'ページ',previousPage:'前のページ',nextPage:'次のページ',unicodeHelp:'文字列、または16進数のコードポイントと範囲（U+3041-U+3096, U+1F600）を追加します。1回65534文字まで。登録済みの文字は保持します。結合文字列は個別の文字として追加します。',
+  glyphs:'文字一覧',metrics:'メトリクス',outline:'輪郭',draw:'描く',space:'揃える',test:'試す',export:'完成',
+  nodes:'ノード編集',pen:'ペン',pan:'手のひら',undo:'元に戻す',redo:'やり直す',save:'プロジェクトを保存',
+  popout:'パネルを分離',left:'左にドッキング',right:'右にドッキング',bottom:'下にドッキング',reset:'パネル配置を戻す',
+  advance:'文字の送り幅',ascender:'上端',descender:'下端',upm:'1 emの単位数',review:'確認済みにする',reviewed:'確認済み',draft:'作成中',
+  fill:'塗りのプレビュー',showNodes:'ノードを表示',fit:'全体を表示',search:'文字 / U+ / 名前',contours:'輪郭',points:'ノード',closed:'閉じた輪郭',open:'開いた輪郭',
+  glyphHelp:'文字を選択。パネルの見出しをドラッグすると別のドックへ移動できます。',
+  metricHelp:'送り幅は次の文字までの距離です。この段階では全体の上下端は表示のみです。',
+  outlineHelp:'四角い端点・丸い曲線ハンドルをドラッグして編集。ペンはクリックで点を追加し、Enterかダブルクリックで閉じます。Escで取り消し。',
+  pending:'この工程は今後実装します。',native:'ネイティブGPU描画',loading:'ワークスペースを開いています…',drop:'パネルを配置',
+  floatHelp:'ドックのボタンでパネルを戻せます。ウインドウを閉じても元のドックに戻ります。',finish:'輪郭を閉じる',cancel:'編集を取り消す',empty:'輪郭なし',language:'表示言語',
+  startup:'npm run tauri dev でエディターを起動してください。',error:'操作に失敗しました',retry:'再試行',penHint:'クリックで点を追加 · Enterで閉じる · Escで取り消し',nodesHint:'点をドラッグ · ⌘Zで元に戻す',gpuError:'GPU描画を開始できません',baseline:'基準線',ready:'準備完了',
+};
+const zh:Record<Key,string> = {
+  newDocument:'新建空白文档',
+  invalidUnicode:'请输入有效字符或 Unicode 标量码点（U+0000–U+10FFFF，不含代理码点）。',unicodeLimit:'超出上限：每批65534个不同字符，每个项目65535个字形。',
+  addCharacters:'添加字符',characters:'字符串',codepoints:'码点',inputMode:'输入方式',noMatches:'无匹配字符',pageNumber:'页码',previousPage:'上一页',nextPage:'下一页',unicodeHelp:'添加字符串或十六进制码点与范围（U+3041-U+3096, U+1F600）。每批最多65534个不同标量。保留已有字符。序列将按单独字符添加。',
+  glyphs:'字符',metrics:'度量',outline:'轮廓',draw:'绘制',space:'间距',test:'测试',export:'完成',
+  nodes:'编辑节点',pen:'钢笔',pan:'平移',undo:'撤销',redo:'重做',save:'保存项目',popout:'浮动面板',left:'停靠左侧',right:'停靠右侧',bottom:'停靠底部',reset:'重置面板',
+  advance:'前进宽度',ascender:'上升部',descender:'下降部',upm:'每 em 单位数',review:'标记为已确认',reviewed:'已确认',draft:'制作中',fill:'填充预览',showNodes:'显示节点',fit:'适合窗口',
+  search:'字符 / U+ / 名称',contours:'轮廓',points:'节点',closed:'闭合',open:'开放',glyphHelp:'选择字符。拖动面板标题可移动到其他停靠区。',
+  metricHelp:'前进宽度决定到下一个字符的距离。此阶段全局上下边界为只读。',outlineHelp:'拖动方形锚点或圆形曲线手柄进行编辑。钢笔：点击添加节点，按 Enter 或双击闭合，Esc 取消。',
+  pending:'此步骤将在后续实现。',native:'原生 GPU 画布',loading:'正在打开工作区…',drop:'放置面板',floatHelp:'使用停靠按钮返回面板。关闭窗口也会自动停靠。',
+  finish:'闭合轮廓',cancel:'取消编辑',empty:'暂无轮廓',language:'显示语言',startup:'请通过 npm run tauri dev 启动编辑器。',error:'操作失败',retry:'重试',
+  penHint:'点击添加节点 · Enter 闭合 · Esc 取消',nodesHint:'拖动锚点 · ⌘Z 撤销',gpuError:'GPU 画布不可用',baseline:'基线',ready:'就绪',
+};
+export const messages:Record<Locale,Record<Key,string>> = {en,ja,zh_cn:zh};

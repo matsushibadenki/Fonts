@@ -1,0 +1,22 @@
+{
+  "source": "LumaPaint",
+  "commit": "f2cf8225a9d07fe238b70f17bfeb5d5f7eed519e",
+  "copied_files": {
+    "crates/lumapaint-core/.DS_Store": "8ce2598734e8d654f33a21b17e5a740a3de8cfbf0d64d6efaea4a1079542fe35",
+    "crates/lumapaint-core/Cargo.toml": "d7cec9b070e83e9fc8dd7d5115c5f78f8aa889513c899a291fe16bf68a0eba05",
+    "crates/lumapaint-core/src/bezier.rs": "f01fe233f1b35469f1c8b2e88bb2acbe8bae8c17592fae735a7b66aa1e08bacc",
+    "crates/lumapaint-core/src/document.rs": "9b312f85c57615192f2f34c889ae038569e2ead6eac2a150ac43fbb2845fae94",
+    "crates/lumapaint-core/src/gradient.rs": "2c0647c3f7811e1f9cbac6a16a3a0eea8640cc84c29d5594f831e5bf88cb3031",
+    "crates/lumapaint-core/src/graph.rs": "298cf0e19bc83d9fefc8e1433a043af5bba5800e73c39e41e4a91650bae18d75",
+    "crates/lumapaint-core/src/lib.rs": "481e59efb7a191663c77be7b34ff2843d4dd6c123242fe595bd9699cf2b877e6",
+    "crates/lumapaint-core/src/object_lock.rs": "8609f8f9fcb06efd1fa4478f7ab84d6d112cdb49a2683db4c5ecf9295be4f4d8",
+    "crates/lumapaint-core/src/object_visibility.rs": "46421ff348e699ce57afcfd8ea25b702f3a09f2bc320685f7d6dea01f93d8a85",
+    "crates/lumapaint-core/src/selection.rs": "c301d69ecbd4f000e055315026cf22d5b17c05632254dcb053d7e63223c138a1",
+    "crates/lumapaint-core/src/stroke.rs": "cf47bdffd8b3760e586c3e03b5bd9867908889f151db993966f17956c398d537",
+    "crates/lumapaint-core/src/svg_backend.rs": "cf9ba63c646d2896882dc2b0964ab80c9a0f4119307e4c58ccac6e19355370c9",
+    "crates/lumapaint-core/src/tiles.rs": "7c98fe3ffacc066e36f036fe534da93348400c67eca1cb123d78b99ef1facf22",
+    "crates/lumapaint-core/src/transform_panel.rs": "0cb46fa21c79166c10e1b6cb254113395a4446f95f6294239b865ae74c437aab",
+    "crates/lumapaint-core/src/vector.rs": "c8ba06450bddd7eb134fc7a76c46637c2401c4b2fe5a6e91ada118e8caa0e340"
+  },
+  "license": "No root LICENSE or core license declaration found; confirm distribution rights before publishing."
+}

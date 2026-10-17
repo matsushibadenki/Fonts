@@ -1,0 +1,1896 @@
+//! Portable path interchange. Engine-owned objects never enter saved documents.
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FillRule {
+    #[default]
+    NonZero,
+    EvenOdd,
+}
+
+/// SVG path data (the `d` attribute), in document coordinates, without paint or transforms.
+/// This is the engine and editable-document interchange boundary.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct VectorPath {
+    pub data: String,
+    pub fill_rule: FillRule,
+}
+
+pub type PortablePathGeometry = (VectorPath, Vec<[f32; 2]>);
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct VectorPaint {
+    pub color: [u8; 4],
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VectorObjectKind {
+    #[default]
+    Path,
+    Bezier,
+    Compound,
+    Rectangle,
+    Ellipse,
+    Text,
+}
+
+/// Character formatting, independent of paragraph and text-frame layout.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextStyle {
+    pub font_family: String,
+    pub font_size: f32,
+    #[serde(default = "default_object_opacity")]
+    pub scale_x: f32,
+    #[serde(default = "default_object_opacity")]
+    pub scale_y: f32,
+    #[serde(default)]
+    pub rotation: f32,
+    pub bold: bool,
+    pub italic: bool,
+    pub tracking: f32,
+    pub baseline_shift: f32,
+    pub underline: bool,
+    pub strikethrough: bool,
+    pub color: [u8; 3],
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextStylePatch {
+    pub font_family: Option<String>,
+    pub font_size: Option<f32>,
+    pub scale_x: Option<f32>,
+    pub scale_y: Option<f32>,
+    pub rotation: Option<f32>,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
+    pub tracking: Option<f32>,
+    pub baseline_shift: Option<f32>,
+    pub underline: Option<bool>,
+    pub strikethrough: Option<bool>,
+    pub color: Option<[u8; 3]>,
+}
+impl TextStyle {
+    pub fn apply(&mut self, patch: &TextStylePatch) {
+        if let Some(value) = patch.scale_x {
+            self.scale_x = value;
+        }
+        if let Some(value) = patch.scale_y {
+            self.scale_y = value;
+        }
+        if let Some(value) = patch.rotation {
+            self.rotation = value;
+        }
+        if let Some(value) = &patch.font_family {
+            self.font_family = value.clone();
+        }
+        if let Some(value) = patch.font_size {
+            self.font_size = value;
+        }
+        if let Some(value) = patch.bold {
+            self.bold = value;
+        }
+        if let Some(value) = patch.italic {
+            self.italic = value;
+        }
+        if let Some(value) = patch.tracking {
+            self.tracking = value;
+        }
+        if let Some(value) = patch.baseline_shift {
+            self.baseline_shift = value;
+        }
+        if let Some(value) = patch.underline {
+            self.underline = value;
+        }
+        if let Some(value) = patch.strikethrough {
+            self.strikethrough = value;
+        }
+        if let Some(value) = patch.color {
+            self.color = value;
+        }
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if self.font_family.trim().is_empty()
+            || self.font_family.chars().count() > 200
+            || self.font_family.chars().any(char::is_control)
+            || !(1.0..=512.0).contains(&self.font_size)
+            || !(0.1..=4.0).contains(&self.scale_x)
+            || !(0.1..=4.0).contains(&self.scale_y)
+            || !(-180.0..=180.0).contains(&self.rotation)
+            || !(-100.0..=1000.0).contains(&self.tracking)
+            || !(-512.0..=512.0).contains(&self.baseline_shift)
+        {
+            return Err("Invalid character style".into());
+        }
+        Ok(())
+    }
+}
+/// Half-open UTF-16 offsets, matching native text selection and JavaScript strings.
+/// Boundaries must not split surrogate pairs. Gaps inherit the object's base style.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextRun {
+    pub start: usize,
+    pub end: usize,
+    pub style: TextStyle,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextGlyphCluster {
+    /// UTF-16 offsets relative to the visual line.
+    pub start: usize,
+    pub end: usize,
+    pub x: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WritingMode {
+    #[default]
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(default)]
+pub struct VectorText {
+    /// Point text grows with its content instead of wrapping inside an area frame.
+    #[serde(default)]
+    pub point_text: bool,
+    /// Persisted edit metadata. Rendering continues to use content and dimensions.
+    #[serde(default)]
+    pub change_generation: u64,
+    /// Unix epoch milliseconds; zero identifies legacy text without edit metadata.
+    #[serde(default)]
+    pub updated_at_ms: u64,
+    #[serde(default)]
+    pub writing_mode: WritingMode,
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub runs: Vec<TextRun>,
+    /// UTF-16 offsets at the start of visual lines inserted by the native text layout.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub soft_breaks: Vec<usize>,
+    /// Native layout baselines for visual lines in unscaled text-container coordinates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub line_baselines: Vec<f32>,
+    /// Native layout width for each visual line, before text-object transforms.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub line_widths: Vec<f32>,
+    /// Native layout pen position at the start of each visual line.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub line_origins: Vec<f32>,
+    /// Native pen positions for the style segments on each visual line.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub style_segment_origins: Vec<Vec<f32>>,
+    /// Native pen positions for each Unicode scalar on every visual line.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub character_origins: Vec<Vec<f32>>,
+    /// Native shaping clusters for ligatures and combining sequences on each line.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub glyph_clusters: Vec<Vec<TextGlyphCluster>>,
+    /// Glyph enclosure in unscaled, unrotated text-container coordinates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout_bounds: Option<[f32; 4]>,
+    pub font_family: String,
+    pub font_size: f32,
+    pub line_height: f32,
+    pub bold: bool,
+    pub italic: bool,
+    pub tracking: f32,
+    pub scale_x: f32,
+    pub scale_y: f32,
+    pub baseline_shift: f32,
+    pub rotation: f32,
+    pub underline: bool,
+    pub strikethrough: bool,
+    pub alignment: TextAlignment,
+    pub box_width: f32,
+    /// A fixed-height layout frame. None keeps legacy point text at automatic height.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub box_height: Option<f32>,
+    pub indent_left: f32,
+    pub indent_right: f32,
+    pub indent_first: f32,
+    pub space_before: f32,
+    pub space_after: f32,
+    pub list_style: ParagraphListStyle,
+    pub kinsoku: KinsokuMode,
+    pub mojikumi: MojikumiMode,
+    pub hyphenation: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TextAlignment {
+    #[default]
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParagraphListStyle {
+    #[default]
+    None,
+    Bullets,
+    Numbers,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum KinsokuMode {
+    #[default]
+    None,
+    Standard,
+    Strict,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MojikumiMode {
+    #[default]
+    None,
+    Japanese,
+}
+
+impl Default for VectorText {
+    fn default() -> Self {
+        Self {
+            change_generation: 0,
+            updated_at_ms: 0,
+            writing_mode: WritingMode::Horizontal,
+            content: String::new(),
+            runs: Vec::new(),
+            soft_breaks: Vec::new(),
+            line_baselines: Vec::new(),
+            line_widths: Vec::new(),
+            line_origins: Vec::new(),
+            style_segment_origins: Vec::new(),
+            character_origins: Vec::new(),
+            glyph_clusters: Vec::new(),
+            layout_bounds: None,
+            font_family: "sans-serif".into(),
+            font_size: 48.0,
+            line_height: 1.4,
+            bold: false,
+            italic: false,
+            tracking: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            baseline_shift: 0.0,
+            rotation: 0.0,
+            underline: false,
+            strikethrough: false,
+            alignment: TextAlignment::Left,
+            point_text: false,
+            box_width: 480.0,
+            box_height: None,
+            indent_left: 0.0,
+            indent_right: 0.0,
+            indent_first: 0.0,
+            space_before: 0.0,
+            space_after: 0.0,
+            list_style: ParagraphListStyle::None,
+            kinsoku: KinsokuMode::None,
+            mojikumi: MojikumiMode::None,
+            hyphenation: false,
+        }
+    }
+}
+
+fn utf16_boundary_in(value: &str, offset: usize) -> bool {
+    let mut at = 0;
+    for character in value.chars() {
+        if at == offset {
+            return true;
+        }
+        at += character.len_utf16();
+    }
+    at == offset
+}
+
+impl VectorText {
+    pub fn reflow_vertical(&mut self) {
+        use unicode_segmentation::UnicodeSegmentation;
+        self.clear_measured_layout();
+        let limit = if self.point_text {
+            100_000.0
+        } else {
+            self.box_height.unwrap_or(self.box_width)
+        };
+        let mut offset = 0;
+        let mut advance = self.indent_left + self.indent_first;
+        let mut longest: f32 = 0.;
+        for grapheme in self.content.graphemes(true) {
+            if grapheme.contains('\n') {
+                advance = self.indent_left + self.indent_first;
+            } else {
+                let style = self.style_at(offset, [0, 0, 0]);
+                let step =
+                    (style.font_size * style.scale_y * (1. + style.tracking / 1000.)).max(0.1);
+                if advance + step > limit - self.indent_right
+                    && advance > self.indent_left + self.indent_first
+                {
+                    self.soft_breaks.push(offset);
+                    advance = self.indent_left;
+                }
+                advance += step;
+                longest = longest.max(advance);
+            }
+            offset += grapheme.encode_utf16().count();
+        }
+        let columns = self.visual_lines().len() as f32;
+        let span = columns * self.font_size * self.line_height;
+        self.layout_bounds = Some([
+            self.box_width - span,
+            0.,
+            span,
+            if self.point_text {
+                longest.max(self.font_size)
+            } else {
+                limit
+            },
+        ]);
+    }
+
+    /// Discard measurements tied to a particular font/layout engine.
+    /// A host should call this before measuring the current content again.
+    pub fn clear_measured_layout(&mut self) {
+        self.soft_breaks.clear();
+        self.line_baselines.clear();
+        self.line_widths.clear();
+        self.line_origins.clear();
+        self.style_segment_origins.clear();
+        self.character_origins.clear();
+        self.glyph_clusters.clear();
+        self.layout_bounds = None;
+    }
+
+    /// Reflow without a platform text view. The caller supplies a width measured
+    /// with its font engine for a UTF-16-offset substring of the source text.
+    /// Breaks always land on extended grapheme boundaries; source text and runs
+    /// are never rewritten. Widths should grow as text is appended, allowing a
+    /// logarithmic search for each line. Native hosts can replace the result.
+    pub fn reflow_soft_breaks_with(
+        &mut self,
+        mut measure: impl FnMut(&str, usize) -> Result<f32, String>,
+    ) -> Result<(), String> {
+        use unicode_segmentation::UnicodeSegmentation;
+
+        let mut candidate = self.clone();
+        candidate.clear_measured_layout();
+        candidate.validate()?;
+        let mut breaks = Vec::new();
+        let mut paragraph_utf16 = 0;
+        for paragraph in self.content.split('\n') {
+            let mut boundaries = vec![(0, 0)];
+            let mut utf16 = 0;
+            for (byte, grapheme) in paragraph.grapheme_indices(true) {
+                utf16 += grapheme.encode_utf16().count();
+                boundaries.push((byte + grapheme.len(), utf16));
+            }
+            let preferred: std::collections::HashSet<_> = paragraph
+                .split_word_bound_indices()
+                .map(|(byte, word)| byte + word.len())
+                .collect();
+            let mut line_start = 0;
+            let last = boundaries.len() - 1;
+            while line_start < last {
+                let mut fitting = line_start + 1;
+                let first_line = line_start == 0;
+                let available = if self.point_text {
+                    100_000.0
+                } else {
+                    self.box_width
+                } - self.indent_left
+                    - self.indent_right
+                    - if first_line { self.indent_first } else { 0.0 };
+                if !available.is_finite() || available <= 0.0 {
+                    return Err("Invalid text line width".into());
+                }
+                let first_source = &paragraph[boundaries[line_start].0..boundaries[fitting].0];
+                let first_width =
+                    measure(first_source, paragraph_utf16 + boundaries[line_start].1)?;
+                if !first_width.is_finite() || !(0.0..100_000.0).contains(&first_width) {
+                    return Err("Invalid measured text width".into());
+                }
+                let mut upper = last + 1;
+                while fitting < upper {
+                    let end = fitting + (upper - fitting) / 2;
+                    if end == fitting {
+                        break;
+                    }
+                    let source = &paragraph[boundaries[line_start].0..boundaries[end].0];
+                    let width = measure(source, paragraph_utf16 + boundaries[line_start].1)?;
+                    if !width.is_finite() || !(0.0..100_000.0).contains(&width) {
+                        return Err("Invalid measured text width".into());
+                    }
+                    if width <= available {
+                        fitting = end;
+                    } else {
+                        upper = end;
+                    }
+                }
+                if fitting == last {
+                    break;
+                }
+                let next = (line_start + 1..=fitting)
+                    .rev()
+                    .find(|index| preferred.contains(&boundaries[*index].0))
+                    .unwrap_or(fitting);
+                breaks.push(paragraph_utf16 + boundaries[next].1);
+                line_start = next;
+            }
+            paragraph_utf16 += utf16 + 1;
+        }
+        candidate.soft_breaks = breaks;
+        candidate.validate()?;
+        *self = candidate;
+        Ok(())
+    }
+
+    /// Retain source text and character styles while splitting at hard and soft line breaks.
+    /// The bool distinguishes a paragraph break from a wrapped line.
+    pub fn visual_lines(&self) -> Vec<(usize, &str, bool)> {
+        let mut lines = Vec::new();
+        let mut start_byte = 0;
+        let mut start_utf16 = 0;
+        let mut offset = 0;
+        let mut hard_break_before = false;
+        for (byte, c) in self.content.char_indices() {
+            if c == '\n' {
+                lines.push((
+                    start_utf16,
+                    &self.content[start_byte..byte],
+                    hard_break_before,
+                ));
+                offset += 1;
+                start_byte = byte + 1;
+                start_utf16 = offset;
+                hard_break_before = true;
+                continue;
+            }
+            if self.soft_breaks.binary_search(&offset).is_ok() && byte > start_byte {
+                lines.push((
+                    start_utf16,
+                    &self.content[start_byte..byte],
+                    hard_break_before,
+                ));
+                start_byte = byte;
+                start_utf16 = offset;
+                hard_break_before = false;
+            }
+            offset += c.len_utf16();
+        }
+        lines.push((start_utf16, &self.content[start_byte..], hard_break_before));
+        lines
+    }
+    pub fn base_style(&self, color: [u8; 3]) -> TextStyle {
+        TextStyle {
+            font_family: self.font_family.clone(),
+            font_size: self.font_size,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation: 0.0,
+            bold: self.bold,
+            italic: self.italic,
+            tracking: self.tracking,
+            baseline_shift: self.baseline_shift,
+            underline: self.underline,
+            strikethrough: self.strikethrough,
+            color,
+        }
+    }
+    pub fn style_segment_starts(&self, start: usize, line: &str, color: [u8; 3]) -> Vec<usize> {
+        let mut starts = Vec::new();
+        let mut previous = None;
+        let mut offset = start;
+        for c in line.chars() {
+            let style = self.style_at(offset, color);
+            if previous.as_ref() != Some(&style) {
+                starts.push(offset);
+                previous = Some(style);
+            }
+            offset += c.len_utf16();
+        }
+        starts
+    }
+    pub fn style_at(&self, offset: usize, color: [u8; 3]) -> TextStyle {
+        self.runs
+            .iter()
+            .find(|run| run.start <= offset && offset < run.end)
+            .map(|run| run.style.clone())
+            .unwrap_or_else(|| self.base_style(color))
+    }
+    pub fn utf16_boundary(&self, offset: usize) -> bool {
+        let mut at = 0;
+        for c in self.content.chars() {
+            if at == offset {
+                return true;
+            }
+            at += c.len_utf16();
+        }
+        at == offset
+    }
+    /// Patch only specified properties, preserving other formatting in the selected range.
+    pub fn apply_style(
+        &mut self,
+        start: usize,
+        end: usize,
+        patch: &TextStylePatch,
+        color: [u8; 3],
+    ) -> Result<(), String> {
+        if start > end || !self.utf16_boundary(start) || !self.utf16_boundary(end) {
+            return Err("Invalid character range".into());
+        }
+        let mut runs: Vec<TextRun> = Vec::new();
+        let mut at = 0;
+        for c in self.content.chars() {
+            let mut style = self.style_at(at, color);
+            if at >= start && at < end {
+                style.apply(patch);
+            }
+            style.validate()?;
+            let next = at + c.len_utf16();
+            if let Some(last) = runs.last_mut().filter(|run| run.style == style) {
+                last.end = next;
+            } else {
+                runs.push(TextRun {
+                    start: at,
+                    end: next,
+                    style,
+                });
+            }
+            at = next;
+        }
+        let base = self.base_style(color);
+        runs.retain(|run| run.style != base);
+        let changed = self.runs != runs;
+        self.runs = runs;
+        if changed
+            && (patch.font_family.is_some()
+                || patch.font_size.is_some()
+                || patch.scale_x.is_some()
+                || patch.scale_y.is_some()
+                || patch.rotation.is_some()
+                || patch.bold.is_some()
+                || patch.italic.is_some()
+                || patch.tracking.is_some()
+                || patch.baseline_shift.is_some()
+                || patch.underline.is_some()
+                || patch.strikethrough.is_some())
+        {
+            self.clear_measured_layout();
+        } else if changed {
+            // Color can split or merge style segments without changing glyph geometry.
+            self.style_segment_origins.clear();
+        }
+        Ok(())
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if (self.content.trim().is_empty() && self.box_height.is_none())
+            || self.content.chars().count() > 4096
+            || self.content.split('\n').count() > 64
+            || self
+                .content
+                .chars()
+                .any(|c| c.is_control() && c != '\n' && c != '\t')
+            || self.font_family.trim().is_empty()
+            || self.font_family.chars().count() > 200
+            || self.font_family.chars().any(char::is_control)
+            || !(-100.0..=1000.0).contains(&self.tracking)
+            || !(0.1..=4.0).contains(&self.scale_x)
+            || !(0.1..=4.0).contains(&self.scale_y)
+            || !(-512.0..=512.0).contains(&self.baseline_shift)
+            || !(-180.0..=180.0).contains(&self.rotation)
+            || !(16.0..=8192.0).contains(&self.box_width)
+            || self
+                .box_height
+                .is_some_and(|height| !(16.0..=8192.0).contains(&height))
+            || !(0.0..=4096.0).contains(&self.indent_left)
+            || !(0.0..=4096.0).contains(&self.indent_right)
+            || !(-4096.0..=4096.0).contains(&self.indent_first)
+            || self.indent_left + self.indent_right >= self.box_width
+            || !(0.0..=512.0).contains(&self.space_before)
+            || !(0.0..=512.0).contains(&self.space_after)
+            || !self.font_size.is_finite()
+            || !(1.0..=512.0).contains(&self.font_size)
+            || !self.line_height.is_finite()
+            || !(0.1..=4096.0).contains(&(self.font_size * self.line_height))
+        {
+            return Err("Invalid text settings".into());
+        }
+        if self.runs.len() > 4096 {
+            return Err("Too many character runs".into());
+        }
+        let utf16: Vec<_> = self.content.encode_utf16().collect();
+        if self.soft_breaks.len() > 4096
+            || self.soft_breaks.windows(2).any(|pair| pair[0] >= pair[1])
+            || self.soft_breaks.iter().any(|&offset| {
+                offset == 0
+                    || offset >= utf16.len()
+                    || !self.utf16_boundary(offset)
+                    || utf16[offset - 1] == b'\n' as u16
+                    || utf16[offset] == b'\n' as u16
+            })
+        {
+            return Err("Invalid text wrap positions".into());
+        }
+        if !self.line_baselines.is_empty()
+            && (self.line_baselines.len() != self.visual_lines().len()
+                || self
+                    .line_baselines
+                    .iter()
+                    .any(|value| !value.is_finite() || value.abs() >= 100_000.0)
+                || self
+                    .line_baselines
+                    .windows(2)
+                    .any(|pair| pair[0] >= pair[1]))
+        {
+            return Err("Invalid text line baselines".into());
+        }
+        if !self.line_widths.is_empty()
+            && (self.line_widths.len() != self.visual_lines().len()
+                || self
+                    .line_widths
+                    .iter()
+                    .any(|value| !value.is_finite() || !(0.0..100_000.0).contains(value)))
+        {
+            return Err("Invalid text line widths".into());
+        }
+        if !self.line_origins.is_empty()
+            && (self.line_origins.len() != self.visual_lines().len()
+                || self
+                    .line_origins
+                    .iter()
+                    .any(|value| !value.is_finite() || value.abs() >= 100_000.0))
+        {
+            return Err("Invalid text line origins".into());
+        }
+        if !self.style_segment_origins.is_empty()
+            && (self.style_segment_origins.len() != self.visual_lines().len()
+                || self
+                    .style_segment_origins
+                    .iter()
+                    .zip(self.visual_lines())
+                    .any(|(origins, (_, line, _))| {
+                        origins.len() > line.chars().count()
+                            || (origins.is_empty() != line.is_empty())
+                            || origins
+                                .iter()
+                                .any(|value| !value.is_finite() || value.abs() >= 100_000.0)
+                    }))
+        {
+            return Err("Invalid text style segment origins".into());
+        }
+        if !self.character_origins.is_empty()
+            && (self.character_origins.len() != self.visual_lines().len()
+                || self.character_origins.iter().zip(self.visual_lines()).any(
+                    |(origins, (_, line, _))| {
+                        origins.len() != line.chars().count()
+                            || origins
+                                .iter()
+                                .any(|value| !value.is_finite() || value.abs() >= 100_000.0)
+                            || origins.windows(2).any(|pair| pair[0] > pair[1])
+                    },
+                ))
+        {
+            return Err("Invalid text character origins".into());
+        }
+        if !self.glyph_clusters.is_empty()
+            && (self.glyph_clusters.len() != self.visual_lines().len()
+                || self.glyph_clusters.iter().zip(self.visual_lines()).any(
+                    |(clusters, (_, line, _))| {
+                        let line_len = line.encode_utf16().count();
+                        let mut end = 0;
+                        for cluster in clusters {
+                            if cluster.start != end
+                                || cluster.end <= cluster.start
+                                || cluster.end > line_len
+                                || !cluster.x.is_finite()
+                                || cluster.x.abs() >= 100_000.0
+                                || !utf16_boundary_in(line, cluster.start)
+                                || !utf16_boundary_in(line, cluster.end)
+                            {
+                                return true;
+                            }
+                            end = cluster.end;
+                        }
+                        end != line_len || (line_len > 0 && clusters.is_empty())
+                    },
+                ))
+        {
+            return Err("Invalid text glyph clusters".into());
+        }
+        if self.layout_bounds.is_some_and(|[x, y, width, height]| {
+            [x, y, width, height]
+                .iter()
+                .any(|value| !value.is_finite() || value.abs() >= 100_000.0)
+                || width <= 0.0
+                || height <= 0.0
+                || (x + width).abs() >= 100_000.0
+                || (y + height).abs() >= 100_000.0
+        }) {
+            return Err("Invalid text layout bounds".into());
+        }
+        let mut previous_end = 0;
+        for run in &self.runs {
+            if run.start < previous_end
+                || run.start >= run.end
+                || !self.utf16_boundary(run.start)
+                || !self.utf16_boundary(run.end)
+            {
+                return Err("Invalid character runs".into());
+            }
+            run.style.validate()?;
+            previous_end = run.end;
+        }
+        Ok(())
+    }
+
+    pub fn control_points(&self) -> Vec<[f32; 2]> {
+        // Older documents fall back to a conservative text-frame rectangle.
+        let max_size = self
+            .runs
+            .iter()
+            .map(|run| run.style.font_size * run.style.scale_y)
+            .fold(self.font_size, f32::max);
+        let height = self.visual_lines().len() as f32
+            * (self.font_size * self.line_height + self.space_before + self.space_after);
+        let highest_shift = self
+            .runs
+            .iter()
+            .map(|run| run.style.baseline_shift)
+            .fold(self.baseline_shift, f32::max);
+        let lowest_shift = self
+            .runs
+            .iter()
+            .map(|run| run.style.baseline_shift)
+            .fold(self.baseline_shift, f32::min);
+        let top = -highest_shift - (max_size - self.font_size).max(0.0);
+        let bottom = height - lowest_shift + (max_size - self.font_size).max(0.0);
+        let angle = self.rotation.to_radians();
+        let [left, top, right, bottom] = if let Some(frame_height) = self.box_height {
+            [0.0, 0.0, self.box_width, frame_height]
+        } else {
+            self.layout_bounds.map_or(
+                [0.0, top, self.box_width, bottom],
+                |[x, y, width, height]| [x, y, x + width, y + height],
+            )
+        };
+        [[left, top], [right, top], [right, bottom], [left, bottom]]
+            .into_iter()
+            .map(|[x, y]| {
+                let x = x * self.scale_x;
+                let y = y * self.scale_y;
+                [
+                    x * angle.cos() - y * angle.sin(),
+                    x * angle.sin() + y * angle.cos(),
+                ]
+            })
+            .collect()
+    }
+}
+
+pub const OBJECT_BLEND_MODES: &[&str] = &[
+    "normal",
+    "darken",
+    "multiply",
+    "color-burn",
+    "lighten",
+    "screen",
+    "color-dodge",
+    "overlay",
+    "soft-light",
+    "hard-light",
+    "difference",
+    "exclusion",
+    "hue",
+    "saturation",
+    "color",
+    "luminosity",
+];
+fn default_object_opacity() -> f32 {
+    1.0
+}
+fn default_object_blend() -> String {
+    "normal".into()
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct VectorObject {
+    #[serde(default = "default_object_opacity")]
+    pub opacity: f32,
+    #[serde(default = "default_object_blend")]
+    pub blend_mode: String,
+    pub id: String,
+    pub name: String,
+    /// Group identifiers from the outermost group to the innermost group.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub group_path: Vec<String>,
+    /// Group clipped by this object; its original styling is retained for release.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clipping_group: Option<String>,
+    #[serde(default)]
+    pub bounds_reset: bool,
+    pub path: VectorPath,
+    /// SVG-compatible affine matrix: [a, b, c, d, e, f].
+    pub transform: [f32; 6],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_gradient: Option<crate::gradient::Gradient>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stroke_gradient: Option<crate::gradient::Gradient>,
+    pub fill: Option<VectorPaint>,
+    pub stroke: Option<VectorPaint>,
+    pub stroke_width: f32,
+    #[serde(default)]
+    pub stroke_style: crate::stroke::StrokeStyle,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub live_corners: Option<crate::bezier::LiveCorners>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rectangle_radii: Option<[f32; 4]>,
+    pub visible: bool,
+    #[serde(default)]
+    pub kind: VectorObjectKind,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub control_points: Vec<[f32; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<VectorText>,
+}
+
+impl VectorObject {
+    pub fn validate(&self) -> Result<(), String> {
+        self.stroke_style.validate()?;
+        for gradient in [&self.fill_gradient, &self.stroke_gradient]
+            .into_iter()
+            .flatten()
+        {
+            gradient.validate()?;
+        }
+        if self.rectangle_radii.is_some_and(|radii| {
+            radii
+                .iter()
+                .any(|v| !v.is_finite() || !(0.0..=100_000.).contains(v))
+        }) {
+            return Err("Invalid rectangle corners".into());
+        }
+        if let Some(corners) = &self.live_corners {
+            corners.validate()?;
+        }
+        if !self.opacity.is_finite()
+            || !(0.0..=1.0).contains(&self.opacity)
+            || !OBJECT_BLEND_MODES.contains(&self.blend_mode.as_str())
+        {
+            return Err("Invalid object opacity or blend mode".into());
+        }
+        if self
+            .clipping_group
+            .as_ref()
+            .is_some_and(|id| !self.group_path.contains(id))
+        {
+            return Err("Clipping group must belong to the mask".into());
+        }
+        if self.id.is_empty()
+            || self.id.len() > 64
+            || self.name.trim().is_empty()
+            || self.name.chars().count() > 120
+            || self.group_path.len() > 64
+            || self.group_path.iter().any(|id| {
+                id.is_empty()
+                    || id.len() > 64
+                    || id
+                        .chars()
+                        .any(|c| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            })
+            || self
+                .group_path
+                .iter()
+                .enumerate()
+                .any(|(index, id)| self.group_path[..index].contains(id))
+            || self.path.data.is_empty()
+            || self.path.data.len() > 1024 * 1024
+            || self.transform.iter().any(|value| !value.is_finite())
+            || !self.stroke_width.is_finite()
+            || !(0.0..=4096.0).contains(&self.stroke_width)
+            || (self.fill.is_none() && self.stroke.is_none())
+            || self.control_points.len() > 65_536
+            || self
+                .control_points
+                .iter()
+                .flatten()
+                .any(|value| !value.is_finite() || value.abs() >= 100_000.0)
+        {
+            return Err("Invalid vector object".into());
+        }
+        self.stroke_style
+            .validate_geometry(&self.path.data, self.stroke_width)?;
+        if self.kind == VectorObjectKind::Bezier {
+            crate::bezier::path_data(&self.control_points, false)?;
+        }
+        match (&self.kind, &self.text) {
+            (VectorObjectKind::Text, Some(text)) => text.validate()?,
+            (VectorObjectKind::Text, None) | (_, Some(_)) => {
+                return Err("Invalid text object".into())
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Conservative rejection before generating a stroke outline for picking.
+    fn pick_bounds(&self) -> [f32; 4] {
+        let [a, b, c, d, e, f] = self.transform;
+        let mut bounds = [
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ];
+        for p in &self.control_points {
+            let x = a * p[0] + c * p[1] + e;
+            let y = b * p[0] + d * p[1] + f;
+            bounds[0] = bounds[0].min(x);
+            bounds[1] = bounds[1].min(y);
+            bounds[2] = bounds[2].max(x);
+            bounds[3] = bounds[3].max(y);
+        }
+        if self.stroke.is_some() {
+            let profile = if self.stroke_style.profile == crate::stroke::WidthProfile::Custom {
+                4.
+            } else {
+                1.
+            };
+            let arrows = self
+                .stroke_style
+                .start_arrow_scale
+                .unwrap_or(self.stroke_style.arrow_scale)
+                .max(
+                    self.stroke_style
+                        .end_arrow_scale
+                        .unwrap_or(self.stroke_style.arrow_scale),
+                );
+            // Frobenius norm bounds the expansion under skew and non-uniform scale.
+            let margin = self.stroke_width
+                * (self.stroke_style.miter_limit.max(2.) * profile).max(arrows * 4.5)
+                * (a * a + b * b + c * c + d * d).sqrt();
+            bounds[0] -= margin;
+            bounds[1] -= margin;
+            bounds[2] += margin;
+            bounds[3] += margin;
+        }
+        bounds
+    }
+    /// Tests the drawn outline rather than requiring all Bezier handles inside.
+    pub fn intersects_selection(&self, bounds: [f32; 4], ellipse: bool) -> bool {
+        if bounds.iter().any(|v| !v.is_finite())
+            || !self.visible
+            || bounds[2] <= 0.0
+            || bounds[3] <= 0.0
+            || self.control_points.is_empty()
+        {
+            return false;
+        }
+        let candidate = self.pick_bounds();
+        if bounds[0] + bounds[2] < candidate[0]
+            || bounds[1] + bounds[3] < candidate[1]
+            || bounds[0] > candidate[2]
+            || bounds[1] > candidate[3]
+        {
+            return false;
+        }
+        if self.stroke.is_some()
+            && self.stroke_width > 0.
+            && self.drawn_stroke_geometry().intersects(bounds, ellipse)
+        {
+            return true;
+        }
+        if self.kind != VectorObjectKind::Text && (self.fill.is_some() || self.stroke.is_some()) {
+            return self.fill.is_some()
+                && crate::stroke::fill_geometry(
+                    &self.path.data,
+                    self.transform,
+                    self.path.fill_rule == FillRule::EvenOdd,
+                )
+                .intersects(bounds, ellipse);
+        }
+        let [x, y, w, h] = bounds;
+        let map = |p: [f32; 2]| {
+            let [a, b, c, d, e, f] = self.transform;
+            [a * p[0] + c * p[1] + e, b * p[0] + d * p[1] + f]
+        };
+        let controls: Vec<_> = self.control_points.iter().copied().map(map).collect();
+        let mut outline = if self.kind == VectorObjectKind::Bezier {
+            crate::bezier::flattened(&controls)
+        } else {
+            controls.clone()
+        };
+        if matches!(
+            self.kind,
+            VectorObjectKind::Rectangle | VectorObjectKind::Ellipse | VectorObjectKind::Compound
+        ) {
+            let min = self
+                .control_points
+                .iter()
+                .fold([f32::INFINITY; 2], |m, p| [m[0].min(p[0]), m[1].min(p[1])]);
+            let max = self
+                .control_points
+                .iter()
+                .fold([f32::NEG_INFINITY; 2], |m, p| {
+                    [m[0].max(p[0]), m[1].max(p[1])]
+                });
+            outline = if self.kind == VectorObjectKind::Ellipse {
+                (0..64)
+                    .map(|i| {
+                        let t = i as f32 * std::f32::consts::TAU / 64.;
+                        map([
+                            (min[0] + max[0]) / 2. + (max[0] - min[0]) / 2. * t.cos(),
+                            (min[1] + max[1]) / 2. + (max[1] - min[1]) / 2. * t.sin(),
+                        ])
+                    })
+                    .collect()
+            } else {
+                vec![
+                    map(min),
+                    map([max[0], min[1]]),
+                    map(max),
+                    map([min[0], max[1]]),
+                ]
+            };
+        }
+        let filled = self.fill.is_some() || self.kind == VectorObjectKind::Text;
+        let closed = filled
+            || matches!(
+                self.kind,
+                VectorObjectKind::Rectangle
+                    | VectorObjectKind::Ellipse
+                    | VectorObjectKind::Text
+                    | VectorObjectKind::Compound
+            )
+            || self.path.data.trim_end().ends_with(['Z', 'z']);
+        if closed {
+            if let Some(first) = outline.first().copied() {
+                outline.push(first);
+            }
+        }
+        let normalize = |p: [f32; 2]| {
+            [
+                (p[0] - x - w / 2.) / (w / 2.),
+                (p[1] - y - h / 2.) / (h / 2.),
+            ]
+        };
+        let inside = |p: [f32; 2]| {
+            if ellipse {
+                let q = normalize(p);
+                q[0] * q[0] + q[1] * q[1] <= 1.
+            } else {
+                p[0] >= x && p[0] <= x + w && p[1] >= y && p[1] <= y + h
+            }
+        };
+        if outline.iter().copied().any(inside) {
+            return true;
+        }
+        for edge in outline.windows(2) {
+            if ellipse {
+                if distance_to_segment([0., 0.], normalize(edge[0]), normalize(edge[1])) <= 1. {
+                    return true;
+                }
+            } else {
+                let mut low: f32 = 0.;
+                let mut high: f32 = 1.;
+                for axis in 0..2 {
+                    let start = edge[0][axis];
+                    let delta = edge[1][axis] - start;
+                    let min = bounds[axis];
+                    let max = min + bounds[axis + 2];
+                    if delta.abs() < f32::EPSILON {
+                        if start < min || start > max {
+                            high = -1.;
+                        }
+                    } else {
+                        let a = (min - start) / delta;
+                        let b = (max - start) / delta;
+                        low = low.max(a.min(b));
+                        high = high.min(a.max(b));
+                    }
+                }
+                if low <= high {
+                    return true;
+                }
+            }
+        }
+        // A selection wholly inside a filled path still intersects it.
+        filled
+            && path_hit_test(
+                &outline,
+                [x + w / 2., y + h / 2.],
+                0.,
+                Some(self.path.fill_rule),
+                true,
+            )
+    }
+
+    pub fn drawn_stroke_geometry(&self) -> crate::stroke::StrokeGeometry {
+        crate::stroke::selection_geometry(
+            &self.path.data,
+            self.stroke_width,
+            &self.stroke_style,
+            self.transform,
+            self.path.fill_rule == FillRule::EvenOdd,
+        )
+    }
+    pub fn stroke_boundary_points(&self) -> Vec<[f32; 2]> {
+        if self.stroke.is_none() || self.stroke_width <= 0. {
+            return vec![];
+        }
+        self.drawn_stroke_geometry()
+            .edges
+            .into_iter()
+            .flatten()
+            .map(|p| p.map(|v| v as f32))
+            .collect()
+    }
+    pub fn hit_test(&self, point: [f32; 2], tolerance: f32) -> bool {
+        if !self.visible
+            || !tolerance.is_finite()
+            || tolerance < 0.0
+            || self.control_points.is_empty()
+        {
+            return false;
+        }
+        let bounds = self.pick_bounds();
+        if point[0] < bounds[0] - tolerance
+            || point[1] < bounds[1] - tolerance
+            || point[0] > bounds[2] + tolerance
+            || point[1] > bounds[3] + tolerance
+        {
+            return false;
+        }
+        if self.stroke.is_some()
+            && self.stroke_width > 0.
+            && self.drawn_stroke_geometry().contains(point, tolerance)
+        {
+            return true;
+        }
+        if self.fill.is_none() && self.stroke.is_some() && self.kind != VectorObjectKind::Text {
+            return false;
+        }
+        if self.fill.is_some() && self.kind != VectorObjectKind::Text {
+            return crate::stroke::fill_geometry(
+                &self.path.data,
+                self.transform,
+                self.path.fill_rule == FillRule::EvenOdd,
+            )
+            .contains(point, tolerance);
+        }
+        let points = self
+            .control_points
+            .iter()
+            .map(|[x, y]| {
+                let [a, b, c, d, e, f] = self.transform;
+                [a * x + c * y + e, b * x + d * y + f]
+            })
+            .collect::<Vec<_>>();
+        let min_x = points.iter().map(|p| p[0]).fold(f32::INFINITY, f32::min);
+        let max_x = points
+            .iter()
+            .map(|p| p[0])
+            .fold(f32::NEG_INFINITY, f32::max);
+        let min_y = points.iter().map(|p| p[1]).fold(f32::INFINITY, f32::min);
+        let max_y = points
+            .iter()
+            .map(|p| p[1])
+            .fold(f32::NEG_INFINITY, f32::max);
+        match self.kind {
+            VectorObjectKind::Text => point_in_convex_quad(&points, point, tolerance),
+            VectorObjectKind::Rectangle | VectorObjectKind::Compound => {
+                point[0] >= min_x - tolerance
+                    && point[0] <= max_x + tolerance
+                    && point[1] >= min_y - tolerance
+                    && point[1] <= max_y + tolerance
+            }
+            VectorObjectKind::Ellipse => {
+                let rx = (max_x - min_x) * 0.5 + tolerance;
+                let ry = (max_y - min_y) * 0.5 + tolerance;
+                let cx = (min_x + max_x) * 0.5;
+                let cy = (min_y + max_y) * 0.5;
+                rx > 0.0
+                    && ry > 0.0
+                    && ((point[0] - cx) / rx).powi(2) + ((point[1] - cy) / ry).powi(2) <= 1.0
+            }
+            VectorObjectKind::Bezier | VectorObjectKind::Path => {
+                let flattened;
+                let outline = if self.kind == VectorObjectKind::Bezier {
+                    flattened = crate::bezier::flattened(&points);
+                    &flattened[..]
+                } else {
+                    &points[..]
+                };
+                path_hit_test(
+                    outline,
+                    point,
+                    tolerance,
+                    self.fill.map(|_| self.path.fill_rule),
+                    self.path.data.trim_end().ends_with(['Z', 'z']),
+                )
+            }
+        }
+    }
+}
+
+/// The same outline is used for curve proximity and fill containment. SVG fills
+/// implicitly close open contours; an unfilled open path keeps only its segments.
+fn path_hit_test(
+    points: &[[f32; 2]],
+    point: [f32; 2],
+    tolerance: f32,
+    fill_rule: Option<FillRule>,
+    closed: bool,
+) -> bool {
+    if points
+        .windows(2)
+        .any(|edge| distance_to_segment(point, edge[0], edge[1]) <= tolerance)
+    {
+        return true;
+    }
+    if points.len() < 2 {
+        return false;
+    }
+    if (closed || fill_rule.is_some())
+        && distance_to_segment(point, points[points.len() - 1], points[0]) <= tolerance
+    {
+        return true;
+    }
+    let Some(fill_rule) = fill_rule else {
+        return false;
+    };
+    // Half-open edge intervals count vertices once, including self-intersections.
+    let mut winding = 0i64;
+    for (a, b) in points.iter().zip(points.iter().cycle().skip(1)) {
+        let side = (f64::from(b[0]) - f64::from(a[0])) * (f64::from(point[1]) - f64::from(a[1]))
+            - (f64::from(point[0]) - f64::from(a[0])) * (f64::from(b[1]) - f64::from(a[1]));
+        if a[1] <= point[1] && b[1] > point[1] && side > 0.0 {
+            winding += 1;
+        } else if a[1] > point[1] && b[1] <= point[1] && side < 0.0 {
+            winding -= 1;
+        }
+    }
+    match fill_rule {
+        FillRule::NonZero => winding != 0,
+        FillRule::EvenOdd => winding % 2 != 0,
+    }
+}
+
+fn point_in_convex_quad(points: &[[f32; 2]], point: [f32; 2], tolerance: f32) -> bool {
+    if points.len() != 4 {
+        return false;
+    }
+    let mut positive = false;
+    let mut negative = false;
+    for index in 0..4 {
+        let a = points[index];
+        let b = points[(index + 1) % 4];
+        let edge = [b[0] - a[0], b[1] - a[1]];
+        let length = edge[0].hypot(edge[1]);
+        if length <= f32::EPSILON {
+            return false;
+        }
+        let distance = (edge[0] * (point[1] - a[1]) - edge[1] * (point[0] - a[0])) / length;
+        positive |= distance > tolerance;
+        negative |= distance < -tolerance;
+        if positive && negative {
+            return false;
+        }
+    }
+    true
+}
+
+fn distance_to_segment(point: [f32; 2], start: [f32; 2], end: [f32; 2]) -> f32 {
+    let delta = [end[0] - start[0], end[1] - start[1]];
+    let length_squared = delta[0] * delta[0] + delta[1] * delta[1];
+    if length_squared <= f32::EPSILON {
+        return (point[0] - start[0]).hypot(point[1] - start[1]);
+    }
+    let t = (((point[0] - start[0]) * delta[0] + (point[1] - start[1]) * delta[1])
+        / length_squared)
+        .clamp(0.0, 1.0);
+    (point[0] - start[0] - t * delta[0]).hypot(point[1] - start[1] - t * delta[1])
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PathOperation {
+    Union,
+    Difference,
+    Intersection,
+    Xor,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PathfinderOperation {
+    Unite,
+    MinusFront,
+    Intersect,
+    Exclude,
+    Divide,
+    Trim,
+    Merge,
+    Crop,
+    Outline,
+    MinusBack,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PathEditAction {
+    Join,
+    Average,
+    Outline,
+    Offset,
+    Reverse,
+    Simplify,
+    Smooth,
+    AddAnchors,
+    RemoveAnchors,
+    DivideBelow,
+    SplitGrid,
+    CleanUp,
+}
+
+/// Boolean operations act on filled areas. Difference means left minus right.
+/// Backends must reject malformed or non-finite geometry, never change either input.
+pub trait VectorPathEngine {
+    fn combine(
+        &self,
+        left: &VectorPath,
+        right: &VectorPath,
+        operation: PathOperation,
+    ) -> Result<VectorPath, String>;
+    fn contains(&self, path: &VectorPath, point: [f32; 2]) -> Result<bool, String>;
+}
+
+#[cfg(test)]
+mod text_style_tests {
+    #[test]
+    fn point_text_does_not_wrap_at_legacy_frame_dimensions() {
+        let mut text = VectorText {
+            point_text: true,
+            box_width: 16.,
+            content: "abcdefghij\nklmnop".into(),
+            ..Default::default()
+        };
+        text.reflow_soft_breaks_with(|source, _| Ok(source.len() as f32 * 10.))
+            .unwrap();
+        assert!(text.soft_breaks.is_empty());
+        assert_eq!(text.visual_lines().len(), 2);
+        text.writing_mode = WritingMode::Vertical;
+        text.reflow_vertical();
+        assert!(text.soft_breaks.is_empty());
+        assert_eq!(text.layout_bounds.unwrap()[3], 10. * text.font_size);
+        let restored: VectorText =
+            serde_json::from_str(&serde_json::to_string(&text).unwrap()).unwrap();
+        assert!(restored.point_text);
+        assert_eq!(restored.box_height, None);
+    }
+
+    #[test]
+    fn character_transforms_preserve_unselected_text_and_legacy_defaults() {
+        let mut text = super::VectorText {
+            content: "A😀BCD".into(),
+            ..Default::default()
+        };
+        let color = [20, 30, 40];
+        let base = text.base_style(color);
+        text.apply_style(
+            1,
+            4,
+            &super::TextStylePatch {
+                scale_x: Some(1.7),
+                scale_y: Some(2.0),
+                rotation: Some(15.0),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        assert_eq!(text.style_at(0, color), base);
+        assert_eq!(text.style_at(4, color), base);
+        assert_eq!(text.style_at(1, color).scale_x, 1.7);
+        assert_eq!((text.scale_x, text.scale_y, text.rotation), (1.0, 1.0, 0.0));
+        text.validate().unwrap();
+        let restored: super::VectorText =
+            serde_json::from_str(&serde_json::to_string(&text).unwrap()).unwrap();
+        assert_eq!(restored.runs, text.runs);
+        let mut legacy = serde_json::to_value(base).unwrap();
+        for key in ["scaleX", "scaleY", "rotation"] {
+            legacy.as_object_mut().unwrap().remove(key);
+        }
+        let restored: super::TextStyle = serde_json::from_value(legacy).unwrap();
+        assert_eq!(
+            (restored.scale_x, restored.scale_y, restored.rotation),
+            (1.0, 1.0, 0.0)
+        );
+    }
+    use super::*;
+    #[test]
+    fn portable_reflow_preserves_graphemes_runs_and_hard_breaks() {
+        let mut text = VectorText {
+            content: "A\n😀😀😀".into(),
+            box_width: 21.0,
+            ..Default::default()
+        };
+        text.apply_style(
+            2,
+            4,
+            &TextStylePatch {
+                color: Some([200, 0, 0]),
+                ..Default::default()
+            },
+            [0, 0, 0],
+        )
+        .unwrap();
+        let runs = text.runs.clone();
+        text.reflow_soft_breaks_with(|source, _| {
+            use unicode_segmentation::UnicodeSegmentation;
+            Ok((source.graphemes(true).count() * 10) as f32)
+        })
+        .unwrap();
+        assert_eq!(text.soft_breaks, vec![6]);
+        assert_eq!(
+            text.visual_lines(),
+            vec![(0, "A", false), (2, "😀😀", true), (6, "😀", false)]
+        );
+        assert_eq!(text.runs, runs);
+        text.validate().unwrap();
+    }
+
+    #[test]
+    fn portable_reflow_obeys_first_line_indent_and_is_atomic_on_error() {
+        let mut text = VectorText {
+            content: "abcdef".into(),
+            box_width: 50.0,
+            indent_first: 20.0,
+            ..Default::default()
+        };
+        text.reflow_soft_breaks_with(|source, _| Ok(source.len() as f32 * 10.0))
+            .unwrap();
+        assert_eq!(text.soft_breaks, vec![3]);
+        let before = text.clone();
+        assert!(text.reflow_soft_breaks_with(|_, _| Ok(f32::NAN)).is_err());
+        assert_eq!(text, before);
+    }
+
+    #[test]
+    fn portable_reflow_avoids_measuring_every_prefix_of_a_long_line() {
+        let mut text = VectorText {
+            content: "a".repeat(4096),
+            box_width: 8192.0,
+            ..Default::default()
+        };
+        let calls = std::cell::Cell::new(0);
+        text.reflow_soft_breaks_with(|source, _| {
+            calls.set(calls.get() + 1);
+            Ok(source.len() as f32)
+        })
+        .unwrap();
+        assert!(text.soft_breaks.is_empty());
+        assert!(calls.get() < 32, "measured {} candidates", calls.get());
+    }
+    #[test]
+    fn style_changes_invalidate_only_the_layout_they_affect() {
+        let mut text = VectorText {
+            content: "ABCD".into(),
+            soft_breaks: vec![2],
+            line_baselines: vec![48.0, 110.0],
+            line_widths: vec![80.0, 82.0],
+            line_origins: vec![0.0, 0.0],
+            style_segment_origins: vec![vec![0.0], vec![0.0]],
+            character_origins: vec![vec![0.0, 40.0], vec![0.0, 41.0]],
+            glyph_clusters: vec![
+                vec![
+                    TextGlyphCluster {
+                        start: 0,
+                        end: 1,
+                        x: 0.0,
+                    },
+                    TextGlyphCluster {
+                        start: 1,
+                        end: 2,
+                        x: 40.0,
+                    },
+                ],
+                vec![
+                    TextGlyphCluster {
+                        start: 0,
+                        end: 1,
+                        x: 0.0,
+                    },
+                    TextGlyphCluster {
+                        start: 1,
+                        end: 2,
+                        x: 41.0,
+                    },
+                ],
+            ],
+            layout_bounds: Some([0.0, 0.0, 100.0, 120.0]),
+            ..Default::default()
+        };
+        let color = [0, 0, 0];
+        text.validate().unwrap();
+        let original = text.clone();
+        text.apply_style(0, 2, &TextStylePatch::default(), color)
+            .unwrap();
+        assert_eq!(text, original);
+        text.apply_style(
+            0,
+            2,
+            &TextStylePatch {
+                color: Some([255, 0, 0]),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        assert_eq!(text.soft_breaks, vec![2]);
+        assert_eq!(text.line_baselines, vec![48.0, 110.0]);
+        assert_eq!(text.line_widths, vec![80.0, 82.0]);
+        assert_eq!(text.line_origins, vec![0.0, 0.0]);
+        assert_eq!(text.character_origins, original.character_origins);
+        assert_eq!(text.glyph_clusters, original.glyph_clusters);
+        assert_eq!(text.layout_bounds, original.layout_bounds);
+        assert!(text.style_segment_origins.is_empty());
+        text.apply_style(
+            0,
+            2,
+            &TextStylePatch {
+                font_size: Some(72.0),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        assert!(text.soft_breaks.is_empty());
+        assert!(text.line_baselines.is_empty());
+        assert!(text.line_widths.is_empty());
+        assert!(text.line_origins.is_empty());
+        assert!(text.style_segment_origins.is_empty());
+        assert_eq!(text.layout_bounds, None);
+    }
+    #[test]
+    fn selected_character_patches_preserve_other_properties_and_unicode_boundaries() {
+        let mut text = VectorText {
+            content: "A日😀BC".into(),
+            ..Default::default()
+        };
+        let color = [20, 30, 40];
+        text.apply_style(
+            1,
+            4,
+            &TextStylePatch {
+                bold: Some(true),
+                color: Some([240, 10, 20]),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        text.apply_style(
+            2,
+            5,
+            &TextStylePatch {
+                font_size: Some(72.0),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        assert!(!text.style_at(0, color).bold);
+        assert_eq!(text.style_at(1, color).font_size, 48.0);
+        assert!(text.style_at(2, color).bold);
+        assert_eq!(text.style_at(2, color).color, [240, 10, 20]);
+        assert_eq!(text.style_at(2, color).font_size, 72.0);
+        assert!(!text.style_at(4, color).bold);
+        assert_eq!(text.style_at(4, color).font_size, 72.0);
+        assert_eq!(text.style_at(5, color).font_size, 48.0);
+        text.validate().unwrap();
+        let before = text.clone();
+        assert!(text
+            .apply_style(3, 4, &TextStylePatch::default(), color)
+            .is_err());
+        assert_eq!(text, before, "Do not split an emoji's surrogate pair");
+        assert!(text
+            .apply_style(0, usize::MAX, &TextStylePatch::default(), color)
+            .is_err());
+        assert_eq!(text, before);
+        text.apply_style(
+            0,
+            6,
+            &TextStylePatch {
+                underline: Some(true),
+                ..Default::default()
+            },
+            color,
+        )
+        .unwrap();
+        assert!(text.runs.iter().all(|run| run.style.underline));
+        assert!(text.style_at(2, color).bold);
+        assert_eq!(text.style_at(4, color).font_size, 72.0);
+    }
+    #[test]
+    fn rejects_overlapping_out_of_bounds_and_invalid_character_styles() {
+        let mut text = VectorText {
+            content: "a😀b".into(),
+            ..Default::default()
+        };
+        let style = text.base_style([0, 0, 0]);
+        for (start, end) in [(2, 3), (0, 5), (1, 1), (4, 3)] {
+            text.runs = vec![TextRun {
+                start,
+                end,
+                style: style.clone(),
+            }];
+            assert!(text.validate().is_err());
+        }
+        text.runs = vec![
+            TextRun {
+                start: 0,
+                end: 3,
+                style: style.clone(),
+            },
+            TextRun {
+                start: 1,
+                end: 4,
+                style: style.clone(),
+            },
+        ];
+        assert!(text.validate().is_err());
+        text.runs = vec![TextRun {
+            start: 0,
+            end: 1,
+            style: TextStyle {
+                font_size: f32::NAN,
+                ..style
+            },
+        }];
+        assert!(text.validate().is_err());
+    }
+    #[test]
+    fn equal_adjacent_styles_merge_and_legacy_text_defaults_to_no_runs() {
+        let mut text: VectorText = serde_json::from_str(r#"{"content":"abc"}"#).unwrap();
+        assert!(text.runs.is_empty());
+        for offset in 0..3 {
+            text.apply_style(
+                offset,
+                offset + 1,
+                &TextStylePatch {
+                    italic: Some(true),
+                    ..Default::default()
+                },
+                [0, 0, 0],
+            )
+            .unwrap();
+        }
+        assert_eq!(text.runs.len(), 1);
+        assert_eq!((text.runs[0].start, text.runs[0].end), (0, 3));
+        assert_eq!(
+            serde_json::from_str::<VectorText>(&serde_json::to_string(&text).unwrap()).unwrap(),
+            text
+        );
+    }
+
+    #[test]
+    fn leading_accepts_direct_values_smaller_and_larger_than_the_font_size() {
+        let mut text = VectorText {
+            content: "Two\nlines".into(),
+            font_size: 48.0,
+            line_height: 30.0 / 48.0,
+            ..Default::default()
+        };
+        text.validate().unwrap();
+        text.line_height = 240.0 / 48.0;
+        text.validate().unwrap();
+        text.line_height = 0.0;
+        assert!(text.validate().is_err());
+        text.line_height = 5000.0 / 48.0;
+        assert!(text.validate().is_err());
+    }
+}
+
+#[cfg(test)]
+mod path_hit_tests {
+    use super::*;
+
+    fn path(points: Vec<[f32; 2]>) -> VectorObject {
+        let mut data = format!("M {} {}", points[0][0], points[0][1]);
+        for [x, y] in &points[1..] {
+            data.push_str(&format!(" L {x} {y}"));
+        }
+        VectorObject {
+            live_corners: None,
+            rectangle_radii: None,
+            opacity: 1.0,
+            blend_mode: "normal".into(),
+            id: "hit-test".into(),
+            name: "Path".into(),
+            group_path: Vec::new(),
+            clipping_group: None,
+            bounds_reset: false,
+            path: VectorPath {
+                data,
+                fill_rule: FillRule::NonZero,
+            },
+            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            fill_gradient: None,
+            stroke_gradient: None,
+            fill: Some(VectorPaint {
+                color: [30, 60, 90, 255],
+            }),
+            stroke: None,
+            stroke_style: Default::default(),
+            stroke_width: 0.0,
+            visible: true,
+            kind: VectorObjectKind::Path,
+            control_points: points,
+            text: None,
+        }
+    }
+
+    #[test]
+    fn selection_intersects_curve_not_control_polygon() {
+        let mut object = path(vec![[0., 0.], [0., 100.], [100., 100.], [100., 0.]]);
+        object.kind = VectorObjectKind::Bezier;
+        object.fill = None;
+        object.path.data = crate::bezier::path_data(&object.control_points, false).unwrap();
+        for ellipse in [false, true] {
+            assert!(object.intersects_selection([48., 73., 4., 4.], ellipse));
+            assert!(!object.intersects_selection([48., 94., 4., 4.], ellipse));
+            assert!(!object.intersects_selection([48., 20., 4., 4.], ellipse));
+            // Both segment endpoints outside a narrow selection still intersect.
+            assert!(object.intersects_selection([49.9, 74.9, 0.2, 0.2], ellipse));
+        }
+        object.transform = [0., 2., -2., 0., 300., 100.];
+        assert!(object.intersects_selection([148., 198., 4., 4.], false));
+        assert!(!object.intersects_selection([108., 198., 4., 4.], false));
+    }
+
+    #[test]
+    fn partial_curve_selection_routes_through_both_tools() {
+        use crate::document::{Document, Point, SelectionMode, SelectionShape};
+        let mut doc = Document::default();
+        let layer = doc.add_vector_layer().unwrap();
+        doc.select_layer(layer.clone()).unwrap();
+        let mut object = path(vec![[0., 0.], [0., 100.], [100., 100.], [100., 0.]]);
+        object.kind = VectorObjectKind::Bezier;
+        object.fill = None;
+        object.stroke = Some(VectorPaint {
+            color: [0, 0, 0, 255],
+        });
+        object.stroke_width = 1.;
+        object.path.data = crate::bezier::path_data(&object.control_points, false).unwrap();
+        doc.upsert_vector_object(&layer, object).unwrap();
+        let start = Point { x: 48., y: 73. };
+        let end = Point { x: 52., y: 77. };
+        doc.select_vectors_in_rect(end, start, false).unwrap();
+        assert_eq!(doc.selected_vector_ids(), &["hit-test"]);
+        for shape in [SelectionShape::Rectangle, SelectionShape::Ellipse] {
+            for mode in [
+                SelectionMode::Subtract,
+                SelectionMode::Add,
+                SelectionMode::Replace,
+            ] {
+                doc.begin_selection_edit(start, shape, mode).unwrap();
+                doc.extend_selection(end, true);
+                if mode == SelectionMode::Subtract {
+                    assert!(doc.selected_vector_ids().is_empty());
+                } else {
+                    assert_eq!(doc.selected_vector_ids(), &["hit-test"]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn selection_inside_fill_and_click_margin_outside_stroke() {
+        let mut object = path(vec![[0., 0.], [100., 0.], [100., 100.], [0., 100.]]);
+        assert!(object.intersects_selection([40., 40., 20., 20.], true));
+        object.fill = None;
+        assert!(!object.intersects_selection([40., 40., 20., 20.], true));
+        object.stroke = Some(VectorPaint {
+            color: [0, 0, 0, 255],
+        });
+        object.stroke_width = 20.;
+        assert!(object.hit_test([50., -19.], 10.));
+        assert!(!object.hit_test([50., -21.], 10.));
+    }
+
+    #[test]
+    fn concave_fill_uses_edited_outline_and_transform_not_just_bounds() {
+        let mut object = path(vec![
+            [0., 0.],
+            [100., 0.],
+            [100., 100.],
+            [60., 100.],
+            [60., 40.],
+            [0., 40.],
+        ]);
+        object.path.data.push_str(" Z");
+        object.transform = [0., 2., -2., 0., 300., 100.];
+        let inside = crate::bezier::world_point(&object, [80., 80.]);
+        let notch = crate::bezier::world_point(&object, [30., 80.]);
+        for object in [object.clone(), crate::bezier::editable(&object).unwrap()] {
+            assert!(object.hit_test(inside, 1.));
+            assert!(!object.hit_test(notch, 1.));
+            assert!(!object.hit_test([500., 500.], 1.));
+        }
+    }
+
+    #[test]
+    fn filled_paths_respect_winding_rule_after_bezier_conversion() {
+        let object = path(vec![
+            [0., 0.],
+            [100., 0.],
+            [100., 100.],
+            [0., 100.],
+            [0., 0.],
+            [100., 0.],
+            [100., 100.],
+            [0., 100.],
+            [0., 0.],
+        ]);
+        for mut object in [object.clone(), crate::bezier::editable(&object).unwrap()] {
+            assert!(object.hit_test([50., 50.], 1.));
+            object.path.fill_rule = FillRule::EvenOdd;
+            assert!(!object.hit_test([50., 50.], 1.));
+            assert!(object.hit_test([50., 0.], 1.));
+        }
+    }
+
+    #[test]
+    fn open_strokes_have_no_fill_hit_but_svg_fill_implicitly_closes() {
+        let object = path(vec![[0., 0.], [100., 0.], [100., 100.]]);
+        for mut object in [object.clone(), crate::bezier::editable(&object).unwrap()] {
+            assert!(object.hit_test([75., 25.], 1.));
+            assert!(!object.hit_test([25., 75.], 1.));
+            object.fill = None;
+            object.stroke = Some(VectorPaint {
+                color: [0, 0, 0, 255],
+            });
+            object.stroke_width = 4.;
+            assert!(!object.hit_test([75., 25.], 1.));
+            assert!(!object.hit_test([50., 50.], 1.));
+            assert!(object.hit_test([50., 1.5], 1.));
+            object.path.data.push_str(" z ");
+            assert!(object.hit_test([50., 50.], 1.));
+        }
+    }
+}

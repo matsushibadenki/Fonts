@@ -1,0 +1,1 @@
+{"editor":{"identifier":"editor","description":"Local editor and Rust-created floating panels","local":true,"windows":["main","panel-*","font-library"],"permissions":["core:default"]}}

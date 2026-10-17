@@ -1,0 +1,18 @@
+{
+  "binding": "freetype-sys 0.23.0 via freetype-rs 0.38.0",
+  "source_directory": "vendor/freetype-sys",
+  "native_engine": "FreeType 2.14.3",
+  "archive_url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz",
+  "archive_sha256": "36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f",
+  "checksum_reference": "Installed Homebrew freetype 2.14.3 formula (read-only)",
+  "license": "FTL",
+  "changes": [
+    "Replace upstream bundled FreeType 2.13.2 with verified 2.14.3 release source",
+    "Compile and link native sources from this project",
+    "Do not enable or build optional PNG decoding; outlines only",
+    "Use DEP_Z_INCLUDE if needed by the native build",
+    "Preserve upstream FFI API while suppressing function-pointer equality derive warnings; Fonts never compares callbacks"
+  ],
+  "notices": "src-tauri/resources/FONT_ENGINE_NOTICES.txt",
+  "external_runtime_fontforge_dependency": false
+}
