@@ -23,6 +23,6 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 
 - [輪郭の点の追加・削除](contour-topology.md)
 
-- [アタリ画像の保存・復旧基盤と配置UIの設計](reference-images.md)
+- [アタリ画像の描画・変形・保存・三言語UI](reference-images.md)
 
 - [部首・構成部品の管理とスニペット（設計）](components-snippets.md)
