@@ -39,7 +39,7 @@ CMapは最大4 MiB。PS手続き・継承先ファイルを実行・読込しな
 - 🟢 [Done] 輪郭、送り幅、UPM、Unicode対応、CID対応とROS。OpenType/TrueTypeでは上下端、スタイル、太さ・幅区分、斜体角、bold/italicフラグ、著作権・ライセンス・ライセンスURLも保持する。PostScript系ではFontInfoで表現できるスタイル・斜体角・Noticeを読み書きする。
 - 🟢 [Done] 二次→三次曲線は幾何変換し、三次→二次曲線は適応近似する。Type1の数値は1/64単位、CFFは16.16形式、TrueTypeは整数座標へ量子化する。
 - 🟢 [Done] JSONスキーマ1の旧文書は、新しいmetadata／CIDフィールドがなくても読み込める。新しいフィールドはJSONへ保存する。
-- 🔴 [Later] ヒンティング・GSUB/GPOS・カーニング・可変軸・カラー・SVG、Type1 Multiple Master、元のサブルーチンや複数FD構造の保持。現在は輪郭を展開して新しい静的フォントを生成する変換であり、元のバイナリ構造のラウンドトリップではない。
+- 🔴 [Later] ヒンティング・外部のGSUB/GPOS・class kerning・可変軸・カラー・SVG、Type1 Multiple Master、元のサブルーチンや複数FD構造の保持。現在は輪郭を展開して新しい静的フォントを生成する変換であり、元のバイナリ構造のラウンドトリップではない。
 - 🔴 [Later] AFM/PFMの外部メトリクス・カーニングとPostScript Type0合成フォントのラッパー。単体PostScript系の行メトリクスはFontBBox等から得られる値に依存する。
 - ⭕️ [Pending] Windows/Linuxでのビルド・実機読込・出力フォントのOS登録、各種プリンター／PostScriptインタープリターでのType1/CID印刷確認。
 
@@ -78,3 +78,5 @@ macOSの読込・変換用ダイアログは非同期のネイティブシート
 - ⭕️ [Pending] Windows/Linux実機での大規模書体の操作と出力後のOS描画確認。
 
 仕様: [OpenType cmap](https://learn.microsoft.com/typography/opentype/spec/cmap)。
+
+🟢 [Done] 作成した横組みの明示ペアはTTF／OTF CFF／OTF CID-CFFのGPOSへ出力し、生成した単純なペア構造の再取り込みも可能。ペアのある文書を単体CFF／Type1等へ出力すると、損失を避けるためエラーで案内する。[対応範囲](pair-kerning.md)。

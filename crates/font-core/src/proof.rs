@@ -4,15 +4,21 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default = "kerning_default")]
+    pub kerning: bool,
     pub text: String,
     pub size: f64,
     pub tracking: f64,
     pub leading: f64,
     pub scroll: f64,
 }
+fn kerning_default() -> bool {
+    true
+}
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            kerning: true,
             text: "ABC あいう 中文\nThe quick brown fox jumps over the lazy dog.\n0123456789"
                 .into(),
             size: 64.,
@@ -51,6 +57,7 @@ pub struct Prepared {
 pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
     let chars: BTreeSet<char> = text.chars().filter(|c| !c.is_control()).collect();
     let mut copy = FontDocument {
+        kerning: Default::default(),
         snippets: Default::default(),
         reference_images: Default::default(),
         glyphs: BTreeMap::new(),
@@ -66,6 +73,7 @@ pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
             copy.glyphs.insert(*id, g.clone());
         }
     }
+    copy.kerning = doc.kerning.subset(&copy.glyphs.keys().copied().collect());
     Ok(copy)
 }
 pub fn prepare(subset: FontDocument, text: &str) -> Result<Prepared, String> {
@@ -161,15 +169,38 @@ pub fn layout(font: &Prepared, settings: &Settings, width: f64) -> Layout {
                 .unwrap_or(settings.size * 0.6)
         }) + settings.tracking * settings.size
     };
+    let mut previous = None;
+    let pair = |left: Option<GlyphId>, c: char| -> f64 {
+        if !settings.kerning || c.is_control() {
+            return 0.;
+        }
+        left.zip(font.mapping.get(&c).copied())
+            .map(|(l, r)| f64::from(font.document.kerning.get(l, r)) * scale)
+            .unwrap_or(0.)
+    };
     for token in tokens {
         if token == "\n" {
+            previous = None;
             x = left;
             baseline += line_height;
             continue;
         }
-        let token_width: f64 = token.chars().map(advance).sum();
+        let mut preceding = previous;
+        let token_width: f64 = token
+            .chars()
+            .map(|c| {
+                let w = advance(c).max(0.) + pair(preceding, c);
+                preceding = if c.is_control() {
+                    None
+                } else {
+                    font.mapping.get(&c).copied()
+                };
+                w
+            })
+            .sum();
         if x > left && x + token_width > right && token_width <= right - left {
             x = left;
+            previous = None;
             baseline += line_height;
         }
         for c in token.chars() {
@@ -177,10 +208,13 @@ pub fn layout(font: &Prepared, settings: &Settings, width: f64) -> Layout {
                 continue;
             }
             let width = advance(c).max(0.);
-            if x > left && x + width > right {
+            let mut adjustment = pair(previous, c);
+            if x > left && x + adjustment + width > right {
                 x = left;
                 baseline += line_height;
+                adjustment = 0.;
             }
+            x += adjustment;
             let glyph = font.mapping.get(&c).copied().unwrap_or(0);
             placements.push(Placement {
                 glyph,
@@ -197,6 +231,11 @@ pub fn layout(font: &Prepared, settings: &Settings, width: f64) -> Layout {
                 bottom: baseline - font.document.descender * scale,
             });
             x += width;
+            previous = if c.is_control() {
+                None
+            } else {
+                font.mapping.get(&c).copied()
+            };
         }
     }
     Layout {

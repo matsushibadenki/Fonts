@@ -1,4 +1,5 @@
 const paths = {
+  kerning:'M2 18 6 5l4 13M3.5 14h5M14 5l4 13 4-13M10 21h8m-3-3 3 3-3 3',
   snippets:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   duplicate:'M8 8h13v13H8zM3 16V3h13',
   star:'m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z',

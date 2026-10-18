@@ -1,3 +1,5 @@
+import {invoke} from '@tauri-apps/api/core';
+import {Kerning} from './Kerning';
 import {Snippets} from './Snippets';
 import {snippetCommand,snippetError,snippetLabels} from './snippet-i18n';
 import {ReferenceImages} from './ReferenceImages';
@@ -64,6 +66,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
       {id==='snippets'&&<Snippets state={state}/>}
       {id==='metrics' && <div className="metrics-form">
         <label className="metric"><span>{t('advance')}</span><input key={`${state.glyph}-${state.advance}`} type="number" min="0" max="65535" step="1" aria-label={t('advance')} defaultValue={state.advance} onBlur={e=>{if(e.target.value!==''&&Number(e.target.value)!==state.advance)void edit({type:'advance',value:Number(e.target.value),revision:state.revision,id:state.glyph});}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
+        <Kerning key={`kern-${state.epoch}-${state.glyph}`} state={state} edit={async action=>{await invoke('edit',{epoch:state.epoch,action});}}/>
         <UnicodeAssignment key={`${state.epoch}-${state.glyph}`} state={state}/>
         <div className="metric-divider"/>
         {(['ascender','descender','upm'] as const).map(k=><label className="metric" key={k}><span>{t(k)}</span><input readOnly aria-label={t(k)} value={state[k]}/></label>)}

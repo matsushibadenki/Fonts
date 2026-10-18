@@ -66,6 +66,8 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    kerning: Vec<font_core::kerning::Pair>,
+    kerning_total: usize,
     snippets: crate::snippets::Summary,
     images: Vec<font_core::reference_images::ReferenceImage>,
     image_selected: Option<u64>,
@@ -103,6 +105,12 @@ pub struct Snapshot {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Action {
+    Kerning {
+        left: GlyphId,
+        right: GlyphId,
+        value: i16,
+        revision: u64,
+    },
     SelectNode {
         id: GlyphId,
         contour: usize,
@@ -334,6 +342,14 @@ impl Model {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
         Snapshot {
+            kerning: doc
+                .kerning
+                .0
+                .iter()
+                .filter(|p| p.left == self.glyph)
+                .copied()
+                .collect(),
+            kerning_total: doc.kerning.0.len(),
             snippets: self.snippet_summary(),
             images: self.visible_images(),
             image_selected: self.images.selected,
@@ -483,6 +499,19 @@ impl Model {
             self.images = Default::default();
         }
         match a {
+            Action::Kerning {
+                left,
+                right,
+                value,
+                revision,
+            } => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                self.editor
+                    .set_kerning(revision, left, right, value)
+                    .map_err(|e| e.to_string())?;
+            }
             Action::SelectNode {
                 id,
                 contour,

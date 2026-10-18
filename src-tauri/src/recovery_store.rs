@@ -200,6 +200,24 @@ mod tests {
         ))
     }
     #[test]
+    fn kerning_survives_checkpoint_and_restart() {
+        let root = root("kerning");
+        let store = Store::new(root.clone()).unwrap();
+        let mut editor =
+            font_core::Editor::new(FontDocument::new("Kerning recovery", "AV").unwrap()).unwrap();
+        editor.set_kerning(0, 1, 2, -120).unwrap();
+        store.checkpoint(editor.document(), 1, 1, None).unwrap();
+        let id = store.id.clone();
+        drop(store);
+        let next = Store::new(root.clone()).unwrap();
+        let (doc, lease) = next.candidate(&id).unwrap();
+        assert_eq!(&doc, editor.document());
+        assert_eq!(doc.kerning.get(1, 2), -120);
+        drop(lease);
+        drop(next);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn pasted_paths_survive_checkpoint_and_restart() {
         let root = root("clipboard");
         let store = Store::new(root.clone()).unwrap();

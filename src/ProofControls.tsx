@@ -1,3 +1,4 @@
+import {kerningLabels} from './kerning-i18n';
 import {invoke} from '@tauri-apps/api/core';
 import {useEffect,useRef,useState} from 'react';
 import {IconButton} from './Panel';
@@ -14,10 +15,12 @@ export async function proofCommand(state:Snapshot,operation:Record<string,unknow
 export function ProofControls({state,onError}:{state:Snapshot;onError:(e:string)=>void}){
  const t=proofLabels[state.workspace.locale];const [draft,setDraft]=useState<ProofSettings>(state.proof.settings);const latest=useRef(state);latest.current=state;const first=useRef(true);
  useEffect(()=>{if(first.current){first.current=false;return;}const timer=setTimeout(()=>{void proofCommand(latest.current,{type:'prepare',settings:draft}).then(()=>onError('')).catch(e=>{if(String(e)!=='Conflict')onError(proofError(latest.current,String(e)));});},350);return()=>clearTimeout(timer);},[draft,onError,t]);
+ useEffect(()=>{setDraft(previous=>JSON.stringify(previous)===JSON.stringify(state.proof.settings)?previous:state.proof.settings);},[state.proof.settings.text,state.proof.settings.kerning,state.proof.settings.size,state.proof.settings.tracking,state.proof.settings.leading]);
  const act=(operation:Record<string,unknown>)=>void proofCommand(state,operation).catch(e=>onError(String(e)));
  return <>
   <div className="canvas-tools proof-tools">
    {(['size','tracking','leading'] as const).map(k=><label key={k} title={t[k]}><span>{k==='size'?'Aa':k==='tracking'?'↔':'↕'}</span><input aria-label={t[k]} type="number" value={draft[k]} min={k==='size'?12:k==='tracking'?-.1:.8} max={k==='size'?160:k==='tracking'?1:3} step={k==='size'?1:.05} onChange={e=>{const value=Number(e.target.value);if(e.target.value&&Number.isFinite(value))setDraft({...draft,[k]:value,scroll:0});}}/></label>)}
+   <IconButton icon="kerning" label={kerningLabels[state.workspace.locale].enabled} active={draft.kerning} onClick={()=>setDraft({...draft,kerning:!draft.kerning,scroll:0})}/>
    <span className="tool-spacer"/><IconButton icon="save" label={t.pin} onClick={()=>act({type:'pin'})}/>{state.proof.comparison&&<IconButton icon="close" label={t.clear} onClick={()=>act({type:'clear_reference'})}/>}
    <span className="panel-help" role="img" tabIndex={0} aria-label={t.help} title={t.help}><Icon name="info"/></span>
   </div>

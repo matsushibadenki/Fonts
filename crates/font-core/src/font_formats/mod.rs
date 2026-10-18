@@ -95,6 +95,14 @@ pub fn supported_signature(bytes: &[u8]) -> bool {
 }
 pub fn export(doc: &FontDocument, format: Format) -> Result<Vec<u8>> {
     doc.validate().map_err(|e| e.to_string())?;
+    if !doc.kerning.is_empty()
+        && !matches!(
+            format,
+            Format::Ttf | Format::Otf | Format::CidOtf | Format::Cmap
+        )
+    {
+        return Err("kerning_format_unsupported".into());
+    }
     match format {
         Format::Ttf => crate::font_io::export(doc),
         Format::Pfa => postscript::type1(doc, false),

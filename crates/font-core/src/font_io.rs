@@ -115,6 +115,11 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
             },
         );
     }
+    if let Some(data) = face.raw_face().table(ttf_parser::Tag::from_bytes(b"GPOS")) {
+        if let Some(k) = crate::kerning::read_gpos(data) {
+            doc.kerning = k;
+        }
+    }
     doc.validate().map_err(|e| e.to_string())?;
     Ok(doc)
 }
@@ -523,7 +528,7 @@ pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
     );
     set16(&mut post, 8, (-100i16) as u16);
     set16(&mut post, 10, 50);
-    let tables: BTreeMap<[u8; 4], Vec<u8>> = [
+    let mut tables: BTreeMap<[u8; 4], Vec<u8>> = [
         (*b"head", head),
         (*b"hhea", hhea),
         (*b"maxp", maxp),
@@ -536,13 +541,19 @@ pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
         (*b"post", post),
     ]
     .into();
+    if let Some(gpos) = crate::kerning::gpos(doc).map_err(|e| e.to_string())? {
+        tables.insert(*b"GPOS", gpos);
+    }
+    let count = tables.len() as u16;
+    let power = 1u16 << (15 - count.leading_zeros());
     let mut output = vec![];
     u32be(&mut output, 0x10000);
-    u16be(&mut output, 10);
-    u16be(&mut output, 128);
-    u16be(&mut output, 3);
-    u16be(&mut output, 32);
-    let mut offset = 12 + 16 * tables.len();
+    u16be(&mut output, count);
+    u16be(&mut output, power * 16);
+    u16be(&mut output, power.ilog2() as u16);
+    u16be(&mut output, count * 16 - power * 16);
+    let header = 12 + 16 * tables.len();
+    let mut offset = header;
     let mut data = vec![];
     let mut head_offset = 0;
     for (tag, bytes) in tables {
@@ -557,7 +568,7 @@ pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
         while data.len() % 4 != 0 {
             data.push(0);
         }
-        offset = 172 + data.len();
+        offset = header + data.len();
     }
     output.extend(data);
     let sum = checksum(&output);

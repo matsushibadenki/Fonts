@@ -68,7 +68,7 @@ pub async fn proof_action(
     revision: u64,
     operation: Operation,
 ) -> Result<(), String> {
-    if window.label() != "main" {
+    if window.label() != "main" && window.label() != "panel-metrics" {
         return Err("main_window_only".into());
     }
     let app = window.app_handle().clone();

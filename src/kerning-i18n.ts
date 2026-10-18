@@ -1,0 +1,7 @@
+import type {Locale} from './types';
+export const kerningLabels={
+ en:{title:'Pair kerning',right:'Right glyph',value:'Adjustment (units)',apply:'Apply pair',remove:'Remove pair',preview:'Proof pair',enabled:'Apply kerning',help:'The current glyph is the left side. Choose the right glyph by character, name, or #ID. Negative values tighten spacing; positive values widen it. Zero removes a pair. Horizontal pairs export in TTF / OTF. Unencoded glyphs can be paired, but need Unicode for text proof.',invalid:'Choose a right glyph and an integer from −32768 to 32767.',missing:'Both glyphs need Unicode for text proof.',limit:'A project supports up to 4096 pairs.'},
+ ja:{title:'ペアカーニング',right:'右のグリフ',value:'調整量（単位）',apply:'ペアを適用',remove:'ペアを削除',preview:'ペアを試し組み',enabled:'カーニングを適用',help:'現在の文字が左側です。右側を文字・名前・#IDで選択。負の値で詰め、正の値で広げます。0でペアを削除。横組みのペアをTTF／OTFへ出力します。Unicode未割当のグリフも設定できますが、文字列の試し組みにはUnicodeが必要です。',invalid:'右のグリフと−32768〜32767の整数を指定してください。',missing:'文字列の試し組みには両方のUnicode割当が必要です。',limit:'1プロジェクトに設定できるペアは4096件までです。'},
+ zh_cn:{title:'字偶距',right:'右侧字形',value:'调整量（字体单位）',apply:'应用字偶',remove:'删除字偶',preview:'预览字偶',enabled:'应用字偶距',help:'当前字形为左侧。按字符、名称或 #ID 选择右侧。负值收紧间距，正值加宽，0 删除字偶。横排字偶可导出到 TTF／OTF。未分配 Unicode 的字形也可设置，但文本预览需要 Unicode。',invalid:'请选择右侧字形，并输入−32768至32767的整数。',missing:'文本预览需要两个字形均分配 Unicode。',limit:'每个项目最多支持4096个字偶。'}
+};
+export function kerningFormatError(locale:Locale){return locale==='ja'?'カーニングを含む書体はTTF／OTFで出力してください。':locale==='zh_cn'?'含字偶距的字体请导出为 TTF／OTF。':'Export fonts with kerning as TTF / OTF.';}
