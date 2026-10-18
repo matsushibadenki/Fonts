@@ -1,9 +1,9 @@
 {
-  "checked_on": "2026-10-17",
+  "checked_on": "2026-10-18",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "c0b331bb3e1a087d6b59113c21f21ff040a9f64bbe3fa4ef6d0558588318bcaf",
+    "Cargo.lock": "3b0cd71bc3d43d0485c9860aa06a330f8b72c43e1631cf9cdedc677b239281d5",
     "package-lock.json": "3f52f130a64a14932aa3c7224883d7eef0db9829d5126035793784b38dc42a96"
   },
   "rust": [

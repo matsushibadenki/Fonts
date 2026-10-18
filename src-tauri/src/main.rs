@@ -1,5 +1,7 @@
 mod clipboard;
+mod documents;
 mod files;
+mod floating;
 mod font_activation;
 mod font_batch;
 mod font_catalog;
@@ -17,11 +19,12 @@ mod recovery_store;
 mod reference_images;
 mod snippets;
 mod thumbnails;
+mod variations;
 use font_core::workspace::{Dock, Panel, Placement, Workspace};
 use model::{Action, Model, Snapshot};
 use serde::Deserialize;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewWindow};
 
 struct AppState(Mutex<Model>);
 #[derive(Clone, Copy, Deserialize)]
@@ -219,10 +222,30 @@ async fn canvas(window: WebviewWindow, request: CanvasRequest) -> Result<String,
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum LayoutAction {
-    Dock { panel: Panel, dock: Dock },
-    Float { panel: Panel },
-    Activate { panel: Panel },
-    Resize { dock: Dock, value: f64 },
+    Relative {
+        panel: Panel,
+        target: Panel,
+        side: font_core::dock_tree::Side,
+    },
+    ResizeSplit {
+        dock: Dock,
+        path: Vec<u8>,
+        value: f64,
+    },
+    Dock {
+        panel: Panel,
+        dock: Dock,
+    },
+    Float {
+        panel: Panel,
+    },
+    Activate {
+        panel: Panel,
+    },
+    Resize {
+        dock: Dock,
+        value: f64,
+    },
     Reset,
 }
 #[tauri::command]
@@ -233,6 +256,7 @@ async fn layout(window: WebviewWindow, action: LayoutAction, revision: u64) -> R
     window
         .run_on_main_thread(move || {
             let result = (|| {
+                floating::flush(&app);
                 let state = app.state::<AppState>();
                 let mut candidate = {
                     let m = state.0.lock().map_err(|_| "state_poisoned")?;
@@ -244,6 +268,16 @@ async fn layout(window: WebviewWindow, action: LayoutAction, revision: u64) -> R
                 let mut close = None;
                 let mut created = None;
                 match action {
+                    LayoutAction::Relative {
+                        panel,
+                        target,
+                        side,
+                    } => candidate
+                        .relative(revision, panel, target, side)
+                        .map_err(|e| e.to_string())?,
+                    LayoutAction::ResizeSplit { dock, path, value } => candidate
+                        .resize_split(revision, dock, &path, value)
+                        .map_err(|e| e.to_string())?,
                     LayoutAction::Float { panel } => {
                         if let Some(w) = app.get_webview_window(panel.label()) {
                             w.set_focus().map_err(|e| e.to_string())?;
@@ -256,19 +290,11 @@ async fn layout(window: WebviewWindow, action: LayoutAction, revision: u64) -> R
                         candidate
                             .place(revision, panel, Placement::Floating { return_to })
                             .map_err(|e| e.to_string())?;
-                        // URL and labels are fixed in Rust; no arbitrary frontend window creation.
-                        WebviewWindowBuilder::new(
-                            &app,
-                            panel.label(),
-                            WebviewUrl::App(format!("index.html?panel={}", panel.label()).into()),
-                        )
-                        .disable_drag_drop_handler()
-                        .title(format!("Fonts — {:?}", panel))
-                        .inner_size(320., 480.)
-                        .min_inner_size(260., 240.)
-                        .center()
-                        .build()
-                        .map_err(|e| e.to_string())?;
+                        let (_, bounds) =
+                            floating::create(&app, panel, candidate.floating_bounds.get(&panel))?;
+                        if let Some(bounds) = bounds {
+                            candidate.floating_bounds.insert(panel, bounds);
+                        }
                         created = Some(panel);
                     }
                     LayoutAction::Dock { panel, dock } => {
@@ -303,6 +329,9 @@ async fn layout(window: WebviewWindow, action: LayoutAction, revision: u64) -> R
                         return Err("Conflict".into());
                     }
                     m.workspace = candidate.clone();
+                }
+                if let Some(panel) = created {
+                    floating::reveal(&app, panel, true);
                 }
                 if let Some(panel) = close {
                     if let Some(w) = app.get_webview_window(panel.label()) {
@@ -362,17 +391,26 @@ fn open_font_library(window: WebviewWindow) -> Result<(), String> {
 }
 static EXIT_CONFIRMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 fn confirm_discard(app: &tauri::AppHandle) -> bool {
-    use font_core::workspace::Locale;
     let state = app.state::<AppState>();
-    let (dirty, locale) = {
+    let (names, locale) = {
         let m = state.0.lock().unwrap();
         (
-            (m.saved_revision != Some(m.editor.revision()) || m.has_draft())
-                && !(m.epoch == 0 && m.editor.revision() == 0 && !m.has_draft()),
+            m.all_documents()
+                .filter(|d| d.unsaved())
+                .map(|d| d.confirmation_name())
+                .collect::<Vec<_>>(),
             m.workspace.locale,
         )
     };
-    if !dirty {
+    confirm_documents(app, &names, locale)
+}
+fn confirm_documents(
+    app: &tauri::AppHandle,
+    names: &[String],
+    locale: font_core::workspace::Locale,
+) -> bool {
+    use font_core::workspace::Locale;
+    if names.is_empty() {
         return true;
     }
     let message = match locale {
@@ -391,7 +429,7 @@ fn confirm_discard(app: &tauri::AppHandle) -> bool {
     rfd::MessageDialog::new()
         .set_parent(&parent)
         .set_title("Fonts")
-        .set_description(message)
+        .set_description(format!("{message}\n\n{}", names.join("\n")))
         .set_buttons(rfd::MessageButtons::OkCancelCustom(
             discard.into(),
             cancel.into(),
@@ -428,10 +466,11 @@ fn main() {
                 .and_then(|p| std::fs::read(p).ok())
                 .filter(|b| b.len() < 65536)
                 .and_then(|b| serde_json::from_slice::<Workspace>(&b).ok())
-                .and_then(|w| w.restore_docked().ok())
+                .and_then(|w| w.restore().ok())
                 .unwrap_or_default();
             let locale = workspace.locale;
             app.manage(AppState(Mutex::new(Model::new(workspace))));
+            app.manage(floating::Runtime::default());
             app.manage(thumbnails::Thumbnails::new());
             app.manage(font_batch::Batch::default());
             app.manage(font_library::Library(Mutex::new(
@@ -443,12 +482,20 @@ fn main() {
             recovery::start(app.handle().clone());
             app.set_menu(menu::build(app.handle(), locale)?)?;
             menu::refresh(app.handle());
+            floating::restore(app.handle());
+            floating::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
+            floating::event(window.app_handle(), window.label(), event);
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 let state = window.state::<AppState>();
                 if let Ok(mut m) = state.0.lock() {
+                    if !EXIT_CONFIRMED.load(std::sync::atomic::Ordering::Relaxed) {
+                        if let Some(panel) = Panel::from_label(window.label()) {
+                            let _ = m.workspace.redock(panel);
+                        }
+                    }
                     m.text_focus.remove(window.label());
                     if m.snippets
                         .draft
@@ -468,14 +515,22 @@ fn main() {
                         m.images.drag = None;
                     }
                 }
+                if Panel::from_label(window.label()).is_some()
+                    && !EXIT_CONFIRMED.load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    persist(window.app_handle());
+                }
                 publish(window.app_handle());
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if let Some(panel) = Panel::from_label(window.label()) {
                     let app = window.app_handle();
+                    floating::capture(app, panel);
                     let state = app.state::<AppState>();
-                    if let Ok(mut m) = state.0.lock() {
-                        let _ = m.workspace.redock(panel);
+                    if !EXIT_CONFIRMED.load(std::sync::atomic::Ordering::Relaxed) {
+                        if let Ok(mut m) = state.0.lock() {
+                            let _ = m.workspace.redock(panel);
+                        }
                     }
                     persist(app);
                     publish(app);
@@ -488,6 +543,8 @@ fn main() {
                         api.prevent_close();
                         return;
                     }
+                    floating::flush(window.app_handle());
+                    floating::stop(window.app_handle());
                     recovery::stop(window.app_handle());
                     EXIT_CONFIRMED.store(true, std::sync::atomic::Ordering::Relaxed);
                     persist(window.app_handle());
@@ -505,6 +562,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            documents::document_action,
             clipboard::paste_paths,
             clipboard::paste_text,
             font_batch::font_batch_start,
@@ -526,6 +584,8 @@ fn main() {
             text_focus,
             open_font_library,
             font_library::font_library_query,
+            variations::variation_axes,
+            variations::variation_action,
             font_library::font_library_action
         ])
         .build(tauri::generate_context!())
@@ -543,6 +603,8 @@ fn main() {
                     return;
                 }
                 EXIT_CONFIRMED.store(true, std::sync::atomic::Ordering::Relaxed);
+                floating::flush(app);
+                floating::stop(app);
                 recovery::stop(app);
                 persist(app);
                 #[cfg(target_os = "macos")]

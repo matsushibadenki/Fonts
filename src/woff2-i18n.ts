@@ -1,0 +1,5 @@
+export const woff2Labels={
+ en:{label:'Web font (.woff2)',outline:'WOFF2 outlines',compression:'WOFF2 compression',fast:'Fast',balanced:'Balanced',small:'Smaller file',maximum:'Maximum compression',help:'Static web font with TrueType or CFF outlines. Compression changes file size and export time, not outline quality. Export includes authored pair/class kerning. The file is decoded and checked after saving.',verified:'WOFF2 file verified',invalid:'WOFF2 validation failed.',options:'Invalid WOFF2 output settings.'},
+ ja:{label:'Webフォント (.woff2)',outline:'WOFF2の輪郭形式',compression:'WOFF2の圧縮',fast:'高速',balanced:'標準',small:'サイズ優先',maximum:'最大圧縮',help:'TrueTypeまたはCFF輪郭の静的Webフォント。圧縮は容量と出力時間を調整し、輪郭の品質は変えません。作成したペア・クラスカーニングを含み、保存後に復号して検証します。',verified:'WOFF2ファイルの検証が完了しました',invalid:'WOFF2ファイルの検証に失敗しました。',options:'WOFF2の出力設定が無効です。'},
+ zh_cn:{label:'网页字体 (.woff2)',outline:'WOFF2轮廓格式',compression:'WOFF2压缩',fast:'快速',balanced:'标准',small:'优先体积',maximum:'最高压缩',help:'使用TrueType或CFF轮廓的静态网页字体。压缩仅影响文件大小及导出时间，不改变轮廓质量。包含创建的字偶与类字偶距，保存后解码并验证。',verified:'WOFF2文件验证完成',invalid:'WOFF2文件验证失败。',options:'WOFF2导出设置无效。'}
+};

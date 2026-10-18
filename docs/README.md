@@ -26,3 +26,13 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - [アタリ画像の描画・変形・保存・三言語UI](reference-images.md)
 
 - [部首・図形スニペットの登録・独立コピー配置](components-snippets.md)
+
+- [フローティングパネルの位置・サイズの保存と復元](floating-panels.md)
+
+- [パネルの入れ子split・タブ結合・保存](nested-splits.md)
+
+- [複数文書の切り替え・保存・復旧](multiple-documents.md)
+
+- [Webフォント用WOFF2出力・設定・検証](woff2.md)
+
+- 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。

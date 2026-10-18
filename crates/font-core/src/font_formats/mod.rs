@@ -3,6 +3,7 @@ mod cff;
 pub mod cmap;
 mod legacy;
 mod postscript;
+pub mod woff2;
 use crate::{font_io::Result, FontDocument};
 pub use legacy::{cid_system, info as legacy_info, legacy_import};
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Format {
     Ttf,
+    Woff2,
     Otf,
     CidOtf,
     Pfa,
@@ -23,6 +25,7 @@ impl Format {
     pub fn extension(self) -> &'static str {
         match self {
             Self::Ttf => "ttf",
+            Self::Woff2 => "woff2",
             Self::Otf | Self::CidOtf => "otf",
             Self::Pfa => "pfa",
             Self::Pfb => "pfb",
@@ -34,6 +37,7 @@ impl Format {
     pub fn label(self) -> &'static str {
         match self {
             Self::Ttf => "TrueType",
+            Self::Woff2 => "WOFF2",
             Self::Otf => "OpenType CFF",
             Self::CidOtf => "OpenType CID-CFF",
             Self::Pfa => "Type 1 PFA",
@@ -98,13 +102,14 @@ pub fn export(doc: &FontDocument, format: Format) -> Result<Vec<u8>> {
     if (!doc.kerning.is_empty() || !doc.class_kerning.pairs.is_empty())
         && !matches!(
             format,
-            Format::Ttf | Format::Otf | Format::CidOtf | Format::Cmap
+            Format::Woff2 | Format::Ttf | Format::Otf | Format::CidOtf | Format::Cmap
         )
     {
         return Err("kerning_format_unsupported".into());
     }
     match format {
         Format::Ttf => crate::font_io::export(doc),
+        Format::Woff2 => woff2::export(doc, woff2::Options::default()),
         Format::Pfa => postscript::type1(doc, false),
         Format::Pfb => postscript::type1(doc, true),
         Format::Cid => postscript::cid(doc),

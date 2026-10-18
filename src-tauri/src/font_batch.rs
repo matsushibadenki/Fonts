@@ -106,6 +106,19 @@ fn write_unique(dir: &Path, name: &str, ext: &str, bytes: &[u8]) -> Result<PathB
                     let _ = fs::remove_file(&path);
                     return Err(e.to_string());
                 }
+                if ext == "woff2" {
+                    let result = (|| {
+                        let saved = fs::read(&path).map_err(|e| e.to_string())?;
+                        if saved != bytes {
+                            return Err("woff2_invalid".into());
+                        }
+                        font_core::font_formats::woff2::decode(&saved).map(|_| ())
+                    })();
+                    if let Err(e) = result {
+                        let _ = fs::remove_file(&path);
+                        return Err(e);
+                    }
+                }
                 return Ok(path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -305,6 +318,12 @@ mod tests {
         assert_ne!(a, b);
         assert_eq!(fs::read(a).unwrap(), b"one");
         assert_eq!(fs::read(b).unwrap(), b"two");
+        assert!(write_unique(&dir, "invalid", "woff2", b"broken").is_err());
+        assert!(!dir.join("invalid.woff2").exists());
+        let doc = font_core::FontDocument::new("Batch web", "A中").unwrap();
+        let bytes = font_core::font_formats::export(&doc, Format::Woff2).unwrap();
+        let web = write_unique(&dir, "web", "woff2", &bytes).unwrap();
+        font_core::font_formats::woff2::decode(&fs::read(web).unwrap()).unwrap();
         fs::remove_dir_all(root).unwrap();
     }
     #[test]

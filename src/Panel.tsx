@@ -1,3 +1,4 @@
+import {PanelArrangement} from './PanelArrangement';
 import {invoke} from '@tauri-apps/api/core';
 import {Kerning} from './Kerning';
 import {Snippets} from './Snippets';
@@ -19,6 +20,7 @@ export function IconButton({icon,label,onClick,active=false,disabled=false}:{ico
   return <button type="button" className={`icon-button ${active?'selected':''}`} title={label} aria-label={label} aria-pressed={active} onClick={onClick} disabled={disabled}><Icon name={icon}/></button>;
 }
 export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId;state:Snapshot;t:T;edit:(a:Edit)=>Promise<void>;layout:(a:Layout)=>Promise<void>;floating?:boolean;onDrag?:(p:PanelId|null)=>void}){
+  const [arranging,setArranging]=useState(false);
   const [snippetFailure,setSnippetFailure]=useState('');
   const [search,setSearch]=useState('');
   const [adding,setAdding]=useState(false);
@@ -41,8 +43,10 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
       onPointerCancel={()=>{dragStart.current=null;started.current=false;onDrag?.(null);}}>
       <span className="grip"><Icon name="grip"/></span><strong>{t(id)}</strong>
       <span className="panel-help" tabIndex={0} role="img" aria-label={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':id==='snippets'?'snippetHelp':'outlineHelp')} title={t(id==='glyphs'?'glyphHelp':id==='metrics'?'metricHelp':id==='snippets'?'snippetHelp':'outlineHelp')}><Icon name="info"/></span>
+      <IconButton icon="split" label={t('panelLayout')} active={arranging} onClick={()=>setArranging(!arranging)}/>
       {!floating && <IconButton icon="popout" label={t('popout')} onClick={()=>void layout({type:'float',panel:id})}/>}
     </header>
+    {arranging&&<PanelArrangement id={id} state={state} t={t} layout={layout}/>}
     {floating && <div className="float-docks" title={t('floatHelp')}>{(['left','right','bottom'] as const).map(d=><IconButton key={d} icon={d} label={t(d)} onClick={()=>void layout({type:'dock',panel:id,dock:d})}/>)}</div>}
     {id==='glyphs'&&<div className="glyph-controls">
         <div className="glyph-search"><label className="search"><Icon name="search"/><input placeholder={t('search')} aria-label={t('search')} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label><IconButton icon="plus" label={t('addCharacters')} active={adding} onClick={()=>setAdding(!adding)}/></div>

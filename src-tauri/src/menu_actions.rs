@@ -18,10 +18,37 @@ pub fn handle(app: &tauri::AppHandle, id: &str) {
                 return;
             }
             if crate::confirm_discard(app) {
+                crate::floating::flush(app);
+                crate::floating::stop(app);
+                crate::persist(app);
                 crate::recovery::stop(app);
                 crate::EXIT_CONFIRMED.store(true, std::sync::atomic::Ordering::Relaxed);
                 app.exit(0);
             }
+        }
+        "close_document" => {
+            if let Some(w) = app
+                .webview_windows()
+                .into_values()
+                .find(|w| w.label() != "main" && w.is_focused().unwrap_or(false))
+            {
+                let _ = w.close();
+                return;
+            }
+
+            let Some(window) = main_window(app) else {
+                return;
+            };
+            let id = app.state::<AppState>().0.lock().unwrap().document_id;
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                error(
+                    &handle,
+                    crate::documents::document_action(window, id, true)
+                        .await
+                        .map(|_| ()),
+                );
+            });
         }
         "new" | "open" | "save" | "save_as" => {
             let Some(window) = main_window(app) else {

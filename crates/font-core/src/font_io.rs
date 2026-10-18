@@ -32,7 +32,13 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
     if !crate::font_formats::is_sfnt(bytes) {
         return crate::font_formats::legacy_import(bytes, index);
     }
-    let face = Face::parse(bytes, index).map_err(|_| "font_invalid")?;
+    import_face(
+        bytes,
+        index,
+        Face::parse(bytes, index).map_err(|_| "font_invalid")?,
+    )
+}
+pub(crate) fn import_face(bytes: &[u8], index: u32, face: Face<'_>) -> Result<FontDocument> {
     if face.tables().glyf.is_none() && face.tables().cff.is_none() && face.tables().cff2.is_none() {
         return Err("font_no_outlines".into());
     }
@@ -75,6 +81,13 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
         let bounds = face.outline_glyph(GlyphId(id), &mut builder);
         if builder.failed || (bounds.is_none() && !builder.contours.is_empty()) {
             return Err("font_invalid_outline".into());
+        }
+        // CFF2 charstrings omit endchar and the parser does not emit close().
+        // OpenType glyph contours are implicitly closed, including each moveto subpath.
+        if face.tables().cff2.is_some() {
+            for contour in &mut builder.contours {
+                contour.closed = true;
+            }
         }
         total += builder.points;
         if total > MAX_OUTLINE_SEGMENTS {

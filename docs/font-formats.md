@@ -82,3 +82,9 @@ macOSの読込・変換用ダイアログは非同期のネイティブシート
 🟢 [Done] 作成した横組みの明示ペアはTTF／OTF CFF／OTF CID-CFFのGPOSへ出力し、生成した単純なペア構造の再取り込みも可能。ペアのある文書を単体CFF／Type1等へ出力すると、損失を避けるためエラーで案内する。[対応範囲](pair-kerning.md)。
 
 🟢 [Done] クラスカーニングをGPOS Format 2へ出力。明示ペア・0の例外を優先し、生成した限定的な構造の再取り込みにも対応する。[対応範囲](class-kerning.md)。
+
+## WOFF2出力
+
+🟢 [Done] TrueType／CFFの静的WOFF2、4段階の圧縮、三言語UI・保存ダイアログ・ファイル検証。[仕様と検証](woff2.md)。WOFF2入力や可変・カラーの保持は未対応。
+
+可変フォントの軸設定・静的化は[variable-fonts.md](variable-fonts.md)を参照。ライブラリで可変フォントを一つ選び、軸アイコンから設定する。TrueType gvar／OpenType CFF2、avar、HVAR、MVARを展開し、TTF／OTF／WOFF2を出力する。

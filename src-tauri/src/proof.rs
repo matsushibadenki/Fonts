@@ -10,6 +10,7 @@ pub struct Proof {
     pub font: Option<Arc<Prepared>>,
     pub reference: Option<Arc<Prepared>>,
     pub generation: u64,
+    pub source: Option<Arc<font_core::FontDocument>>,
 }
 #[derive(Serialize)]
 pub struct Summary {
@@ -19,11 +20,16 @@ pub struct Summary {
     pub empty: usize,
     pub comparison: bool,
     pub height: f64,
+    pub source: Option<String>,
 }
 impl Proof {
     pub fn summary(&self, width: f64) -> Summary {
         Summary {
             active: self.active,
+            source: self
+                .source
+                .as_ref()
+                .map(|d| format!("{} · {}", d.family, d.metadata.style)),
             settings: self.settings.clone(),
             missing: self
                 .font
@@ -86,13 +92,17 @@ pub async fn proof_action(
                 }
                 m.proof.generation += 1;
                 Some((
-                    proof::subset(m.editor.document(), &settings.text)?,
+                    proof::subset(
+                        m.proof.source.as_deref().unwrap_or(m.editor.document()),
+                        &settings.text,
+                    )?,
                     settings,
                     m.proof.generation,
                 ))
             }
             Operation::Close => {
                 m.proof.active = false;
+                m.proof.source = None;
                 m.proof.generation += 1;
                 None
             }

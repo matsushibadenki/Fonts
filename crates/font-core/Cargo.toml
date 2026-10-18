@@ -18,3 +18,5 @@ sha2 = "=0.11.1"
 svgtypes = "=0.16.1"
 roxmltree = "=0.21.1"
 lopdf = { version = "=0.45.0", default-features = false }
+
+brotli = "=9.0.0"

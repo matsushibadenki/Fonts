@@ -12,7 +12,7 @@
 - 🟢 [Done] Tauri 2 shell、Rust AppState、macOSのwgpu native surface、文字編集画面。
 - 🟢 [Done] Rust所有のWorkspaceとドッキング／フローティングパネル。三言語のアイコン・tooltip中心GUI。
 - 🟠 [Next] 安定node ID、component・kerning、autosave・復旧、FontForge backendの切り出しとTTF出力。
-- 🔴 [Later] OTF/WOFF2、可変フォント、画像トレース。
+- 🟢 [Done] 静的OTF／WOFF2出力。可変フォントと画像トレースは🔴 [Later]。
 - ⭕️ [Pending] Windows/Linux実機でのnative描画、IME、複数モニター・DPI、フローティングウインドウの挙動。該当環境でGUIが動いた後に検証する。
 
 ## 実行
@@ -39,11 +39,11 @@ macOSのGUI・rendererは起動可能。FontDocumentにはcomponent、pair kerni
 - 🟢 [Done] Rust所有のretained NSViewとMetal surface。4x MSAA、輪郭・穴のstencil描画、guide・anchor、リサイズ時のsurface再設定。描画は変更時のみで、常時animation loopは設けない。
 - 🟢 [Done] ノード移動を1回のUndoへ集約。ペンによる閉じたpolygon入力、塗りプレビュー、zoom/pan、送り幅変更、確認済みマーク。
 - 🟢 [Done] パネルの左右・下部ドッキング、タブ化、別Tauriウインドウ化、close時のドック復帰、初期配置への復帰。revisionで古い配置操作を拒否。
-- 🟢 [Done] パネル境界のpointer／keyboardリサイズ。配置・サイズ・UI言語をapp config directoryのworkspace.jsonへ保存。再起動時はfloating panelをドックへ戻す。
+- 🟢 [Done] パネル境界のpointer／keyboardリサイズ。配置・サイズ・UI言語をapp config directoryのworkspace.jsonへ保存。フローティングパネルの位置・サイズ・分離状態も復元し、モニター構成が変わった場合は作業領域内へ補正する。[仕様と検証](floating-panels.md)。
 - 🟢 [Done] 英語・日本語・简体中文のUIとnative menu。説明はinformation iconのtooltipへ移し、keyboard focusでも読める構成。
 - 🟢 [Done] ネイティブ保存dialog、JSON保存、未保存マーク。通常のcloseと終了メニューは親ウインドウ付きの確認dialogを表示。
-- 🟠 [Next] 曲線handleの編集、安定node ID、任意split tree、autosave・復旧、FontForge backendとTTF出力。
-- 🔴 [Later] floating windowの位置・サイズ復元、複数文書・複数canvas window、可変フォント。
+- 🟢 [Done] 曲線handleの編集、autosave・復旧、RustエンジンによるTTF/OTF出力、ドック内の入れ子split（後続工程の詳細を参照）。安定node IDとFontForge backendは🔴 [Later]。
+- 🟢 [Done] floating windowの位置・サイズ復元。複数文書の切り替え・個別保存・復旧も🟢 [Done]、複数canvas windowと可変フォントは🔴 [Later]。
 - ⭕️ [Pending] Windows/Linux surfaceの実装と実機検証、外部モニター間のDPI切替、署名・公証。現行のネイティブ描画接続はmacOS限定。
 
 ### 実装上の境界
@@ -52,7 +52,7 @@ macOSのGUI・rendererは起動可能。FontDocumentにはcomponent、pair kerni
 - Rendererはglyphのpreviewをeven-oddで塗る。フォントの出力形式ごとのnon-zero winding検証は今後backendへ実装する。
 - GPUのMSAA/depth attachmentはサイズが変わるまで保持する。frameや画像bufferをJSへ渡さない。曲線の表示近似にはコピー済みLumaPaint coreを利用する。正本f64輪郭は変更しない。
 - 表示用flatteningにはglyph全体100,000点の上限を設け、超過は明示的なエラーとする。巨大フォントの仮想化や性能目標の達成はまだ検証していない。
-- パネルは3領域＋タブ構成であり、任意の入れ子split treeは未対応。幅1,000px以下では左右ドックを自動幅にする。
+- パネルは3ドック内でタブ群を入れ子に分割できる。幅1,000px以下では左右ドックを自動幅にし、狭い分割内ではスクロールで操作を維持する。
 - 保存形式は現在assetを持たないJSON。font import/export、shaping、自動復旧は未実装。OSによる強制終了への復旧保証はない。
 
 ### 検証結果
@@ -117,7 +117,7 @@ LumaPaintの元ディレクトリは変更せず、追加流用箇所のhashと�
 - 🟢 [Done] 太さ・斜体・基本ライセンス情報等のOpenTypeメタデータ、PS FontInfoのNoticeの保持。
 - 🟢 [Done] FreeType 2.14.3の同梱ビルドとライセンス告知。FontForge等の外部変換コマンドへの実行依存なし。
 - 🟠 [Next] 大規模文書のJSON保存容量、CMap継承と標準文字コレクションの対応。
-- 🔴 [Later] 高度な組版・ヒンティング・可変・カラーの保持、AFM/PFM、OTC生成、WOFF2。
+- 🔴 [Later] 高度な組版・ヒンティング・可変・カラーの保持、AFM/PFM、OTC生成、WOFF2入力。
 - ⭕️ [Pending] Windows/Linux、PostScriptプリンター等での実機検証。
 
 ## 多文字書体
@@ -167,3 +167,11 @@ LumaPaintの元ディレクトリは変更せず、追加流用箇所のhashと�
 ## 新規空ドキュメント（2026-10-15）
 
 🟢 [Done] フォントライブラリの左の新規空ドキュメントアイコン、またはファイル→新規空ドキュメント（⌘N／Ctrl+N）で、登録文字・輪郭なしの文書を作成する。内部にはフォント構造上必須の空の.notdefだけを保持する。従来の未保存変更確認と復旧候補の切替を利用し、キャンセル時は現在の文書を保持する。文字追加・プリセットから制作を開始でき、空文書へのUndoとRedoに対応する。起動時の既存サンプル表示は変更しない。英語・日本語・简体中文のメニューに対応。
+
+- 🟢 [Done] パネルの入れ子split・タブ結合・分割境界リサイズ。三言語、旧設定移行、保存・再起動復元、フローティングの元位置復帰と別領域への配置。[仕様と検証](nested-splits.md)。
+
+- 🟢 [Done] 複数文書のタブ、独立したUndo/Redo・表示状態・保存先、三言語の未保存確認、全未保存文書の個別チェックポイントと復旧。[仕様と検証](multiple-documents.md)。
+
+- 🟢 [Done] Webフォント用WOFF2出力。TrueType／CFF・圧縮・三言語・保存後検証、独立デコーダーとブラウザーでの確認。[仕様と検証](woff2.md)。
+
+- 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。

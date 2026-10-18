@@ -200,6 +200,47 @@ mod tests {
         ))
     }
     #[test]
+    fn independent_documents_survive_restart_and_dismissal_is_scoped() {
+        let root = root("multi-doc");
+        let scanner = Store::new(root.clone()).unwrap();
+        let a = Store::new(root.clone()).unwrap();
+        let b = Store::new(root.clone()).unwrap();
+        a.checkpoint(
+            &FontDocument::new("Document A", "A").unwrap(),
+            2,
+            1,
+            Some(root.join("a.json")),
+        )
+        .unwrap();
+        b.checkpoint(&FontDocument::new("Document B", "中").unwrap(), 3, 1, None)
+            .unwrap();
+        assert!(scanner.candidates().unwrap().0.is_empty());
+        drop(a);
+        drop(b);
+        let candidates = scanner.candidates().unwrap().0;
+        assert_eq!(candidates.len(), 2);
+        let first = candidates
+            .iter()
+            .find(|c| c.family == "Document A")
+            .unwrap();
+        let second = candidates
+            .iter()
+            .find(|c| c.family == "Document B")
+            .unwrap();
+        let (doc, lease) = scanner.candidate(&first.id).unwrap();
+        assert_eq!(doc.family, "Document A");
+        drop(lease);
+        scanner.dismiss(&first.id).unwrap();
+        let remaining = scanner.candidates().unwrap().0;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, second.id);
+        let (doc, lease) = scanner.candidate(&second.id).unwrap();
+        assert_eq!(doc.family, "Document B");
+        drop(lease);
+        drop(scanner);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn class_names_members_values_and_zero_exceptions_survive_recovery() {
         use font_core::{
             class_kerning::{Edit, Side},

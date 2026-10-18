@@ -16,9 +16,14 @@ pub struct Recovery {
     inner: Mutex<Runtime>,
     stopped: AtomicBool,
 }
+struct Checkpoint {
+    store: Store,
+    last: Option<u64>,
+}
 struct Runtime {
     store: Store,
-    last: Option<(u64, u64)>,
+    root: std::path::PathBuf,
+    documents: std::collections::BTreeMap<u64, Checkpoint>,
     updated: Option<u64>,
     error: Option<String>,
 }
@@ -33,8 +38,9 @@ impl Recovery {
     pub fn new(root: std::path::PathBuf) -> Result<Self, String> {
         Ok(Self {
             inner: Mutex::new(Runtime {
-                store: Store::new(root)?,
-                last: None,
+                store: Store::new(root.clone())?,
+                root,
+                documents: Default::default(),
                 updated: None,
                 error: None,
             }),
@@ -42,121 +48,147 @@ impl Recovery {
         })
     }
 }
+fn checkpoint(app: &tauri::AppHandle, r: &mut Runtime, id: u64) -> Result<bool, String> {
+    let snapshot = {
+        let state = app.state::<AppState>();
+        let m = state.0.lock().map_err(|_| "state_poisoned")?;
+        let Some(d) = m.document(id) else {
+            return Ok(false);
+        };
+        if d.has_draft() {
+            return Ok(false);
+        }
+        if !d.unsaved() {
+            if let Some(c) = r.documents.get_mut(&id) {
+                if c.last.is_some() {
+                    c.store.clear()?;
+                    c.last = None;
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if r.documents
+            .get(&id)
+            .is_some_and(|c| c.last == Some(d.editor.revision()))
+        {
+            return Ok(false);
+        }
+        (
+            d.editor.document().clone(),
+            d.editor.revision(),
+            d.path.clone(),
+        )
+    };
+    if !r.documents.contains_key(&id) {
+        r.documents.insert(
+            id,
+            Checkpoint {
+                store: Store::new(r.root.clone())?,
+                last: None,
+            },
+        );
+    }
+    let c = r.documents.get_mut(&id).ok_or("recovery_unavailable")?;
+    c.store
+        .checkpoint(&snapshot.0, id, snapshot.1, snapshot.2)?;
+    c.last = Some(snapshot.1);
+    r.updated = Some(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    );
+    r.error = None;
+    Ok(true)
+}
 pub fn start(app: tauri::AppHandle) {
     std::thread::spawn(move || {
-        let mut observed = None;
-        let mut changed = Instant::now();
-        let mut flushed = Instant::now();
+        let mut observed = std::collections::BTreeMap::<u64, (u64, Instant, Instant)>::new();
         loop {
             std::thread::sleep(Duration::from_secs(1));
             let recovery = app.state::<Recovery>();
             if recovery.stopped.load(Ordering::Acquire) {
                 break;
             }
-            let (token, dirty, in_progress) = {
+            let docs = {
                 let state = app.state::<AppState>();
                 let Ok(m) = state.0.lock() else {
                     continue;
                 };
-                (
-                    (m.epoch, m.editor.revision()),
-                    m.saved_revision != Some(m.editor.revision())
-                        && (m.epoch > 0 || m.editor.revision() > 0),
-                    m.has_draft(),
-                )
+                m.all_documents()
+                    .map(|d| {
+                        (
+                            d.document_id,
+                            d.editor.revision(),
+                            d.unsaved(),
+                            d.has_draft(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
             };
-            if observed != Some(token) {
-                observed = Some(token);
-                changed = Instant::now();
-            }
-            if !due(dirty, in_progress, changed.elapsed(), flushed.elapsed()) {
-                continue;
-            }
-            let Ok(_guard) = crate::files::FileGuard::acquire() else {
-                continue;
-            };
-            if recovery.stopped.load(Ordering::Acquire) {
-                break;
-            }
-            let result = (|| {
-                let mut r = recovery.inner.lock().map_err(|_| "state_poisoned")?;
-                if dirty {
-                    if r.last == Some(token) {
-                        return Ok(false);
-                    }
-                    let (doc, origin) = {
-                        let state = app.state::<AppState>();
-                        let m = state.0.lock().map_err(|_| "state_poisoned")?;
-                        if (m.epoch, m.editor.revision()) != token || m.has_draft() {
-                            return Ok(false);
-                        }
-                        (m.editor.document().clone(), m.path.clone())
-                    };
-                    r.store.checkpoint(&doc, token.0, token.1, origin)?;
-                    r.last = Some(token);
-                    r.updated = Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs(),
-                    );
-                } else if r.last.is_some() {
-                    {
-                        let state = app.state::<AppState>();
-                        let m = state.0.lock().map_err(|_| "state_poisoned")?;
-                        if (m.epoch, m.editor.revision()) != token
-                            || m.saved_revision != Some(m.editor.revision())
-                        {
-                            return Ok(false);
-                        }
-                    }
-                    r.store.clear()?;
-                    r.last = None;
-                    r.updated = None;
-                } else {
-                    return Ok(false);
+            observed.retain(|id, _| docs.iter().any(|d| d.0 == *id));
+            for (id, revision, dirty, draft) in docs {
+                let o = observed
+                    .entry(id)
+                    .or_insert((revision, Instant::now(), Instant::now()));
+                if o.0 != revision {
+                    o.0 = revision;
+                    o.1 = Instant::now();
                 }
-                r.error = None;
-                Ok::<_, String>(true)
-            })();
-            match result {
-                Ok(true) => {
-                    flushed = Instant::now();
-                    let _ = app.emit("recovery-changed", ());
+                if !due(dirty, draft, o.1.elapsed(), o.2.elapsed()) {
+                    continue;
                 }
-                Ok(false) => {}
-                Err(error) => {
-                    if let Ok(mut r) = recovery.inner.lock() {
-                        r.error = Some(error);
+                let Ok(_guard) = crate::files::FileGuard::acquire() else {
+                    continue;
+                };
+                if recovery.stopped.load(Ordering::Acquire) {
+                    break;
+                }
+                let Ok(mut r) = recovery.inner.lock() else {
+                    continue;
+                };
+                match checkpoint(&app, &mut r, id) {
+                    Ok(true) => {
+                        o.2 = Instant::now();
+                        let _ = app.emit("recovery-changed", ());
                     }
-                    let _ = app.emit("recovery-changed", ());
-                    std::thread::sleep(Duration::from_secs(5));
+                    Ok(false) => {}
+                    Err(e) => {
+                        r.error = Some(e);
+                        o.1 = Instant::now();
+                        let _ = app.emit("recovery-changed", ());
+                    }
                 }
             }
         }
     });
 }
-/// Called only after explicit discard/replacement, while file actions are serialized.
-pub fn clear_current(app: &tauri::AppHandle) {
+pub fn clear_document(app: &tauri::AppHandle, id: u64) {
     if let Some(recovery) = app.try_state::<Recovery>() {
         if let Ok(mut r) = recovery.inner.lock() {
-            match r.store.clear() {
-                Ok(()) => {
-                    r.last = None;
-                    r.updated = None;
-                    r.error = None;
+            if let Some(c) = r.documents.get(&id) {
+                match c.store.clear() {
+                    Ok(()) => {
+                        r.documents.remove(&id);
+                    }
+                    Err(e) => r.error = Some(e),
                 }
-                Err(e) => r.error = Some(e),
             }
+            let _ = app.emit("recovery-changed", ());
         }
-        let _ = app.emit("recovery-changed", ());
     }
 }
 pub fn stop(app: &tauri::AppHandle) {
-    if let Some(r) = app.try_state::<Recovery>() {
-        r.stopped.store(true, Ordering::Release);
+    if let Some(recovery) = app.try_state::<Recovery>() {
+        recovery.stopped.store(true, Ordering::Release);
+        if let Ok(mut r) = recovery.inner.lock() {
+            for c in r.documents.values() {
+                let _ = c.store.clear();
+            }
+            r.documents.clear();
+        }
     }
-    clear_current(app);
 }
 #[tauri::command]
 pub async fn recovery_query(window: WebviewWindow) -> Result<Status, String> {
@@ -197,27 +229,12 @@ pub async fn recovery_action(
         })
         .await
         .map_err(|e| e.to_string())??;
-        if !crate::files::replace(&window, document, None).await? {
-            return Ok(false);
-        }
+        let doc_id = crate::files::add_document(&window, document, None).await?;
         let handle = app.clone();
         tauri::async_runtime::spawn_blocking(move || {
-            let (doc, epoch, revision) = {
-                let state = handle.state::<AppState>();
-                let m = state.0.lock().map_err(|_| "state_poisoned")?;
-                (m.editor.document().clone(), m.epoch, m.editor.revision())
-            };
             let state = handle.state::<Recovery>();
             let mut r = state.inner.lock().map_err(|_| "state_poisoned")?;
-            r.store.checkpoint(&doc, epoch, revision, None)?;
-            r.last = Some((epoch, revision));
-            r.updated = Some(
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs(),
-            );
-            r.error = None;
+            checkpoint(&handle, &mut r, doc_id)?;
             drop(lease);
             r.store.dismiss(&id)
         })

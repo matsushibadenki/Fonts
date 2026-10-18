@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub struct Model {
+    pub parked: std::collections::BTreeMap<u64, Box<Model>>,
+    pub document_id: u64,
+    pub next_document_id: u64,
     pub snippets: crate::snippets::State,
     pub images: crate::reference_images::Images,
     pub editor: Editor,
@@ -66,6 +69,8 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    documents: Vec<crate::documents::Summary>,
+    document_id: u64,
     class_kerning: font_core::class_kerning::ClassKerning,
     kerning: Vec<font_core::kerning::Pair>,
     kerning_total: usize,
@@ -229,6 +234,9 @@ impl Model {
             polygon(&[[235., 300.], [405., 300.], [320., 565.]]),
         ];
         Self {
+            parked: Default::default(),
+            document_id: 1,
+            next_document_id: 2,
             snippets: Default::default(),
             images: Default::default(),
             editor: Editor::new(doc).unwrap(),
@@ -352,6 +360,8 @@ impl Model {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
         Snapshot {
+            documents: self.document_summaries(),
+            document_id: self.document_id,
             class_kerning: doc.class_kerning.clone(),
             kerning: doc
                 .kerning
@@ -447,7 +457,7 @@ impl Model {
             fill: self.fill,
             can_undo: self.editor.can_undo(),
             can_redo: self.editor.can_redo(),
-            dirty: self.saved_revision != Some(self.editor.revision()),
+            dirty: self.unsaved(),
             reviewed: g.status == GlyphStatus::Reviewed,
         }
     }
@@ -820,6 +830,9 @@ impl Model {
             return Err("invalid_point".into());
         }
         if self.proof.active {
+            if self.proof.source.is_some() {
+                return Ok(());
+            }
             if phase == "down" {
                 if let Some(font) = self.proof.font.as_ref() {
                     let width = if self.proof.reference.is_some() {
@@ -921,6 +934,28 @@ impl Model {
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn external_variable_preview_never_selects_an_editor_glyph() {
+        let mut m = Model::new(Workspace::default());
+        let before = m.editor.document().clone();
+        let settings = font_core::proof::Settings::default();
+        let prepared = font_core::proof::prepare(
+            font_core::proof::subset(&before, &settings.text).unwrap(),
+            &settings.text,
+        )
+        .unwrap();
+        let layout = font_core::proof::layout(&prepared, &settings, m.size[0]);
+        let p = layout.placements.first().unwrap();
+        m.proof.font = Some(std::sync::Arc::new(prepared));
+        m.proof.source = Some(std::sync::Arc::new(before.clone()));
+        m.proof.active = true;
+        m.pointer("down", p.x + p.width / 2., (p.top + p.bottom) / 2.)
+            .unwrap();
+        assert!(m.proof.active);
+        assert_eq!(m.editor.document(), &before);
+        assert_eq!(m.editor.revision(), 0);
+    }
+
     #[test]
     fn class_commands_share_revision_and_modal_guards() {
         use font_core::class_kerning::{Edit, Side};

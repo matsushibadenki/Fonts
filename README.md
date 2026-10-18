@@ -26,7 +26,10 @@ npm run tauri build -- --debug --bundles app
 ## 操作
 
 - パネル見出しをドラッグして左右・下部へドッキング。同じドックではタブにまとまります。
-- 見出し右の分離アイコンでフローティング化。分離ウインドウのドックボタン、または閉じる操作で戻せます。
+- 出力形式にWOFF2を追加。TrueType／CFFと圧縮を選び、保存後の検証結果を確認できます。[詳細](docs/woff2.md)。
+- 文書タブで複数のプロジェクトを切り替えられます。Undo/Redo・保存先・自動保存は文書ごとに独立し、未保存の文書を閉じる際は確認します。[詳細](docs/multiple-documents.md)。
+- 見出しの分割アイコンで配置先と上下左右を選び、入れ子分割やタブ結合ができます。境界はドラッグ・矢印キーで調整でき、レイアウトは自動保存されます。[詳細](docs/nested-splits.md)。
+- 見出し右の分離アイコンでフローティング化。分離ウインドウのドックボタン、または閉じる操作で戻せます。位置・サイズは自動保存し、アプリ再起動時に復元。モニター構成が変わった場合は画面内へ補正します。[詳細](docs/floating-panels.md)。
 - パネル境界をドラッグして幅・高さを調整。境界へキーボードfocusを移して矢印キーでも調整できます。幅1,000px以下では左右幅を自動調整します。
 - 文字を選択して四角いノードをドラッグ。ペンはクリックで点を追加し、Enterかダブルクリックで閉じます。Escで編集中の操作を取り消します。
 - Illustrator・LumaPaintでパスをコピーし、Fontsのキャンバスで`⌘V`を押すと、現在の文字へ編集可能な輪郭を追加します。縦横比を保って文字枠へ配置します。[対応形式・操作と制限](docs/clipboard-paths.md)。
@@ -70,6 +73,8 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 フォントライブラリではチェックボックスや⌘/Ctrlクリックで複数選択できます。出力形式を選び、一括変換のフォルダーアイコンから保存先を指定すると、新しいサブフォルダーへまとめて保存します。[操作と制約](docs/batch-font-conversion.md)。
 
+可変フォントの軸設定・GPUプレビューと静的TTF／OTF／WOFF2変換に対応。[操作・制約](docs/variable-fonts.md)。
+
 ## ライセンス
 
 2026-10-17確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
@@ -85,7 +90,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | Tao、codespan-reporting、TypeScriptなどのApache単独依存 | Apache-2.0 | 🟢 [Done] MITへ変更せず併用。ライセンス本文・該当NOTICEを保持し、改変して配布する場合は変更点を明示する。 |
 | dpi | Apache-2.0 AND MIT | 🟢 [Done] 選択式ではないため、両方の条件を維持する。 |
 | encoding_rs | MIT AND BSD-3-Clause | 🟢 [Done] 本体の選択式部分はMIT、内包するWHATWG由来部分はBSD-3-Clauseを維持する。 |
-| brotli、alloc-no-stdlib／alloc-stdlibなど | BSD-3-Clause、またはBSD-3-Clause AND MIT | 🟢 [Done] 対応する著作権表示・条件・免責を保持する。 |
+| brotli（WOFF2圧縮）、alloc-no-stdlib／alloc-stdlibなど | BSD-3-Clause、またはBSD-3-Clause AND MIT | 🟢 [Done] 対応する著作権表示・条件・免責を保持する。 |
 | ICU4X関連、unicode-normalization、unicode-identなど | Unicode-3.0、またはMIT AND Unicode-3.0 | 🟢 [Done] Unicode由来データ等の条件も維持する。Rustコードの選択式ライセンスだけでデータの条件を省略しない。 |
 | libloading、picocolors | ISC | 🟢 [Done] 著作権・許諾文・免責を維持する。 |
 | foldhash、slotmap、zlib-rs、FreeType内蔵／リンク先のzlib | Zlib | 🟢 [Done] 原著作者表示を保持し、改変したソースを配布する場合は改変を明示する。RustバインディングのMIT／Apache宣言とは別に扱う。 |

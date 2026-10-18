@@ -1,4 +1,10 @@
 const paths = {
+  split:'M3 3h18v18H3zM12 3v18M12 12h9',
+  splitLeft:'M3 3h18v18H3zM12 3v18M5 12h5m-2-2-2 2 2 2',
+  splitRight:'M3 3h18v18H3zM12 3v18M14 12h5m-2-2 2 2-2 2',
+  splitTop:'M3 3h18v18H3zM3 12h18M12 5v5m-2-2 2-2 2 2',
+  splitBottom:'M3 3h18v18H3zM3 12h18M12 14v5m-2-2 2 2 2-2',
+  tab:'M3 7h18v14H3zM3 7V3h8v4M11 3h10v4',
   kerning:'M2 18 6 5l4 13M3.5 14h5M14 5l4 13 4-13M10 21h8m-3-3 3 3-3 3',
   snippets:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   duplicate:'M8 8h13v13H8zM3 16V3h13',

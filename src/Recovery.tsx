@@ -26,7 +26,7 @@ export function Recovery({locale,onOpenChange}:{locale:Locale;onOpenChange:(open
    {failed&&<p role="alert" title={failed}>{t.error}</p>}
    {!!data?.invalid&&<p role="alert">{t.invalid}: {data.invalid}</p>}
    {!data?.candidates.length&&<p>{t.empty}</p>}
-   <div className="recovery-list">{data?.candidates.map(c=><div className="recovery-row" key={c.id}><div title={c.origin||undefined}><strong>{c.family}</strong><small>{time(c.updated)}</small></div><IconButton icon="undo" label={t.restore} disabled={busy} onClick={()=>void act(c.id,true)}/><IconButton icon="close" label={t.discard} disabled={busy} onClick={()=>void act(c.id,false)}/></div>)}</div>
+   <div className="recovery-list">{data?.candidates.map(c=><div className="recovery-row" key={c.id}><div title={c.origin||undefined}><strong>{c.family}</strong><small>{c.origin?.split(/[\\/]/).pop()??''} · {time(c.updated)}</small></div><IconButton icon="undo" label={t.restore} disabled={busy} onClick={()=>void act(c.id,true)}/><IconButton icon="close" label={t.discard} disabled={busy} onClick={()=>void act(c.id,false)}/></div>)}</div>
    <small role="status">{busy?t.busy:data?.updated?`${t.saved} · ${time(data.updated)}`:t.ready}</small>
   </dialog>
  </>;

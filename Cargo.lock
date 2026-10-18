@@ -1066,6 +1066,7 @@ name = "font-core"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "brotli",
  "freetype-rs",
  "image",
  "lopdf",

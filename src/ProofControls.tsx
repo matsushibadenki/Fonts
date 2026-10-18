@@ -25,6 +25,6 @@ export function ProofControls({state,onError}:{state:Snapshot;onError:(e:string)
    <span className="panel-help" role="img" tabIndex={0} aria-label={t.help} title={t.help}><Icon name="info"/></span>
   </div>
   <textarea className="proof-text" aria-label={t.text} maxLength={4096} value={draft.text} onChange={e=>setDraft({...draft,text:e.target.value,scroll:0})}/>
-  <div className="proof-summary"><span title={state.proof.missing.map(c=>`U+${c.toString(16).toUpperCase()}`).join(', ')}>{t.missing}: {state.proof.missing.length} · {t.empty}: {state.proof.empty}</span>{state.proof.comparison&&<span>{t.current} | {t.reference}</span>}</div>
+  <div className="proof-summary">{state.proof.source&&<span title={state.proof.source}>{state.proof.source}</span>}<span title={state.proof.missing.map(c=>`U+${c.toString(16).toUpperCase()}`).join(', ')}>{t.missing}: {state.proof.missing.length} · {t.empty}: {state.proof.empty}</span>{state.proof.comparison&&<span>{t.current} | {t.reference}</span>}</div>
  </>;
 }

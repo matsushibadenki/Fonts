@@ -45,6 +45,8 @@ pub enum Operation {
     ApplyCmap,
     Export {
         family: String,
+        #[serde(default)]
+        woff2: font_core::font_formats::woff2::Options,
         #[serde(default = "ttf_format")]
         format: Format,
     },
@@ -135,7 +137,7 @@ pub fn font_library_query(
         platform: std::env::consts::OS,
     })
 }
-fn entry(app: &tauri::AppHandle, id: u64) -> Result<Entry, String> {
+pub(crate) fn entry(app: &tauri::AppHandle, id: u64) -> Result<Entry, String> {
     app.state::<Library>()
         .0
         .lock()
@@ -168,11 +170,17 @@ pub(crate) fn protected(path: &std::path::Path) -> Result<bool, String> {
         .filter_map(|r| r.path.canonicalize().ok())
         .any(|root| font_paths::under(&parent, &root)))
 }
+#[derive(serde::Serialize)]
+pub struct ExportReport {
+    path: PathBuf,
+    bytes: usize,
+    verified: bool,
+}
 #[tauri::command]
 pub async fn font_library_action(
     window: WebviewWindow,
     operation: Operation,
-) -> Result<(), String> {
+) -> Result<Option<ExportReport>, String> {
     crate::allowed(&window)?;
     let _guard = crate::files::FileGuard::acquire()?;
     let app = window.app_handle().clone();
@@ -185,6 +193,7 @@ pub async fn font_library_action(
             | Operation::Convert { .. }
             | Operation::ApplyCmap
     );
+    let mut report = None;
     match operation {
         Operation::SystemManager => {
             tauri::async_runtime::spawn_blocking(open_system_manager)
@@ -250,7 +259,7 @@ pub async fn font_library_action(
             })
             .await
             .map_err(|e| e.to_string())??;
-            crate::files::replace(&window, doc, None).await?;
+            crate::files::add_document(&window, doc, None).await?;
         }
         Operation::Copy { id } => {
             let e = entry(&app, id)?;
@@ -281,10 +290,14 @@ pub async fn font_library_action(
                 .map_err(|e| e.to_string())??;
             }
         }
-        Operation::Export { family, format } => {
+        Operation::Export {
+            family,
+            format,
+            woff2,
+        } => {
             let mut doc = document(&app)?;
             doc.family = family;
-            save_font(&window, doc, format).await?;
+            report = save_font(&window, doc, format, woff2).await?;
         }
         Operation::Convert { id, format } => {
             let e = entry(&app, id)?;
@@ -296,7 +309,7 @@ pub async fn font_library_action(
             if let Some(family) = doc.family.strip_suffix(" Edited") {
                 doc.family = family.to_owned();
             }
-            save_font(&window, doc, format).await?;
+            report = save_font(&window, doc, format, Default::default()).await?;
         }
         Operation::ApplyCmap => {
             let (epoch, revision) = {
@@ -403,7 +416,7 @@ pub async fn font_library_action(
         let _ = w.set_focus();
     }
 
-    Ok(())
+    Ok(report)
 }
 fn reveal(path: PathBuf) -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -493,17 +506,35 @@ fn document(app: &tauri::AppHandle) -> Result<font_core::FontDocument, String> {
     }
     Ok(m.editor.document().clone())
 }
-async fn save_font(
+pub(crate) async fn save_font(
     window: &WebviewWindow,
     doc: font_core::FontDocument,
     format: Format,
-) -> Result<(), String> {
+    woff2: font_core::font_formats::woff2::Options,
+) -> Result<Option<ExportReport>, String> {
     let parent = window.clone();
     let name = doc.family.clone();
-    let bytes =
-        tauri::async_runtime::spawn_blocking(move || font_core::font_formats::export(&doc, format))
-            .await
-            .map_err(|e| e.to_string())??;
+    let verify = matches!(format, Format::Ttf | Format::Otf | Format::Woff2);
+    let expected = doc.clone();
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        if format == Format::Woff2 {
+            font_core::font_formats::woff2::export(&doc, woff2)
+        } else {
+            font_core::font_formats::export(&doc, format)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if verify {
+        let decoded;
+        let sfnt = if format == Format::Woff2 {
+            decoded = font_core::font_formats::woff2::decode(&bytes)?;
+            decoded.as_slice()
+        } else {
+            &bytes
+        };
+        font_core::variations::verify(sfnt, &expected)?;
+    }
     let filename: String = name
         .chars()
         .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '_' | '-'))
@@ -544,11 +575,32 @@ async fn save_font(
         if protected(&path)? {
             return Err("font_protected_location".into());
         }
+        let report = ExportReport {
+            path: path.clone(),
+            bytes: bytes.len(),
+            verified: verify,
+        };
         tauri::async_runtime::spawn_blocking(move || {
-            font_core::storage::write_bytes(&path, &bytes).map_err(|e| e.to_string())
+            font_core::storage::write_bytes(&path, &bytes).map_err(|e| e.to_string())?;
+            if verify {
+                let saved = font_core::font_io::read(&path)?;
+                if saved != bytes {
+                    return Err(if format == Format::Woff2 {
+                        "woff2_invalid"
+                    } else {
+                        "variation_invalid_output"
+                    }
+                    .into());
+                }
+                if format == Format::Woff2 {
+                    font_core::font_formats::woff2::decode(&saved)?;
+                }
+            }
+            Ok::<_, String>(())
         })
         .await
         .map_err(|e| e.to_string())??;
+        return Ok(Some(report));
     }
-    Ok(())
+    Ok(None)
 }

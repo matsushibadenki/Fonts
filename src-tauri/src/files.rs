@@ -76,6 +76,12 @@ pub async fn save(window: WebviewWindow, save_as: bool) -> Result<(), String> {
         path
     };
     let state = app.state::<AppState>();
+    {
+        let m = state.0.lock().map_err(|_| "state_poisoned")?;
+        if m.path_owner(&path).is_some_and(|id| id != m.document_id) {
+            return Err("document_path_in_use".into());
+        }
+    }
     let (doc, epoch, revision) = {
         let m = state.0.lock().map_err(|_| "state_poisoned")?;
         if m.has_draft() {
@@ -111,37 +117,36 @@ pub async fn open(window: WebviewWindow) -> Result<(), String> {
         return Ok(());
     };
     let input = path.clone();
-    // Parse before asking to discard the current document. Invalid input never replaces it.
+    // Parse before adding a tab. Invalid input leaves all open documents intact.
     let document = tauri::async_runtime::spawn_blocking(move || {
         font_core::storage::load(&input).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
-    replace(&window, document, Some(path)).await.map(|_| ())
+    add_document(&window, document, Some(path))
+        .await
+        .map(|_| ())
 }
 pub async fn new(window: WebviewWindow) -> Result<(), String> {
     let _guard = FileGuard::acquire()?;
     let document = FontDocument::new("Untitled Sans", "").map_err(|e| e.to_string())?;
-    replace(&window, document, None).await.map(|_| ())
+    add_document(&window, document, None).await.map(|_| ())
 }
-pub(crate) async fn replace(
+pub(crate) async fn add_document(
     window: &WebviewWindow,
     document: FontDocument,
     path: Option<std::path::PathBuf>,
-) -> Result<bool, String> {
+) -> Result<u64, String> {
     let app = window.app_handle().clone();
     on_main(window, move || {
-        if !crate::confirm_discard(&app) {
-            return Ok(false);
-        }
-        {
+        let id = {
             let state = app.state::<AppState>();
             let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
-            m.replace_document(document, path)?;
-        }
-        crate::recovery::clear_current(&app);
+            m.open_document(document, path)?;
+            m.document_id
+        };
         crate::publish(&app);
-        Ok(true)
+        Ok(id)
     })
     .await
 }
