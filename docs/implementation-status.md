@@ -175,3 +175,5 @@ LumaPaintの元ディレクトリは変更せず、追加流用箇所のhashと�
 - 🟢 [Done] Webフォント用WOFF2出力。TrueType／CFF・圧縮・三言語・保存後検証、独立デコーダーとブラウザーでの確認。[仕様と検証](woff2.md)。
 
 - 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。
+
+- 🟢 [Done] [カラーフォントの読み込み・GPUプレビュー・カラー保持出力](color-fonts.md)。

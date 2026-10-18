@@ -32,6 +32,13 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
     if !crate::font_formats::is_sfnt(bytes) {
         return crate::font_formats::legacy_import(bytes, index);
     }
+    let raw = ttf_parser::RawFace::parse(bytes, index).map_err(|_| "font_invalid")?;
+    if [b"COLR", b"sbix", b"CBDT", b"SVG "]
+        .iter()
+        .any(|tag| raw.table(ttf_parser::Tag::from_bytes(tag)).is_some())
+    {
+        return Err("color_requires_preserve".into());
+    }
     import_face(
         bytes,
         index,

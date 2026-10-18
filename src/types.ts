@@ -21,7 +21,7 @@ export interface Snapshot {
   images:ReferenceImage[];image_selected:number|null;image_editing:boolean;
   selection:{contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
   properties:FontProperties;presets:[string,number][];
-  proof:{source:string|null;active:boolean;settings:ProofSettings;missing:number[];empty:number;comparison:boolean;height:number};
+  proof:{color:boolean;source:string|null;active:boolean;settings:ProofSettings;missing:number[];empty:number;comparison:boolean;height:number};
   family:string;epoch:number;revision:number;glyph:number;character:string;codepoints:number[];name:string;cid:number|null;advance:number;ascender:number;descender:number;upm:number;unencoded:number;cid_system:{registry:string;ordering:string;supplement:number}|null;
   glyphs:{id:number;character:string;codepoints:number[];name:string;cid:number|null;reviewed:boolean;has_outline:boolean}[];
   contours:{nodes:number;closed:boolean;start:[number,number];segments:{end:[number,number];deletable:boolean;closure:boolean}[]}[];

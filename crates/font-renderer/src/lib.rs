@@ -607,6 +607,22 @@ impl Renderer {
         reference::add_images(&mut m, v, &overlay);
         self.draw_meshes(size, vec![m])
     }
+    pub fn draw_color(
+        &mut self,
+        size: [u32; 2],
+        logical: [f64; 2],
+        asset: &font_core::reference_images::ImageAsset,
+    ) -> Result<(), String> {
+        let mut mesh = Mesh {
+            images: vec![],
+            triangles: vec![],
+            decoration: vec![],
+            cover: vec![],
+            clip: None,
+        };
+        reference::add_color(&mut mesh, logical, asset);
+        self.draw_meshes(size, vec![mesh])
+    }
     pub fn draw_proof(
         &mut self,
         size: [u32; 2],

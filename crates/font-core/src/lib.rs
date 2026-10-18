@@ -579,3 +579,5 @@ impl Editor {
 pub mod dock_tree;
 
 pub mod variations;
+
+pub mod color_fonts;

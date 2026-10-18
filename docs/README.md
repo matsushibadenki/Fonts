@@ -36,3 +36,5 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - [Webフォント用WOFF2出力・設定・検証](woff2.md)
 
 - 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。
+
+- 🟢 [Done] [カラーフォントの読み込み・GPUプレビュー・カラー保持出力](color-fonts.md)。

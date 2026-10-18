@@ -271,3 +271,21 @@ pub(super) fn add_images(mesh: &mut Mesh, v: Viewport, overlay: &EditorOverlay<'
         }
     }
 }
+
+pub(super) fn add_color(mesh: &mut Mesh, logical: [f64; 2], asset: &ImageAsset) {
+    let scale = (logical[0] / f64::from(asset.width()))
+        .min(logical[1] / f64::from(asset.height()))
+        .min(1.);
+    let w = f64::from(asset.width()) * scale / logical[0] * 2.;
+    let h = f64::from(asset.height()) * scale / logical[1] * 2.;
+    let points = [[-1., 1.], [-1. + w, 1.], [-1. + w, 1. - h], [-1., 1. - h]];
+    let uv = [[0., 0.], [1., 0.], [1., 1.], [0., 1.]];
+    mesh.images.push(ImageQuad {
+        asset: asset.clone(),
+        vertices: [0, 1, 2, 0, 2, 3].map(|i| ImageVertex {
+            position: [points[i][0] as f32, points[i][1] as f32],
+            uv: uv[i],
+            opacity: 1.,
+        }),
+    });
+}

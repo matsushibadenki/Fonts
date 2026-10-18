@@ -830,7 +830,7 @@ impl Model {
             return Err("invalid_point".into());
         }
         if self.proof.active {
-            if self.proof.source.is_some() {
+            if self.proof.source.is_some() || self.proof.color.is_some() {
                 return Ok(());
             }
             if phase == "down" {
@@ -934,6 +934,35 @@ impl Model {
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn color_preview_is_isolated_from_the_editor_and_serialized_pixels() {
+        let mut m = Model::new(Workspace::default());
+        let original = m.editor.document().clone();
+        let preview = font_core::color_fonts::preview(
+            include_bytes!("../../crates/font-core/tests/data/color/colrv0.ttf"),
+            0,
+            "A",
+            96,
+            0,
+            [1024, 512],
+        )
+        .unwrap();
+        m.proof.color = Some(std::sync::Arc::new(preview));
+        m.proof.active = true;
+        m.pointer("down", 100., 100.).unwrap();
+        assert!(m.proof.active);
+        assert_eq!(m.editor.document(), &original);
+        assert_eq!(m.editor.revision(), 0);
+        let summary = serde_json::to_value(m.snapshot()).unwrap();
+        assert_eq!(summary["proof"]["color"], true);
+        assert!(summary["proof"]["source"]
+            .as_str()
+            .unwrap()
+            .contains("COLRv0"));
+        assert!(summary["proof"].get("image").is_none());
+        assert!(summary["proof"].get("rgba").is_none());
+    }
+
     #[test]
     fn external_variable_preview_never_selects_an_editor_glyph() {
         let mut m = Model::new(Workspace::default());

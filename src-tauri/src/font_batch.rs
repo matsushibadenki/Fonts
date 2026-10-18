@@ -347,6 +347,7 @@ mod tests {
             source: "file".into(),
             glyphs: 3,
             variable: false,
+            color: None,
             outline: true,
         };
         let output = convert(&e, Format::Otf).unwrap();
@@ -386,6 +387,7 @@ mod tests {
             source: "file".into(),
             glyphs: 2,
             variable: false,
+            color: None,
             outline: true,
         };
         let mut bad = good.clone();

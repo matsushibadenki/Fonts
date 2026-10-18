@@ -6,6 +6,7 @@ use tauri::{Manager, WebviewWindow};
 #[derive(Default)]
 pub struct Proof {
     pub active: bool,
+    pub color: Option<Arc<font_core::color_fonts::Preview>>,
     pub settings: Settings,
     pub font: Option<Arc<Prepared>>,
     pub reference: Option<Arc<Prepared>>,
@@ -14,6 +15,7 @@ pub struct Proof {
 }
 #[derive(Serialize)]
 pub struct Summary {
+    pub color: bool,
     pub active: bool,
     pub settings: Settings,
     pub missing: Vec<u32>,
@@ -26,10 +28,12 @@ impl Proof {
     pub fn summary(&self, width: f64) -> Summary {
         Summary {
             active: self.active,
-            source: self
-                .source
-                .as_ref()
-                .map(|d| format!("{} · {}", d.family, d.metadata.style)),
+            color: self.color.is_some(),
+            source: self.color.as_ref().map(|c| c.label.clone()).or_else(|| {
+                self.source
+                    .as_ref()
+                    .map(|d| format!("{} · {}", d.family, d.metadata.style))
+            }),
             settings: self.settings.clone(),
             missing: self
                 .font
@@ -103,6 +107,7 @@ pub async fn proof_action(
             Operation::Close => {
                 m.proof.active = false;
                 m.proof.source = None;
+                m.proof.color = None;
                 m.proof.generation += 1;
                 None
             }
@@ -133,6 +138,7 @@ pub async fn proof_action(
         if m.epoch != epoch || m.editor.revision() != revision || m.proof.generation != generation {
             return Err("Conflict".into());
         }
+        m.proof.color = None;
         m.proof.font = Some(Arc::new(font));
         m.proof.settings = settings;
         m.proof.active = true;

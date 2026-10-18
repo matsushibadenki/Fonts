@@ -25,6 +25,7 @@ pub struct Entry {
     pub glyphs: u16,
     pub variable: bool,
     pub outline: bool,
+    pub color: Option<font_core::color_fonts::Info>,
 }
 #[derive(Default, Serialize)]
 pub struct Catalog {
@@ -56,6 +57,7 @@ pub fn inspect(path: &Path, source: &str) -> Result<Vec<Entry>, String> {
             source: source.into(),
             glyphs: info.glyphs,
             variable: false,
+            color: None,
             outline: info.outline,
         }]);
     }
@@ -106,6 +108,7 @@ pub fn inspect(path: &Path, source: &str) -> Result<Vec<Entry>, String> {
             source: source.into(),
             glyphs: face.number_of_glyphs(),
             variable: face.is_variable(),
+            color: font_core::color_fonts::info(&data, index).ok(),
             outline: face.tables().glyf.is_some()
                 || face.tables().cff.is_some()
                 || face.tables().cff2.is_some(),

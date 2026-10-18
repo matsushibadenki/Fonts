@@ -82,6 +82,7 @@ pub async fn variation_action(
             {
                 return Err("Conflict".into());
             }
+            m.proof.color = None;
             m.proof.source = Some(std::sync::Arc::new(doc));
             m.proof.font = Some(std::sync::Arc::new(prepared));
             m.proof.reference = None;

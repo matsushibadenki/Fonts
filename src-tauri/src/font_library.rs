@@ -13,6 +13,7 @@ pub struct Library(pub Mutex<LibraryState>);
 pub struct LibraryState {
     pub(crate) catalog: Catalog,
     next: u64,
+    pub(crate) color: Option<crate::color_fonts::Source>,
 }
 #[derive(Serialize)]
 pub struct Page {

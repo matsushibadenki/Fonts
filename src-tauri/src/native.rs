@@ -164,6 +164,9 @@ fn draw(c: &mut Canvas, model: &Model) -> Result<(), String> {
 
 fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
     if model.proof.active {
+        if let Some(color) = model.proof.color.as_ref() {
+            return c.renderer.draw_color(c.size, model.size, &color.image);
+        }
         if let Some(font) = model.proof.font.as_ref() {
             return c.renderer.draw_proof(
                 c.size,

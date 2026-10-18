@@ -1,4 +1,5 @@
 mod clipboard;
+mod color_fonts;
 mod documents;
 mod files;
 mod floating;
@@ -584,6 +585,8 @@ fn main() {
             text_focus,
             open_font_library,
             font_library::font_library_query,
+            color_fonts::color_font_open,
+            color_fonts::color_font_action,
             variations::variation_axes,
             variations::variation_action,
             font_library::font_library_action

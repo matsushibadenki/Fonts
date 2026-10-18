@@ -1,4 +1,5 @@
 const paths = {
+  palette:'M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 1-4 1 1 0 0 1 1-2h2a4 4 0 0 0 4-4c0-5-5-8-10-8ZM7 8h.01M12 6h.01M17 9h.01M6 13h.01',
   split:'M3 3h18v18H3zM12 3v18M12 12h9',
   splitLeft:'M3 3h18v18H3zM12 3v18M5 12h5m-2-2-2 2 2 2',
   splitRight:'M3 3h18v18H3zM12 3v18M14 12h5m-2-2 2 2-2 2',

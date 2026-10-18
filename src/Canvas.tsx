@@ -43,10 +43,10 @@ export function Canvas({state,t,edit,dragging,onError}:{state:Snapshot;t:(k:Key)
     window.addEventListener('resize',sync);void sync();
     return()=>{disposed=true;observer.disconnect();window.removeEventListener('resize',sync);};
   },[dragging,state.workspace.revision]);
-  useEffect(()=>{if(state.proof.active)void proofCommand(state,{type:'prepare',settings:state.proof.settings}).catch(e=>{if(String(e)!=='Conflict')onError(proofError(state,String(e)));});},[state.epoch,state.revision]);
+  useEffect(()=>{if(state.proof.active&&!state.proof.color)void proofCommand(state,{type:'prepare',settings:state.proof.settings}).catch(e=>{if(String(e)!=='Conflict')onError(proofError(state,String(e)));});},[state.epoch,state.revision]);
   useEffect(()=>()=>cancelAnimationFrame(frame.current),[]);
   return <section className="editor-center">
-    {state.proof.active?<ProofControls state={state} onError={onError}/>:<div className="canvas-tools">
+    {state.proof.active?(state.proof.color?<div className="canvas-tools"><span className="color-preview-label">{state.proof.source}</span><span className="tool-spacer"/><IconButton icon="close" label={state.workspace.locale==='ja'?'プレビューを閉じる':state.workspace.locale==='zh_cn'?'关闭预览':'Close preview'} onClick={()=>void proofCommand(state,{type:'close'})}/></div>:<ProofControls state={state} onError={onError}/>):<div className="canvas-tools">
       {(['nodes','pen','pan'] as const).map(tool=><IconButton key={tool} icon={tool} label={t(tool)} active={state.tool===tool} onClick={()=>void edit({type:'tool',tool})}/>)}
       <span className="tool-divider"/>
       <IconButton icon="fill" label={t('fill')} active={state.fill} onClick={()=>void edit({type:'fill'})}/>
@@ -75,7 +75,7 @@ export function Canvas({state,t,edit,dragging,onError}:{state:Snapshot;t:(k:Key)
       onDoubleClick={()=>{if(state.tool==='pen')void queue.current.then(()=>edit({type:'finish_pen'}));}}
       onKeyDown={e=>{if(e.key==='Enter'&&state.tool==='pen'){e.preventDefault();void edit({type:'finish_pen'});}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cancel();void queue.current.then(()=>edit({type:'cancel'}));}}}
     >{!gpu&&<span className="canvas-starting">{t('native')}</span>}</div>
-    {state.proof.active&&<input className="proof-scroll" aria-label={proofLabels[state.workspace.locale].scroll} type="range" min={0} max={Math.max(0,state.proof.height-(ref.current?.clientHeight||0))} step={20} value={state.proof.settings.scroll} onChange={e=>void proofCommand(state,{type:'scroll',value:Number(e.target.value)}).catch(e=>onError(String(e)))}/>}
+    {state.proof.active&&!state.proof.color&&<input className="proof-scroll" aria-label={proofLabels[state.workspace.locale].scroll} type="range" min={0} max={Math.max(0,state.proof.height-(ref.current?.clientHeight||0))} step={20} value={state.proof.settings.scroll} onChange={e=>void proofCommand(state,{type:'scroll',value:Number(e.target.value)}).catch(e=>onError(String(e)))}/>}
     <div className="canvas-caption"><span className="canvas-info" tabIndex={0} role="img" aria-label={state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:t(state.tool==='pen'?'penHint':'nodesHint')} title={state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:t(state.tool==='pen'?'penHint':'nodesHint')}><Icon name="info"/></span><span title={gpu}>{gpu?t('ready'):t('gpuError')}</span></div>
   </section>;
 }

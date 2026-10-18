@@ -56,6 +56,13 @@ pub fn instantiate(
     index: u32,
     coordinates: &Coordinates,
 ) -> Result<FontDocument, String> {
+    let raw = ttf_parser::RawFace::parse(bytes, index).map_err(|_| "font_invalid")?;
+    if [b"COLR", b"sbix", b"CBDT", b"SVG "]
+        .iter()
+        .any(|tag| raw.table(Tag::from_bytes(tag)).is_some())
+    {
+        return Err("color_requires_preserve".into());
+    }
     let axes = axes(bytes, index)?;
     if coordinates
         .keys()

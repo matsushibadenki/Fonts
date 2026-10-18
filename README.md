@@ -75,6 +75,8 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 可変フォントの軸設定・GPUプレビューと静的TTF／OTF／WOFF2変換に対応。[操作・制約](docs/variable-fonts.md)。
 
+カラーフォントはライブラリのパレットアイコンからプレビュー・カラー保持出力を行えます。[形式別の対応範囲](docs/color-fonts.md)。
+
 ## ライセンス
 
 2026-10-17確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
