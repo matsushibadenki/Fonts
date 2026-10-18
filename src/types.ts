@@ -9,7 +9,10 @@ export interface FontProperties {family:string;metadata:FontMetadata}
 export interface ProofSettings {kerning:boolean;text:string;size:number;tracking:number;leading:number;scroll:number}
 export interface SnippetInfo {name:string;tags:string;category:string;source:string;license:string;favorite:boolean}
 export interface SnippetEntry {key:string;builtin:boolean;info:SnippetInfo;contours:number}
+export interface KerningClass {id:number;name:string;glyphs:number[]}
+export interface ClassKerning {next_id:number;left:KerningClass[];right:KerningClass[];pairs:{left:number;right:number;value:number}[]}
 export interface Snapshot {
+  class_kerning:ClassKerning;
   kerning:{left:number;right:number;value:number}[];kerning_total:number;
   snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null};
   images:ReferenceImage[];image_selected:number|null;image_editing:boolean;

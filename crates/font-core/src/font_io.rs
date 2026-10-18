@@ -116,8 +116,9 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
         );
     }
     if let Some(data) = face.raw_face().table(ttf_parser::Tag::from_bytes(b"GPOS")) {
-        if let Some(k) = crate::kerning::read_gpos(data) {
+        if let Some((k, c)) = crate::kerning::read_gpos(data) {
             doc.kerning = k;
+            doc.class_kerning = c;
         }
     }
     doc.validate().map_err(|e| e.to_string())?;

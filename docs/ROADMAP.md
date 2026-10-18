@@ -36,10 +36,11 @@
 8. 🟢 [Done] Illustrator・LumaPaintからパスを直接ペースト。macOSの専用JSON／SVG／PDF／制限付きAICBをRustで解析し、文字枠へ独立コピー。三言語、1回のUndo/Redo、保存・復旧へ接続。両アプリの実コピーと入力欄の文字貼り付けを確認。[仕様と検証](clipboard-paths.md)。
    - ⭕️ [Pending] Windows/Linuxのクリップボード実装・実機検証。
 9. 🟢 [Done] pair kerningの編集・試し組み・出力。グリフIDの明示ペア、三言語メトリクスUI、Undo/Redo・保存・復旧、試し組みのON/OFF、TTF／OTF GPOSへ接続。[仕様と検証](pair-kerning.md)。
-   - 🟠 [Next] class kerningの編集・試し組み・出力。
+   - 🟢 [Done] class kerningの編集・試し組み・出力。左右クラスの登録・改名・所属編集・削除、明示ペア／0例外の優先、GPOS Format 2、三言語・Undo/Redo・保存・復旧。[仕様と検証](class-kerning.md)。
    - 🔴 [Later] 縦組み・異体字シーケンスと、外部フォントの組版情報の保持。
    - ⭕️ [Pending] Windows/Linuxの実画面と、外部組版アプリごとの表示検証。
-10. 🔴 [Later] 入れ子split、floating bounds復元、複数文書、WOFF2、可変・カラー、hinting、画像トレース。
+10. 🟠 [Next] フローティングパネルの位置・サイズの保存と復元（floating bounds）。
+11. 🔴 [Later] 入れ子split、複数文書、WOFF2、可変・カラー、hinting、画像トレース。
 
 - ⭕️ [Pending] Windows/Linuxのネイティブ描画と実機検証、複数モニター・DPI、署名・公証。
 
@@ -92,6 +93,6 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 🟢 [Done] Rust所有のプロジェクト内ライブラリ、複数輪郭の登録、管理、独立コピー配置を実装。三言語のドッキング／フローティングパネルとGPUサムネイル、変形プレビューと確定、Undo/Redo、保存・再読込・復旧を接続。元の雛形を削除しても配置済み輪郭を維持する。[詳細と検証](components-snippets.md)。
 
-🟢 [Done] pair kerningの編集・試し組み・出力。次は🟠 [Next] class kerning。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
+🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。次は🟠 [Next] フローティングパネルの位置・サイズの復元。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
 
 検証: 通常Rustテスト272件、実GPUテスト4件、Clippy（全target、`-D warnings`）、整形検査、TypeScript/Vite・通常版macOSアプリのビルドが成功。復旧データの復元は自動テスト、三言語の登録・管理・配置・保存と再読込はmacOSの独立アプリで確認。

@@ -95,7 +95,7 @@ pub fn supported_signature(bytes: &[u8]) -> bool {
 }
 pub fn export(doc: &FontDocument, format: Format) -> Result<Vec<u8>> {
     doc.validate().map_err(|e| e.to_string())?;
-    if !doc.kerning.is_empty()
+    if (!doc.kerning.is_empty() || !doc.class_kerning.pairs.is_empty())
         && !matches!(
             format,
             Format::Ttf | Format::Otf | Format::CidOtf | Format::Cmap

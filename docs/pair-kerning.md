@@ -17,7 +17,7 @@
 ## データと整合性
 
 - `kerning`は左ID・右ID順の重複しない配列。空の場合はJSONから省略し、従来のプロジェクトは空の設定として読み込む。
-- 調整値は−32768〜32767の整数。最大4096ペア。0、存在しないID、.notdef、重複・未整列の保存データを拒否する。
+- 調整値は−32768〜32767の整数。最大4096ペア。存在しないID、.notdef、重複・未整列の保存データを拒否する。通常の0適用はペア削除だが、「0の例外ペア」で明示0を登録するとクラス値を打ち消せる。
 - 1回の適用・変更・削除は1回のUndoで戻せる。同値・未登録ペアへの0は履歴を増やさない。編集途中や古いepoch／revisionでの命令は確定しない。
 - フローティングのメトリクスも同じRust文書へ編集する。ペアの試し組みはメインウインドウへ反映される。
 
@@ -25,13 +25,13 @@
 
 試し組みは生成したTTFのペアを使う。抽出文字セットに残った左右のペアだけを保持し、元の疎なIDから出力用IDへ付け替える。字間は別の加算として併用できる。明示改行・折返し・タブ・未収録文字をまたいだペアは適用しない。カーニングOFFは文書の値を削除せず、プレビューのみを切り替える。
 
-TTF／OTFではGPOS 1.0の`kern` feature、DFLT scriptの既定LangSys、Lookup Type 2／PairPos Format 1、Value1.xAdvanceとして出力する。旧`kern`テーブルは併記しない。このアプリが生成した単純なGPOSペア構造は再取り込みできる。仕様は[Microsoft OpenType GPOS](https://learn.microsoft.com/en-us/typography/opentype/spec/gpos#pair-adjustment-positioning-format-1-adjustments-for-glyph-pairs)、[共通テーブル形式](https://learn.microsoft.com/en-us/typography/opentype/spec/chapter2)に従う。
+TTF／OTFではGPOS 1.0の`kern` feature、DFLT scriptの既定LangSys、Lookup Type 2／PairPos Format 1、Value1.xAdvanceとして出力する。クラス設定がある場合は同じlookupの後ろにFormat 2を置き、明示ペアを優先する。旧`kern`テーブルは併記しない。このアプリが生成した単純なGPOSペア構造は再取り込みできる。仕様は[Microsoft OpenType GPOS](https://learn.microsoft.com/en-us/typography/opentype/spec/gpos#pair-adjustment-positioning-format-1-adjustments-for-glyph-pairs)、[共通テーブル形式](https://learn.microsoft.com/en-us/typography/opentype/spec/chapter2)に従う。
 
 単体CFF／CID-CFF、PFA／PFB、CID Type1にはペアを埋め込まない。ペアがある文書をこれらの形式で出力しようとするとTTF／OTFを促すエラーにし、黙って設定を落とさない。CMapは対応表だけの出力なので影響しない。
 
 ## 対応外
 
-🔴 [Later] 外部フォントの任意のGSUB／GPOS、class kerning、旧kern、言語・script別の条件、contextual positioning、可変・縦組み・RTL、AFM／PFMの読み書き。複雑な組版を単純なペアへ展開したり、そのままラウンドトリップする機能ではない。
+🔴 [Later] 外部フォントの任意のGSUB／GPOS、旧kern、言語・script別の条件、contextual positioning、可変・縦組み・RTL、AFM／PFMの読み書き。複雑な組版を単純なペアへ展開したり、そのままラウンドトリップする機能ではない。
 
 ## 検証
 
@@ -42,3 +42,5 @@ TTF／OTFではGPOS 1.0の`kern` feature、DFLT scriptの既定LangSys、Lookup 
 🟢 [Done] macOSの独立した検証アプリでペアの登録、Undo/Redoによる値の復元、wgpu試し組みのON/OFF、保存、画面からのTTF出力を確認。分離メトリクスからのペア選択・試し組み・再ドッキングも確認。保存JSONと実際の出力TTFにも−120が残ることを確認。
 
 ⭕️ [Pending] Windows/Linuxの実画面、複数モニター・DPI、外部組版アプリごとの表示確認。
+
+🟢 [Done] [クラスカーニング](class-kerning.md)と0の例外ペアへ接続済み。

@@ -57,6 +57,7 @@ pub struct Prepared {
 pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
     let chars: BTreeSet<char> = text.chars().filter(|c| !c.is_control()).collect();
     let mut copy = FontDocument {
+        class_kerning: Default::default(),
         kerning: Default::default(),
         snippets: Default::default(),
         reference_images: Default::default(),
@@ -73,6 +74,9 @@ pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
             copy.glyphs.insert(*id, g.clone());
         }
     }
+    copy.class_kerning = doc
+        .class_kerning
+        .subset(&copy.glyphs.keys().copied().collect());
     copy.kerning = doc.kerning.subset(&copy.glyphs.keys().copied().collect());
     Ok(copy)
 }
@@ -175,7 +179,7 @@ pub fn layout(font: &Prepared, settings: &Settings, width: f64) -> Layout {
             return 0.;
         }
         left.zip(font.mapping.get(&c).copied())
-            .map(|(l, r)| f64::from(font.document.kerning.get(l, r)) * scale)
+            .map(|(l, r)| f64::from(font.document.kerning_value(l, r)) * scale)
             .unwrap_or(0.)
     };
     for token in tokens {

@@ -66,6 +66,7 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    class_kerning: font_core::class_kerning::ClassKerning,
     kerning: Vec<font_core::kerning::Pair>,
     kerning_total: usize,
     snippets: crate::snippets::Summary,
@@ -105,6 +106,15 @@ pub struct Snapshot {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Action {
+    ClassKerning {
+        operation: font_core::class_kerning::Edit,
+        revision: u64,
+    },
+    KerningException {
+        left: GlyphId,
+        right: GlyphId,
+        revision: u64,
+    },
     Kerning {
         left: GlyphId,
         right: GlyphId,
@@ -342,6 +352,7 @@ impl Model {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
         Snapshot {
+            class_kerning: doc.class_kerning.clone(),
             kerning: doc
                 .kerning
                 .0
@@ -499,6 +510,29 @@ impl Model {
             self.images = Default::default();
         }
         match a {
+            Action::ClassKerning {
+                operation,
+                revision,
+            } => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                self.editor
+                    .edit_class_kerning(revision, operation)
+                    .map_err(|e| e.to_string())?;
+            }
+            Action::KerningException {
+                left,
+                right,
+                revision,
+            } => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                self.editor
+                    .zero_kerning_exception(revision, left, right)
+                    .map_err(|e| e.to_string())?;
+            }
             Action::Kerning {
                 left,
                 right,
@@ -887,6 +921,41 @@ impl Model {
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn class_commands_share_revision_and_modal_guards() {
+        use font_core::class_kerning::{Edit, Side};
+        let mut m = super::Model::new(Default::default());
+        let op = || Edit::Upsert {
+            side: Side::Left,
+            id: None,
+            name: "Left".into(),
+            glyphs: [1].into(),
+        };
+        assert!(m
+            .action(super::Action::ClassKerning {
+                operation: op(),
+                revision: 1
+            })
+            .is_err());
+        m.pen.push([0., 0.]);
+        assert!(m
+            .action(super::Action::ClassKerning {
+                operation: op(),
+                revision: 0
+            })
+            .is_err());
+        m.pen.clear();
+        m.action(super::Action::ClassKerning {
+            operation: op(),
+            revision: 0,
+        })
+        .unwrap();
+        assert_eq!(m.editor.document().class_kerning.left.len(), 1);
+        m.action(super::Action::Undo { revision: 1 }).unwrap();
+        assert!(m.editor.document().class_kerning.is_empty());
+        m.action(super::Action::Redo { revision: 2 }).unwrap();
+        assert_eq!(m.editor.document().class_kerning.left[0].name, "Left");
+    }
     use super::*;
     #[test]
     fn selection_is_shared_with_canvas_and_modes_are_undoable() {

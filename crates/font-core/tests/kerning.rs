@@ -71,11 +71,6 @@ fn project_roundtrip_old_schema_and_validation() {
     for bad in [
         vec![Pair {
             left: 1,
-            right: 2,
-            value: 0,
-        }],
-        vec![Pair {
-            left: 1,
             right: 999,
             value: 1,
         }],

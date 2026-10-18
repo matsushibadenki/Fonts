@@ -200,6 +200,57 @@ mod tests {
         ))
     }
     #[test]
+    fn class_names_members_values_and_zero_exceptions_survive_recovery() {
+        use font_core::{
+            class_kerning::{Edit, Side},
+            Editor,
+        };
+        let root = root("classes");
+        let store = Store::new(root.clone()).unwrap();
+        let mut e = Editor::new(FontDocument::new("Class recovery", "ATVW").unwrap()).unwrap();
+        e.edit_class_kerning(
+            0,
+            Edit::Upsert {
+                side: Side::Left,
+                id: None,
+                name: "左クラス".into(),
+                glyphs: [1, 2].into(),
+            },
+        )
+        .unwrap();
+        e.edit_class_kerning(
+            1,
+            Edit::Upsert {
+                side: Side::Right,
+                id: None,
+                name: "右侧类".into(),
+                glyphs: [3, 4].into(),
+            },
+        )
+        .unwrap();
+        e.edit_class_kerning(
+            2,
+            Edit::Pair {
+                left: 1,
+                right: 2,
+                value: -80,
+            },
+        )
+        .unwrap();
+        e.zero_kerning_exception(3, 1, 3).unwrap();
+        store.checkpoint(e.document(), 1, 4, None).unwrap();
+        let id = store.id.clone();
+        drop(store);
+        let next = Store::new(root.clone()).unwrap();
+        let (doc, lease) = next.candidate(&id).unwrap();
+        assert_eq!(&doc, e.document());
+        assert_eq!(doc.kerning_value(1, 3), 0);
+        assert_eq!(doc.kerning_value(2, 4), -80);
+        drop(lease);
+        drop(next);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn kerning_survives_checkpoint_and_restart() {
         let root = root("kerning");
         let store = Store::new(root.clone()).unwrap();

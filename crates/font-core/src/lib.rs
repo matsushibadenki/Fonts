@@ -1,4 +1,5 @@
 //! Rust-owned font documents. No WebView or renderer owns editable font data.
+pub mod class_kerning;
 pub mod font_formats;
 pub mod font_io;
 pub mod geometry;
@@ -146,6 +147,8 @@ pub struct FontMetadata {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FontDocument {
+    #[serde(default, skip_serializing_if = "class_kerning::ClassKerning::is_empty")]
+    pub class_kerning: class_kerning::ClassKerning,
     #[serde(default, skip_serializing_if = "kerning::Kerning::is_empty")]
     pub kerning: kerning::Kerning,
     #[serde(default, skip_serializing_if = "snippets::Library::is_empty")]
@@ -185,6 +188,7 @@ impl FontDocument {
             glyphs.insert(id, Glyph::new(id, c));
         }
         let document = Self {
+            class_kerning: Default::default(),
             kerning: Default::default(),
             snippets: Default::default(),
             reference_images: Default::default(),
@@ -240,6 +244,7 @@ impl FontDocument {
         self.reference_images.validate(&self.glyphs)?;
         self.snippets.validate()?;
         self.kerning.validate(self)?;
+        self.class_kerning.validate(self)?;
         let mut cids = BTreeSet::new();
         let mut codes = BTreeSet::new();
         let mut names = BTreeSet::new();
@@ -267,6 +272,8 @@ pub struct FontProperties {
 }
 #[derive(Clone, Default)]
 struct Change {
+    before_classes: Option<class_kerning::ClassKerning>,
+    after_classes: Option<class_kerning::ClassKerning>,
     before_kerning: Option<kerning::Kerning>,
     after_kerning: Option<kerning::Kerning>,
     before_snippets: Option<snippets::Library>,
@@ -533,6 +540,9 @@ impl Editor {
         if let Some(k) = &change.before_kerning {
             self.document.kerning = k.clone();
         }
+        if let Some(c) = &change.before_classes {
+            self.document.class_kerning = c.clone();
+        }
         self.redo.push(change);
         self.revision = revision;
         Ok(revision)
@@ -555,6 +565,9 @@ impl Editor {
         }
         if let Some(k) = &change.after_kerning {
             self.document.kerning = k.clone();
+        }
+        if let Some(c) = &change.after_classes {
+            self.document.class_kerning = c.clone();
         }
         self.undo.push_back(change);
         self.revision = revision;
