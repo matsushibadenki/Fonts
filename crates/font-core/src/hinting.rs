@@ -136,7 +136,7 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info> {
             family: raw.family,
             extension: "cff".into(),
             true_type: false,
-            can_autohint: false,
+            can_autohint: true,
             instructed_glyphs: 0,
             instruction_bytes: 0,
             tables: vec![],
@@ -154,7 +154,7 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info> {
         family: crate::font_io::name(&face, 1),
         extension: if true_type { "ttf" } else { "otf" }.into(),
         true_type,
-        can_autohint: true_type
+        can_autohint: (true_type || face.tables().cff.is_some())
             && !face.is_variable()
             && [b"COLR", b"sbix", b"CBDT", b"SVG ", b"VARC"]
                 .iter()
@@ -285,6 +285,9 @@ pub fn autohint(bytes: &[u8], index: u32) -> Result<Vec<u8>> {
     if !info(bytes, index)?.can_autohint {
         return Err("autohint_unsupported".into());
     }
+    if !info(bytes, index)?.true_type {
+        return autohint_cff(bytes, index);
+    }
     // Start from a clean standalone face, including for previously auto-hinted inputs.
     let clean = export(bytes, index, true)?;
     let native = font_hinting_native::autohint(&clean, 8, 50)?;
@@ -296,6 +299,84 @@ pub fn autohint(bytes: &[u8], index: u32) -> Result<Vec<u8>> {
         return Err("autohint_empty".into());
     }
     Ok(result)
+}
+/// Generate CFF1 Type 2 hints while keeping original glyph IDs and SFNT tables.
+fn autohint_cff(bytes: &[u8], index: u32) -> Result<Vec<u8>> {
+    if bytes.starts_with(&[1, 0]) {
+        let doc = crate::font_formats::legacy_import(bytes, index)?;
+        let cid = crate::font_formats::legacy_info(bytes, index)?.cid;
+        let names = if cid {
+            None
+        } else {
+            Some(doc.glyphs.values().map(|g| g.name.clone()).collect())
+        };
+        let mut working = doc.clone();
+        if let Some(family) = working.family.strip_suffix(" Edited") {
+            working.family = family.to_owned();
+        }
+        let generated = crate::font_formats::cff_hint::generate(
+            &working,
+            cid,
+            names,
+            Some(crate::font_formats::cff_hint::Seed::parse(
+                bytes,
+                doc.glyphs.len(),
+            )?),
+        )?;
+        let actual = crate::font_formats::legacy_import(&generated, 0)?;
+        if doc != actual {
+            return Err("cff_hint_geometry".into());
+        }
+        return Ok(generated);
+    }
+    let clean = export(bytes, index, true)?;
+    let face = parse(&clean, 0)?;
+    if let Ok(os2) = table(&face, b"OS/2") {
+        if word(os2, 8)? & 2 != 0 {
+            return Err("autohint_native_15".into());
+        }
+    }
+    let cid = face
+        .tables()
+        .cff
+        .is_some_and(|c| c.glyph_cid(ttf_parser::GlyphId(0)).is_some());
+    let names = if cid {
+        None
+    } else {
+        Some(
+            (0..face.number_of_glyphs())
+                .map(|n| {
+                    face.glyph_name(ttf_parser::GlyphId(n))
+                        .map(str::to_owned)
+                        .ok_or("cff_hint_invalid".to_string())
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )
+    };
+    let mut doc = crate::font_io::import(&clean, 0)?;
+    doc.family = info(bytes, index)?.family;
+    let cff = crate::font_formats::cff_hint::generate(
+        &doc,
+        cid,
+        names,
+        Some(crate::font_formats::cff_hint::Seed::parse(
+            table(&parse(bytes, index)?, b"CFF ")?,
+            doc.glyphs.len(),
+        )?),
+    )?;
+    let mut tables = BTreeMap::new();
+    for r in face.raw_face().table_records {
+        let tag = r.tag.to_bytes();
+        let mut data = table(&face, &tag)?.to_vec();
+        if &tag == b"head" {
+            data[8..12].fill(0);
+        }
+        tables.insert(tag, data);
+    }
+    tables.insert(*b"CFF ", cff);
+    let output = crate::color_fonts::assemble(tables, true)?;
+    verify_geometry(bytes, index, &output, false)?;
+    Ok(output)
 }
 #[derive(Default, PartialEq)]
 struct Trace {
@@ -681,6 +762,53 @@ mod tests {
             info(&decoded, 0).unwrap().instruction_bytes
         );
         verify_geometry(&hinted, 0, &decoded, false).unwrap();
+    }
+    #[test]
+    fn cff_autohint_preserves_tables_cids_outlines_and_woff2_programs() {
+        for bytes in [
+            include_bytes!("../tests/data/hinting/cff-hints.otf").as_slice(),
+            include_bytes!("../tests/data/hinting/cid-hints.otf").as_slice(),
+        ] {
+            assert!(info(bytes, 0).unwrap().can_autohint);
+            let output = autohint(bytes, 0).unwrap();
+            verify_geometry(bytes, 0, &output, false).unwrap();
+            let original = tables(bytes);
+            let generated = tables(&output);
+            assert_ne!(original[b"CFF "], generated[b"CFF "]);
+            for (tag, data) in original {
+                if tag != *b"CFF " && tag != *b"head" && !DROP.contains(&tag) {
+                    assert_eq!(generated[&tag], data);
+                }
+            }
+            let library = freetype::Library::init().unwrap();
+            let face = library.new_memory_face(output.clone(), 0).unwrap();
+            for size in [8, 12, 16, 24, 50] {
+                face.set_pixel_sizes(0, size).unwrap();
+                face.load_char(
+                    'A' as usize,
+                    freetype::face::LoadFlag::RENDER
+                        | freetype::face::LoadFlag::NO_AUTOHINT
+                        | freetype::face::LoadFlag::PEDANTIC,
+                )
+                .unwrap();
+                assert!(face.glyph().bitmap().width() > 0);
+            }
+            let regenerated = autohint(&output, 0).unwrap();
+            verify_geometry(&output, 0, &regenerated, false).unwrap();
+            let web = crate::font_formats::woff2::encode_sfnt(output.clone(), 9).unwrap();
+            let decoded = crate::font_formats::woff2::decode(&web).unwrap();
+            assert_eq!(tables(&decoded)[b"CFF "], generated[b"CFF "]);
+            let raw = table(&Face::parse(bytes, 0).unwrap(), b"CFF ").unwrap();
+            let generated_raw = autohint(raw, 0).unwrap();
+            assert_ne!(raw, generated_raw);
+            assert_eq!(
+                crate::font_formats::legacy_import(raw, 0).unwrap(),
+                crate::font_formats::legacy_import(&generated_raw, 0).unwrap()
+            );
+        }
+        let variable = include_bytes!("../tests/data/hinting/cff2-hints.otf");
+        assert!(!info(variable, 0).unwrap().can_autohint);
+        assert!(autohint(variable, 0).is_err());
     }
     #[test]
     fn autohint_does_not_override_font_restrictions() {

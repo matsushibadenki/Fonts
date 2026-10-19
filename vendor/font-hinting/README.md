@@ -8,3 +8,5 @@ Fonts is based in part on the work of the FreeType Team and the **ttfautohint** 
 Archive URLs and SHA-256 values are recorded in `manifest.json`. Original source files are unchanged except that `ttfautohint.h` is generated from its upstream template with the release version. The Fonts build script supplies a minimal portable `config.h`; the wrapper lives in `crates/font-hinting-native`. The existing vendored FreeType is reused, and no system HarfBuzz/FreeType, Python, FontForge, or command-line hinting tool is needed at runtime.
 
 `collect_licenses.py` includes both engines' license texts and per-file leading copyright/license blocks in the application's bundled third-party notices. Original whitespace and complete license files remain in this source tree.
+
+- Adobe psautohint **2.4.0**: Apache-2.0. The final stable C library is included without its Python wrapper or CLI. Upstream is archived; its successor otfautohint is Python-based. Fonts uses the C API to generate CFF hint decisions and keeps original path coordinates in Rust. version.h is generated from the upstream template. See the added manifest entry for source SHA-256.

@@ -12,18 +12,21 @@ HarfBuzz 14.6.0のNO_HINTING処理を使用し、stem命令、hintmask／cntrmas
 
 ## 自動生成
 
-- ライブラリ：静的・単色のTrueTypeを選び、ヒンティングアイコンから「自動生成（TrueType）」を選ぶ。
-- メイン出力：TTFまたはTrueType輪郭のWOFF2を選び、ヒンティングを「自動生成（TrueType）」にする。既定はヒントなし。
+- ライブラリ：静的・単色のTrueType／CFF1（CID-CFFを含む）を選び、ヒンティングアイコンから形式に合った「自動生成」を選ぶ。
+- メイン出力：TTF、OTF／CID-OTF、単体CFF／CID-CFF、WOFF2を選び、形式に合った自動生成を選ぶ。既定はヒントなし。
 
 ttfautohint 1.8.4をRustのworkerからライブラリとして呼び、8〜50ppem用のTrueTypeバイトコードを生成する。既存の命令は先に除去し、生成後は輪郭・送り幅・Unicode対応と命令の存在を検証する。ttfautohintが必要とする補助グリフの追加は認める。SFNTのpaddingとディレクトリを正規化してからWOFF2へ格納し、生成したプログラムをそのまま保持する。
 
-可変・カラー・CFFの元書体に対する直接の自動生成は対象外。可変フォントは既存の静的インスタンスを編集用文書へ開いた後、メインからTrueTypeとして生成できる。CFF／Type 1の輪郭も編集用コピーからTrueTypeとして生成できる。CFF用stemヒントの生成や可変ヒントの生成とは異なる。輪郭のない書体はエラーにし、フォント側の変更制限を無視するオプションは使わない。
+可変・カラーの元書体に対する直接の自動生成は対象外。可変フォントは既存の静的インスタンスを編集用文書へ開いた後、メインからTrueTypeとして生成できる。CFF／Type 1の輪郭も編集用コピーからTrueTypeとして生成できる。可変ヒントの生成は対象外。輪郭のない書体はエラーにし、フォント側の変更制限を無視するオプションは使わない。
+
+CFF1はAdobe psautohint 2.4.0のCコアでstem・hintmask・cntrmaskを生成する。ベースライン／キャップハイトと主要stem幅を輪郭から推定し、Private DICTへBlueValues・StdHW／StdVW・StemSnapを設定する。ネイティブ側の輪郭編集・座標丸め・flex生成は無効にする。出力パスを照合したうえで、元のRust側の座標を使ってType 2命令を構築する。元フォントのGID順、文字名／CID、String INDEX、charset、Encodingと、CFF以外のSFNTテーブルを保持する。WOFF2にも同じヒント付きCFFを格納する。CFF2の自動生成は未対応。
 
 自動ヒントは手動調整を置き換える品質保証ではない。OSのラスタライザーによって結果は異なる。書き出し時の処理であり、Rust/wgpuの制作画面の輪郭やDocumentは変更しない。
 
 ## 組み込み・ライセンス
 
 - ソース・出典・SHA-256：[vendor/font-hinting/manifest.json](../vendor/font-hinting/manifest.json)。
+- psautohintはApache-2.0。公式最終stable 2.4.0のCコアを静的に同梱する。上流はアーカイブ済みで、後継otfautohintはPython実装のため、このアプリでは実行時Pythonを必要としないC APIを採用した。
 - HarfBuzzはOld MITとファイルごとの条件。ttfautohintはFTLを選択し、生成命令に関する上流の例外も保持する。BSD／X11の補助コード、Bisonパーサー骨格の例外も第三者告知へ収録する。
 - `font-hinting-native` はC++17／Cで静的にビルドし、既存の同梱FreeTypeを再利用する。外部コマンド、システム側のHarfBuzz／FreeType、FontForge、Pythonはアプリの実行時には不要。
 - ライブラリ呼び出しは直列化し、返却バッファは割り当て元のC側で解放する。入力と出力は256 MiBまで。フォントやフレームはWebViewへ渡さない。
@@ -39,7 +42,19 @@ ttfautohint 1.8.4をRustのworkerからライブラリとして呼び、8〜50pp
 - 🟢 [Done] ライセンス一覧は523 Rust／81 npmとネイティブ2エンジンを記録。lockfile SHA-256・配布用一覧との一致を検証。動的リンク一覧に外部HarfBuzz／FreeType／ttfautohint依存がないことも確認した。
 - ⭕️ [Pending] Windows/Linux実機、DirectWrite／外部アプリでの表示品質と広範な実フォントの追加検証。
 
+## CFF自動生成の追加検証（2026-10-19）
+
+- 🟢 [Done] 自作CFF1／CID-CFF、単体CFF、小数座標の三次・二次曲線と穴、stem／mask／counter、空・開輪郭の拒否、元String INDEX／charset／Encoding（supplementと定義済みを含む）の保持を検証。生成CFFを8／12／16／24／50pxでFreeType NO_AUTOHINT＋PEDANTIC描画した。
+- 🟢 [Done] `cargo test --workspace --locked --offline` は357件成功。実GPUの追加4件、全target Clippy `-D warnings`、TypeScript／Vite、整形・差分検査も成功。
+- 🟢 [Done] macOSの独立検証アプリで、メインのCFF自動生成OTF（3,724 B）／CFF WOFF2（1,340 B）と、ライブラリのCFF自動生成（924 B）を保存・読み戻し・目視確認。FontToolsでもstem／mask／BlueValuesを確認し、OTFとWOFF2のCFFが一致した。
+- 🟢 [Done] システムのSTIXGeneralBol 1,759グリフで生成成功。1,756グリフにstem、合計4,600個のmaskを独立解析し、グリフ順・Unicode対応とCFF／head調整値以外のテーブルの一致を確認。元ファイルは変更していない。
+- 🟢 [Done] Apache-2.0の原文と著作権告知を第三者告知へ追加。Rust／npm lockfileは変更せず、静的Cエンジンを同梱。通常版 `npm run tauri build -- --debug --bundles app` も成功（Fonts.app、97.16 MiB）。
+- 🔴 [Later] 可変CFF2のヒント生成、手動のBlueValues／stem調整と小サイズ比較。
+- ⭕️ [Pending] Windows/Linux実機と、CoreText／DirectWrite／外部アプリでの表示品質の比較。
+
 ## 公式資料
 
 - [ttfautohint公式とライセンス](https://freetype.org/ttfautohint/index.html)、[ライブラリAPI・対応範囲](https://freetype.org/ttfautohint/doc/ttfautohint.html)
 - [HarfBuzz 14.6.0](https://github.com/harfbuzz/harfbuzz/releases/tag/14.6.0)、配布ソースの `hb-subset.h`・`hb-subset-cff1.cc`・`hb-subset-cff2.cc`
+
+- [Adobe psautohint 2.4.0](https://github.com/adobe-type-tools/psautohint/releases/tag/v2.4.0)、[後継otfautohint](https://github.com/adobe-type-tools/afdko/blob/develop/docs/otfautohint_Notes.md)

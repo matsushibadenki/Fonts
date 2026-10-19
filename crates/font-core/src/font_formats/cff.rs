@@ -31,7 +31,7 @@ fn dict(out: &mut Vec<u8>, args: &[i32], op: &[u8]) {
     }
     out.extend(op);
 }
-fn real(out: &mut Vec<u8>, n: f64) {
+pub(super) fn real(out: &mut Vec<u8>, n: f64) {
     out.push(30);
     let s = format!("{n:.12}");
     let s = s.trim_end_matches('0').trim_end_matches('.');
@@ -51,7 +51,7 @@ fn real(out: &mut Vec<u8>, n: f64) {
         out.push(p[0] * 16 + p[1]);
     }
 }
-fn number(out: &mut Vec<u8>, n: f64) -> Result<()> {
+pub(super) fn number(out: &mut Vec<u8>, n: f64) -> Result<()> {
     if !n.is_finite() || n.abs() > 1_000_000. {
         return Err("font_coordinate_range".into());
     }
@@ -76,7 +76,7 @@ fn number(out: &mut Vec<u8>, n: f64) -> Result<()> {
     }
     Ok(())
 }
-fn charstring(g: &Glyph) -> Result<Vec<u8>> {
+pub(super) fn charstring(g: &Glyph) -> Result<Vec<u8>> {
     let mut out = vec![];
     number(&mut out, g.advance)?;
     postscript::curves(g, |op, args| {
@@ -95,15 +95,27 @@ pub fn encode_raw(doc: &FontDocument) -> Result<Vec<u8>> {
     encode(&postscript::expand_aliases(doc)?, false)
 }
 pub fn encode(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
-    let glyph_names = postscript::names(doc);
+    encode_prepared(doc, cid, None)
+}
+pub(super) fn encode_prepared(
+    doc: &FontDocument,
+    cid: bool,
+    prepared: Option<&super::cff_hint::Prepared>,
+) -> Result<Vec<u8>> {
+    let glyph_names = prepared
+        .and_then(|p| p.names.clone())
+        .unwrap_or_else(|| postscript::names(doc));
     let name = postscript::ps_name(&doc.family);
     let name_index = index(&[name.into_bytes()])?;
-    let mut strings = vec![
+    let seed = prepared.and_then(|p| p.seed.as_ref());
+    let mut strings = seed.map(|s| s.strings.clone()).unwrap_or_default();
+    let sid_base = 391 + strings.len() as i32;
+    strings.extend([
         doc.family.as_bytes().to_vec(),
         postscript::style(doc).as_bytes().to_vec(),
         doc.metadata.copyright.as_bytes().to_vec(),
         b"1.0".to_vec(),
-    ];
+    ]);
     let system = doc.metadata.cid_system.clone().unwrap_or(crate::CidSystem {
         registry: "Adobe".into(),
         ordering: "Identity".into(),
@@ -112,24 +124,43 @@ pub fn encode(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
     strings.push(system.registry.as_bytes().to_vec());
     strings.push(system.ordering.as_bytes().to_vec());
     let mut charset = vec![0];
-    if cid {
-        for id in postscript::cids(doc)?.iter().skip(1) {
-            charset.extend(id.to_be_bytes());
-        }
-    } else {
-        for glyph_name in glyph_names.iter().skip(1) {
-            let sid = u16::try_from(391 + strings.len()).map_err(|_| "font_too_large")?;
-            strings.push(glyph_name.as_bytes().to_vec());
-            charset.extend(sid.to_be_bytes());
+    if seed.is_none() {
+        if cid {
+            for id in postscript::cids(doc)?.iter().skip(1) {
+                charset.extend(id.to_be_bytes());
+            }
+        } else {
+            for glyph_name in glyph_names.iter().skip(1) {
+                let sid = u16::try_from(391 + strings.len()).map_err(|_| "font_too_large")?;
+                strings.push(glyph_name.as_bytes().to_vec());
+                charset.extend(sid.to_be_bytes());
+            }
         }
     }
+    if let Some(seed) = seed {
+        charset = match &seed.charset {
+            super::cff_hint::SourceData::Predefined(_) => vec![],
+            super::cff_hint::SourceData::Bytes(v) => v.clone(),
+        };
+    }
+    let encoding = seed
+        .map(|s| match &s.encoding {
+            super::cff_hint::SourceData::Predefined(_) => vec![],
+            super::cff_hint::SourceData::Bytes(v) => v.clone(),
+        })
+        .unwrap_or_default();
     let strings_index = index(&strings)?;
-    let charstrings = index(
-        &doc.glyphs
-            .values()
-            .map(charstring)
-            .collect::<Result<Vec<_>>>()?,
-    )?;
+    let charstrings = if let Some(p) = prepared {
+        index(&p.charstrings)?
+    } else {
+        index(
+            &doc.glyphs
+                .values()
+                .map(charstring)
+                .collect::<Result<Vec<_>>>()?,
+        )?
+    };
+    let private = prepared.map(|p| p.private.clone()).unwrap_or_default();
     let fdselect = if cid {
         let mut v = vec![0];
         v.resize(doc.glyphs.len() + 1, 0);
@@ -137,24 +168,38 @@ pub fn encode(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
     } else {
         vec![]
     };
-    let mut fd = vec![];
-    dict(&mut fd, &[0, 0], &[18]);
-    let fd_array = if cid { index(&[fd])? } else { vec![] };
-    let top = |charset_offset: i32, cs_offset: i32, select_offset: i32, fd_offset: i32| {
+    let fd = |offset: i32| {
+        let mut v = vec![];
+        dict(&mut v, &[private.len() as i32, offset], &[18]);
+        index(&[v])
+    };
+    let fd_array_dummy = if cid { fd(0)? } else { vec![] };
+    let top = |charset_offset: i32,
+               cs_offset: i32,
+               select_offset: i32,
+               fd_offset: i32,
+               private_offset: i32| {
         let mut top = vec![];
         if cid {
-            dict(&mut top, &[395, 396, system.supplement], &[12, 30]);
+            dict(
+                &mut top,
+                &[sid_base + 4, sid_base + 5, system.supplement],
+                &[12, 30],
+            );
             dict(
                 &mut top,
                 &[u32::from(*postscript::cids(doc).unwrap().iter().max().unwrap()) as i32 + 1],
                 &[12, 34],
             );
         }
-        dict(&mut top, &[394], &[0]);
-        dict(&mut top, &[393], &[1]);
-        dict(&mut top, &[391], &[2]);
-        dict(&mut top, &[391], &[3]);
-        dict(&mut top, &[392], &[4]);
+        dict(&mut top, &[sid_base + 3], &[0]);
+        // An empty INDEX string can alias the following item in native readers.
+        if !doc.metadata.copyright.is_empty() {
+            dict(&mut top, &[sid_base + 2], &[1]);
+        }
+        dict(&mut top, &[sid_base], &[2]);
+        dict(&mut top, &[sid_base], &[3]);
+        dict(&mut top, &[sid_base + 1], &[4]);
         real(&mut top, doc.metadata.italic_angle);
         top.extend([12, 2]);
         for n in postscript::bounds(doc) {
@@ -172,26 +217,52 @@ pub fn encode(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
             real(&mut top, n);
         }
         top.extend([12, 7]);
-        dict(&mut top, &[charset_offset], &[15]);
+        let charset_value = seed
+            .and_then(|s| match s.charset {
+                super::cff_hint::SourceData::Predefined(n) => Some(n),
+                _ => None,
+            })
+            .unwrap_or(charset_offset);
+        dict(&mut top, &[charset_value], &[15]);
+        if !cid {
+            let encoding_value = seed
+                .and_then(|s| match s.encoding {
+                    super::cff_hint::SourceData::Predefined(n) => Some(n),
+                    _ => None,
+                })
+                .unwrap_or(if seed.is_some() {
+                    cs_offset - encoding.len() as i32
+                } else {
+                    0
+                });
+            dict(&mut top, &[encoding_value], &[16]);
+        }
         dict(&mut top, &[cs_offset], &[17]);
         if cid {
             dict(&mut top, &[fd_offset], &[12, 36]);
             dict(&mut top, &[select_offset], &[12, 37]);
         } else {
-            dict(&mut top, &[0, 0], &[18]);
+            dict(&mut top, &[private.len() as i32, private_offset], &[18]);
         }
         top
     };
-    let dummy = index(&[top(0, 0, 0, 0)])?;
+    let dummy = index(&[top(0, 0, 0, 0, 0)])?;
     let charset_offset = 4 + name_index.len() + dummy.len() + strings_index.len() + 2;
-    let cs_offset = charset_offset + charset.len();
+    let cs_offset = charset_offset + charset.len() + encoding.len();
     let select_offset = cs_offset + charstrings.len();
     let fd_offset = select_offset + fdselect.len();
+    let private_offset = fd_offset + fd_array_dummy.len();
+    let fd_array = if cid {
+        fd(private_offset as i32)?
+    } else {
+        vec![]
+    };
     let top_index = index(&[top(
         charset_offset as i32,
         cs_offset as i32,
         select_offset as i32,
         fd_offset as i32,
+        private_offset as i32,
     )])?;
     let mut out = vec![1, 0, 4, 4];
     for data in [
@@ -200,9 +271,11 @@ pub fn encode(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
         strings_index,
         vec![0, 0],
         charset,
+        encoding,
         charstrings,
         fdselect,
         fd_array,
+        private,
     ] {
         out.extend(data);
     }

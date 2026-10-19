@@ -33,6 +33,29 @@ fn main() {
         }
     }
     build.file("wrapper.c").compile("fonts_ttfautohint");
+    let ps = root.join("psautohint");
+    fs::write(
+        out.join("version.h"),
+        "#define PSAUTOHINT_VERSION \"2.4.0\"\n",
+    )
+    .unwrap();
+    let mut ps_build = cc::Build::new();
+    ps_build
+        .warnings(false)
+        .include(&out)
+        .include(ps.join("include"))
+        .include(ps.join("src"));
+    let mut sources: Vec<_> = fs::read_dir(ps.join("src"))
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|e| e == "c"))
+        .collect();
+    sources.sort();
+    ps_build
+        .files(sources)
+        .file("ps_wrapper.c")
+        .compile("fonts_psautohint");
+    println!("cargo:rerun-if-changed=ps_wrapper.c");
     println!("cargo:rerun-if-changed=wrapper.c");
     println!("cargo:rerun-if-changed={}", root.display());
 }

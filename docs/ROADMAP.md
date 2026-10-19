@@ -48,7 +48,8 @@
    - 🔴 [Later] COLRv1／SVGプレビュー、カラー編集・プロジェクト保存、カラーWOFF2。
 16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
    - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
-   - 🔴 [Later] Type 1の直接dehint、CFF用ヒント生成、命令編集と小サイズ比較。
+   - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
+   - 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集と小サイズ比較。
    - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
 17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、名前付きインスタンス・可変フォントの編集／出力。
 

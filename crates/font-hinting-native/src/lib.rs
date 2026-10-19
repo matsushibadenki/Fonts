@@ -1,4 +1,4 @@
-//! Small ownership boundary around bundled HarfBuzz and ttfautohint.
+//! Small ownership boundary around bundled HarfBuzz, ttfautohint and Adobe psautohint.
 use std::ffi::{c_int, c_uint};
 // Ensure the same bundled FreeType dependency is linked, rather than a system copy.
 use freetype_sys as _;
@@ -19,6 +19,12 @@ extern "C" {
         maximum: c_int,
     ) -> c_int;
     fn fonts_hinting_free(pointer: *mut u8);
+    fn fonts_ps_autohint(
+        bez: *const std::ffi::c_char,
+        info: *const std::ffi::c_char,
+        out: *mut *mut u8,
+        length: *mut usize,
+    ) -> c_int;
 }
 const LIMIT: usize = 256 * 1024 * 1024;
 fn process(
@@ -68,4 +74,28 @@ pub fn autohint(bytes: &[u8], minimum: u8, maximum: u8) -> Result<Vec<u8>, Strin
             )
         }
     })
+}
+
+/// Adobe CFF hinting core. Calls are serialized with the other native engines.
+pub fn autohint_bez(bez: &str, info: &str) -> Result<String, String> {
+    let source = std::ffi::CString::new(bez).map_err(|_| "cff_hint_invalid")?;
+    let info = std::ffi::CString::new(info).map_err(|_| "cff_hint_invalid")?;
+    let result = process(bez.as_bytes(), |out, len| {
+        // SAFETY: Both NUL-terminated inputs live through the call; output uses the same C allocator contract.
+        unsafe { fonts_ps_autohint(source.as_ptr(), info.as_ptr(), out, len) }
+    })?;
+    String::from_utf8(result).map_err(|_| "cff_hint_invalid".into())
+}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ps_hinting_smoke() {
+        let info="FontName FontsGenerated\nOrigEmSqUnits 1000\nLanguageGroup 0\nBaselineYCoord 0\nBaselineOvershoot -10\nCapHeight 700\nCapOvershoot 10\nDominantH [60]\nDominantV [60]\nFlexOK false\nBlueFuzz 1\n";
+        let result = super::autohint_bez(
+            "% g1\nsc\n0 0 mt\n60 0 dt\n60 700 dt\n0 700 dt\ncp\ned\n",
+            info,
+        )
+        .unwrap();
+        assert!(result.contains("rb") || result.contains("ry"));
+    }
 }

@@ -1,5 +1,6 @@
 //! Bounded, non-executing interchange. Adobe Fonts is a source, not a binary format.
 mod cff;
+pub(crate) mod cff_hint;
 pub mod cmap;
 mod legacy;
 mod postscript;

@@ -155,9 +155,9 @@ def main():
             text = comments.group(0)
         sections += ['\n--- ' + ('zlib/LICENSE' if file not in native_files[:-1] else str(file.relative_to(ROOT))) + ' ---', text]
     native_root = ROOT / 'vendor/font-hinting'
-    sections += ['\n' + '=' * 72, 'Fonts is based in part on the work of the FreeType Team and the ttfautohint library. ttfautohint uses FTL (including its generated-bytecode exception); HarfBuzz uses Old MIT and file-level licenses.']
+    sections += ['\n' + '=' * 72, 'Fonts is based in part on the work of the FreeType Team and the ttfautohint library. ttfautohint uses FTL (including its generated-bytecode exception); HarfBuzz uses Old MIT and file-level licenses; Adobe psautohint uses Apache-2.0.']
     report['native_hinting'] = json.loads((native_root / 'manifest.json').read_text())
-    for relative in ['ttfautohint/COPYING', 'ttfautohint/FTL.TXT', 'harfbuzz/COPYING', 'harfbuzz/src/ms-use/COPYING']:
+    for relative in ['ttfautohint/COPYING', 'ttfautohint/FTL.TXT', 'harfbuzz/COPYING', 'harfbuzz/src/ms-use/COPYING', 'psautohint/LICENSE', 'psautohint/COPYING']:
         file = native_root / relative
         sections += ['\n--- ' + str(file.relative_to(ROOT)) + ' ---', '\n'.join(line.rstrip() for line in file.read_text(errors='replace').splitlines()).rstrip()]
     # Retain individual authors' headers, including BSD/X11 and Bison's skeleton exception.

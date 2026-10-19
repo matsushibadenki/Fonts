@@ -526,21 +526,37 @@ async fn save_font_with_hinting(
     autohint: bool,
 ) -> Result<Option<ExportReport>, String> {
     if autohint
-        && !(format == Format::Ttf
-            || (format == Format::Woff2
-                && woff2.outline == font_core::font_formats::woff2::Outline::TrueType))
+        && !matches!(
+            format,
+            Format::Ttf
+                | Format::Otf
+                | Format::CidOtf
+                | Format::Cff
+                | Format::CidCff
+                | Format::Woff2
+        )
     {
         return Err("autohint_unsupported".into());
     }
     let parent = window.clone();
     let name = doc.family.clone();
-    let verify = matches!(format, Format::Ttf | Format::Otf | Format::Woff2);
+    let verify = autohint || matches!(format, Format::Ttf | Format::Otf | Format::Woff2);
     let expected = doc.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || {
         if autohint {
             woff2.validate()?;
-            let base = font_core::font_io::export(&doc)?;
-            font_core::variations::verify(&base, &doc)?;
+            let base_format = if format == Format::Woff2 {
+                match woff2.outline {
+                    font_core::font_formats::woff2::Outline::TrueType => Format::Ttf,
+                    font_core::font_formats::woff2::Outline::Cff => Format::Otf,
+                }
+            } else {
+                format
+            };
+            let base = font_core::font_formats::export(&doc, base_format)?;
+            if matches!(base_format, Format::Ttf | Format::Otf | Format::CidOtf) {
+                font_core::variations::verify(&base, &doc)?;
+            }
             let hinted = font_core::hinting::autohint(&base, 0)?;
             if format == Format::Woff2 {
                 font_core::font_formats::woff2::encode_sfnt(hinted, woff2.quality)
