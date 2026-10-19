@@ -49,7 +49,8 @@
 16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
    - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
    - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
-   - 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集と小サイズ比較。
+   - 🟢 [Done] 小サイズ比較。元のヒント／ヒントなし／自動生成を9・12・16・24ppemで並べ、サンプル入力、1×／2×、未収録文字数、三言語UIを実装。[仕様](hinting-comparison.md)。
+   - 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
    - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
 17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、名前付きインスタンス・可変フォントの編集／出力。
 
@@ -104,6 +105,6 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 🟢 [Done] Rust所有のプロジェクト内ライブラリ、複数輪郭の登録、管理、独立コピー配置を実装。三言語のドッキング／フローティングパネルとGPUサムネイル、変形プレビューと確定、Undo/Redo、保存・再読込・復旧を接続。元の雛形を削除しても配置済み輪郭を維持する。[詳細と検証](components-snippets.md)。
 
-🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。フローティングパネルの位置・サイズの復元も🟢 [Done]。パネルの入れ子splitも🟢 [Done]。複数文書も🟢 [Done]。WOFF2出力も🟢 [Done]。次は🟠 [Next] 可変フォント。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
+🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。フローティングパネルの位置・サイズの復元も🟢 [Done]。パネルの入れ子splitも🟢 [Done]。複数文書も🟢 [Done]。WOFF2出力も🟢 [Done]。可変フォントも🟢 [Done]（上記参照）。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
 
 検証: 通常Rustテスト272件、実GPUテスト4件、Clippy（全target、`-D warnings`）、整形検査、TypeScript/Vite・通常版macOSアプリのビルドが成功。復旧データの復元は自動テスト、三言語の登録・管理・配置・保存と再読込はmacOSの独立アプリで確認。

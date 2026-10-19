@@ -25,7 +25,9 @@ Tauriはアプリ所有のカタログIDから読み込み、workerで解析・�
 - 🟢 [Done] Metal GPU回帰4件成功。サンドボックス内ではアダプターを取得できず2件失敗したため、実GPUへのアクセスを許可して再実行し、全4件の成功を確認した。
 - 🟢 [Done] 独立したmacOS検証アプリでArialの検査・保持／除去・保存後検証と、メイン出力のヒントなし表示を操作・目視確認。日本語ダイアログの配置・改行に問題なし。Arialの元ファイル773,236 Bから保持763,956 B／除去337,988 Bを生成し、保持ではDSIGとhead調整値以外の全テーブル、除去では関連外テーブルの一致を別途確認した。
 - 🟢 [Done] CFF除去・TrueType自動生成を追加。[詳細と追加検証](autohint-engines.md)。
-- 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集と小サイズでの比較プレビュー。
+- 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
 - ⭕️ [Pending] Windows/Linux実機、外部アプリごとの小サイズ表示、大規模な商用フォント群での追加検証。
 
 仕様根拠：[OpenType glyf](https://learn.microsoft.com/en-us/typography/opentype/spec/glyf)、[maxp](https://learn.microsoft.com/en-us/typography/opentype/spec/maxp)、[head](https://learn.microsoft.com/en-us/typography/opentype/spec/head)。元のヒントが保持できても、外部アプリでの見え方の完全一致を保証するものではない。
+
+- 🟢 [Done] [小サイズ比較](hinting-comparison.md)：元のヒント／ヒントなし／自動生成を並べて確認。

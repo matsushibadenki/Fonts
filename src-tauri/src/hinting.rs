@@ -96,3 +96,88 @@ pub async fn font_hinting_export(
     .map_err(|e| e.to_string())??;
     Ok(Some(report))
 }
+
+/// At most one comparison per application; image bytes never cross JSON IPC.
+#[derive(Default)]
+pub struct Previews(std::sync::Mutex<PreviewImages>);
+#[derive(Default)]
+struct PreviewImages {
+    generation: u64,
+    owner: String,
+    images: Vec<Vec<u8>>,
+}
+#[derive(Serialize)]
+pub struct Comparison {
+    generation: u64,
+    sample: String,
+    missing: usize,
+    auto_error: Option<String>,
+    columns: usize,
+    sizes: [u32; 4],
+}
+#[tauri::command]
+pub async fn font_hinting_compare(
+    window: WebviewWindow,
+    id: u64,
+    text: String,
+) -> Result<Comparison, String> {
+    crate::allowed(&window)?;
+    let _guard = crate::files::FileGuard::acquire()?;
+    let entry = font_library::entry(window.app_handle(), id)?;
+    let preview = tauri::async_runtime::spawn_blocking(move || {
+        font_core::hinting_preview::compare(&font_io::read(&entry.path)?, entry.index, &text)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    let state = window.state::<Previews>();
+    let mut images = state.0.lock().map_err(|_| "state_poisoned")?;
+    images.generation = images.generation.checked_add(1).ok_or("hinting_preview")?;
+    images.owner = window.label().to_owned();
+    let result = Comparison {
+        generation: images.generation,
+        sample: preview.sample,
+        missing: preview.missing,
+        auto_error: preview.auto_error,
+        columns: preview.images.len() / 4,
+        sizes: font_core::hinting_preview::SIZES,
+    };
+    images.images = preview.images;
+    Ok(result)
+}
+impl Previews {
+    pub fn resource(&self, window: &str, path: &str) -> Option<Vec<u8>> {
+        let mut parts = path.strip_prefix('/')?.strip_suffix(".png")?.split('-');
+        let generation: u64 = parts.next()?.parse().ok()?;
+        let index: usize = parts.next()?.parse().ok()?;
+        if parts.next().is_some() {
+            return None;
+        }
+        let images = self.0.lock().ok()?;
+        if images.owner != window || images.generation != generation {
+            return None;
+        }
+        images.images.get(index).cloned()
+    }
+}
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn images_are_scoped_to_owner_and_generation() {
+        let previews = Previews(std::sync::Mutex::new(PreviewImages {
+            generation: 2,
+            owner: "library".into(),
+            images: vec![vec![1]],
+        }));
+        assert_eq!(previews.resource("library", "/2-0.png"), Some(vec![1]));
+        for (owner, path) in [
+            ("main", "/2-0.png"),
+            ("library", "/1-0.png"),
+            ("library", "/2-1.png"),
+            ("library", "/2-0.png/x"),
+            ("library", "/etc/passwd"),
+        ] {
+            assert!(previews.resource(owner, path).is_none());
+        }
+    }
+}

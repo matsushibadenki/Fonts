@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: thumbnail: http://thumbnail.localhost; connect-src ipc: http://ipc.localhost http://127.0.0.1:1421 ws://127.0.0.1:1421"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' hintpreview: http://hintpreview.localhost data: thumbnail: http://thumbnail.localhost; connect-src ipc: http://ipc.localhost http://127.0.0.1:1421 ws://127.0.0.1:1421"
     }
   },
   "bundle": {

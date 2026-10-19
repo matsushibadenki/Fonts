@@ -49,8 +49,10 @@ CFF1はAdobe psautohint 2.4.0のCコアでstem・hintmask・cntrmaskを生成す
 - 🟢 [Done] macOSの独立検証アプリで、メインのCFF自動生成OTF（3,724 B）／CFF WOFF2（1,340 B）と、ライブラリのCFF自動生成（924 B）を保存・読み戻し・目視確認。FontToolsでもstem／mask／BlueValuesを確認し、OTFとWOFF2のCFFが一致した。
 - 🟢 [Done] システムのSTIXGeneralBol 1,759グリフで生成成功。1,756グリフにstem、合計4,600個のmaskを独立解析し、グリフ順・Unicode対応とCFF／head調整値以外のテーブルの一致を確認。元ファイルは変更していない。
 - 🟢 [Done] Apache-2.0の原文と著作権告知を第三者告知へ追加。Rust／npm lockfileは変更せず、静的Cエンジンを同梱。通常版 `npm run tauri build -- --debug --bundles app` も成功（Fonts.app、97.16 MiB）。
-- 🔴 [Later] 可変CFF2のヒント生成、手動のBlueValues／stem調整と小サイズ比較。
+- 🔴 [Later] 可変CFF2のヒント生成、手動のBlueValues／stem調整。
 - ⭕️ [Pending] Windows/Linux実機と、CoreText／DirectWrite／外部アプリでの表示品質の比較。
+
+- 🟢 [Done] [小サイズ比較](hinting-comparison.md)を追加。元のヒント／ヒントなし／自動生成を出力前に確認できる。
 
 ## 公式資料
 

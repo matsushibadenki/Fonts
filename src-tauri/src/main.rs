@@ -441,6 +441,19 @@ fn confirm_documents(
 }
 fn main() {
     tauri::Builder::default()
+        .register_uri_scheme_protocol("hintpreview", |context, request| {
+            let image = context
+                .app_handle()
+                .state::<hinting::Previews>()
+                .resource(context.webview_label(), request.uri().path());
+            tauri::http::Response::builder()
+                .status(if image.is_some() { 200 } else { 404 })
+                .header("Content-Type", "image/png")
+                .header("Cache-Control", "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.unwrap_or_default())
+                .unwrap()
+        })
         .register_asynchronous_uri_scheme_protocol("thumbnail", |context, request, responder| {
             if context.webview_label() != "main"
                 && context.webview_label() != "panel-glyphs"
@@ -474,6 +487,7 @@ fn main() {
             app.manage(AppState(Mutex::new(Model::new(workspace))));
             app.manage(floating::Runtime::default());
             app.manage(thumbnails::Thumbnails::new());
+            app.manage(hinting::Previews::default());
             app.manage(font_batch::Batch::default());
             app.manage(font_library::Library(Mutex::new(
                 font_library::LibraryState::default(),
@@ -587,6 +601,7 @@ fn main() {
             open_font_library,
             font_library::font_library_query,
             hinting::font_hinting_info,
+            hinting::font_hinting_compare,
             hinting::font_hinting_export,
             color_fonts::color_font_open,
             color_fonts::color_font_action,

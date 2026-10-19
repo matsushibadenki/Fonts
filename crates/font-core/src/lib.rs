@@ -5,6 +5,7 @@ pub mod font_formats;
 pub mod font_io;
 pub mod geometry;
 pub mod hinting;
+pub mod hinting_preview;
 pub mod kerning;
 pub mod path_paste;
 pub mod proof;

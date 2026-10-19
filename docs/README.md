@@ -42,3 +42,5 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - 🟢 [Done] [ヒンティングの検査・保持・TrueType命令除去](hinting.md)。
 
 - 🟢 [Done] [CFFのヒント除去・TrueType自動生成](autohint-engines.md)。
+
+- [ヒンティングの小サイズ比較](hinting-comparison.md)
