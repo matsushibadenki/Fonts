@@ -1,10 +1,10 @@
 {
-  "checked_on": "2026-10-18",
+  "checked_on": "2026-10-19",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "3b0cd71bc3d43d0485c9860aa06a330f8b72c43e1631cf9cdedc677b239281d5",
-    "package-lock.json": "3f52f130a64a14932aa3c7224883d7eef0db9829d5126035793784b38dc42a96"
+    "Cargo.lock": "6da8c46a32140ac5fc1ba72bcfd87735fb53b2768a21c70d20c579531b9bbeae",
+    "package-lock.json": "697066ca926fd10da3e4b2379a4e191189aed246a6fac262f121c30bc4e869a7"
   },
   "rust": [
     {
@@ -717,7 +717,7 @@
     },
     {
       "name": "combine",
-      "version": "4.6.8",
+      "version": "4.6.9",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1023,7 +1023,7 @@
     },
     {
       "name": "defmt",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1036,7 +1036,7 @@
     },
     {
       "name": "defmt-macros",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1049,13 +1049,16 @@
     },
     {
       "name": "defmt-parser",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/knurling-rs/defmt",
-      "local_notice_files": [],
-      "upstream_notice_review_required": true
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
     },
     {
       "name": "deranged",
@@ -2402,7 +2405,7 @@
     },
     {
       "name": "inout",
-      "version": "0.2.2",
+      "version": "0.2.4",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2697,7 +2700,7 @@
     },
     {
       "name": "libc",
-      "version": "0.2.190",
+      "version": "0.2.191",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6560,7 +6563,7 @@
   "npm": [
     {
       "package_path": "node_modules/@oxc-project/types",
-      "version": "0.152.0",
+      "version": "0.154.0",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6572,7 +6575,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm-eabi",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6582,7 +6585,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm64",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6592,7 +6595,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-arm64",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6602,7 +6605,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-x64",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6612,7 +6615,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-freebsd-x64",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6622,7 +6625,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm-gnueabihf",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6632,7 +6635,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-gnu",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6642,7 +6645,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-musl",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6652,7 +6655,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-ppc64-gnu",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6662,7 +6665,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-s390x-gnu",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6672,7 +6675,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-gnu",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6682,7 +6685,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-musl",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6692,7 +6695,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-openharmony-arm64",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6702,7 +6705,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-arm64-msvc",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -6712,7 +6715,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-x64-msvc",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7318,7 +7321,7 @@
     },
     {
       "package_path": "node_modules/postcss",
-      "version": "8.5.29",
+      "version": "8.5.31",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7354,7 +7357,7 @@
     },
     {
       "package_path": "node_modules/rolldown",
-      "version": "1.2.12",
+      "version": "1.2.14",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,

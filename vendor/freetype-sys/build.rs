@@ -35,7 +35,9 @@ fn main() {
         .warnings(false)
         .include(".")
         .include("freetype2/include")
-        .define("FT2_BUILD_LIBRARY", None);
+        .define("FT2_BUILD_LIBRARY", None)
+        // Use libz-sys's bundled stable zlib instead of FreeType's older private copy.
+        .define("FT_CONFIG_OPTION_SYSTEM_ZLIB", None);
 
     add_sources(
         &mut build,

@@ -13,7 +13,7 @@ ttf-parser = "=0.25.1"
 
 freetype-rs = { version = "=0.38.0", features = ["bundled"] }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
-base64 = "=0.22.1"
+base64 = "=0.23.1"
 sha2 = "=0.11.1"
 svgtypes = "=0.16.1"
 roxmltree = "=0.21.1"
