@@ -100,6 +100,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | target-lexicon | Apache-2.0 WITH LLVM-exception | 🟢 [Done] Apache本文とLLVM例外を維持。通常のApache-2.0だけに置き換えない。 |
 | cssparser、cssparser-macros、dtoa-short、option-ext、selectors | MPL-2.0 | 🟢 [Done] 対象部分はMPLを維持。Cargo.lockのチェックサムと一致する変更前ソース5件を、配布リソースの[ソースアーカイブ](src-tauri/resources/licenses/sources/)へ収録。取得・展開方法とMPL本文も同梱する。将来これらを改変する場合は、その変更を含む対象ソースの提供が必要。 |
 | lightningcssとそのプラットフォーム別npmパッケージ | MPL-2.0 | 🟢 [Done] ビルド依存として原条件を維持。Fontsアプリへ開発ツールの実行ファイルは同梱しない。開発ツール自体を再配布する場合は、対応ソースと告知の提供を別途行う。 |
+| ttfautohint 1.8.4／HarfBuzz 14.6.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
 | FreeType 2.14.3 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |

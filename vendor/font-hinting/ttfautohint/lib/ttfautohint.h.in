@@ -1,0 +1,854 @@
+/* ttfautohint.h */
+
+/*
+ * Copyright (C) 2011-2021 by Werner Lemberg.
+ *
+ * This file is part of the ttfautohint library, and may only be used,
+ * modified, and distributed under the terms given in `COPYING'.  By
+ * continuing to use, modify, or distribute this file you indicate that you
+ * have read `COPYING' and understand and accept it fully.
+ *
+ * The file `COPYING' mentioned in the previous paragraph is distributed
+ * with the ttfautohint library.
+ */
+
+
+#ifndef TTFAUTOHINT_H_
+#define TTFAUTOHINT_H_
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+
+#ifdef _WIN32
+#  ifdef DLL_EXPORT
+#    define TA_LIB_EXPORT __declspec(dllexport)
+#  elif defined(DLL_IMPORT)
+#    define TA_LIB_EXPORT __declspec(dllimport)
+#  endif
+#endif
+
+#ifndef TA_LIB_EXPORT
+#  define TA_LIB_EXPORT
+#endif
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+/*
+ * This file gets processed with a simple sed script to extract the
+ * documentation (written in pandoc's markdown format); code between the
+ * `pandoc' markers are retained, everything else is discarded.  C comments
+ * are uncommented so that column 4 becomes column 1; empty lines outside of
+ * comments are removed.
+ */
+
+
+/* pandoc-start */
+
+/*
+ * The ttfautohint API
+ * ===================
+ *
+ * This section documents the public functions of the ttfautohint library
+ * together with its callback functions.  All information has been directly
+ * extracted from the `ttfautohint.h` header file.
+ *
+ */
+
+
+/*
+ * Preprocessor Macros, Typedefs, and Enums
+ * ----------------------------------------
+ *
+ * Some default values.
+ *
+ * ```C
+ */
+
+#define TA_HINTING_RANGE_MIN 8
+#define TA_HINTING_RANGE_MAX 50
+#define TA_HINTING_LIMIT 200
+#define TA_INCREASE_X_HEIGHT 14
+
+/*
+ *```
+ *
+ * An error type.
+ *
+ * ```C
+ */
+
+typedef int TA_Error;
+
+/*
+ *```
+ *
+ * An enum type for stem width algorithm selection.
+ *
+ * ```C
+ */
+
+enum
+{
+  TA_STEM_WIDTH_MODE_NATURAL = -1,
+  TA_STEM_WIDTH_MODE_QUANTIZED = 0,
+  TA_STEM_WIDTH_MODE_STRONG = 1
+};
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Function Pointer: `TA_Alloc_Func`
+ * ---------------------------------
+ *
+ * A pointer to a function provided by the calling application to allocate
+ * memory.  The ttfautohint library uses this for allocating the buffer
+ * given by the `out-buffer` field of
+ * [`TTF_autohint`](#function-ttf_autohint) and for allocating the `str`
+ * buffer in the [`TA_Info_Func`](#callback-ta_info_func) callback.
+ *
+ * The signature is identical to standard\ C's `malloc` function (in header
+ * file `stdlib.h`).
+ *
+ * ```C
+ */
+
+typedef void *
+(*TA_Alloc_Func)(size_t size);
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Function Pointer: `TA_Free_Func`
+ * --------------------------------
+ *
+ * A pointer to a function provided by the calling application to free
+ * memory allocated with [`TA_Alloc_Func`](#function-pointer-ta_alloc_func).
+ * The ttfautohint library calls this for deallocating the `str` buffers in
+ * the [`TA_Info_Func`](#callback-ta_info_func) callback after they have
+ * been used.
+ *
+ * The signature is identical to standard\ C's `free` function (in header
+ * file `stdlib.h`).
+ *
+ * ```C
+ */
+
+typedef void
+(*TA_Free_Func)(void *ptr);
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Callback: `TA_Progress_Func`
+ * ----------------------------
+ *
+ * A callback function to get progress information.  *curr_idx* gives the
+ * currently processed glyph index; if it is negative, an error has
+ * occurred.  *num_glyphs* holds the total number of glyphs in the font
+ * (this value can't be larger than 65535).
+ *
+ * *curr_sfnt* gives the current subfont within a TrueType Collection (TTC),
+ * and *num_sfnts* the total number of subfonts.
+ *
+ * If the return value is non-zero, `TTF_autohint` aborts with
+ * `TA_Err_Canceled`.  Use this for a 'Cancel' button or similar features in
+ * interactive use.
+ *
+ * *progress_data* is a void pointer to user-supplied data.
+ *
+ * ```C
+ */
+
+typedef int
+(*TA_Progress_Func)(long curr_idx,
+                    long num_glyphs,
+                    long curr_sfnt,
+                    long num_sfnts,
+                    void* progress_data);
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Callback: `TA_Error_Func`
+ * -------------------------
+ *
+ * A callback function to get error information.
+ *
+ * *error* is the value `TTF_autohint` returns.  See file
+ * `ttfautohint-errors.h` for a list.  Error codes not in this list are
+ * directly taken from FreeType; see the FreeType header file `fterrdef.h`
+ * for more.
+ *
+ * *error_string*, if non-NULL, is a pointer to an error message that
+ * represents *error*.
+ *
+ * The next three parameters help identify the origin of text string parsing
+ * errors.  *linenum*, if non-zero, contains the line number.  *line*, if
+ * non-NULL, is a pointer to the input line that can't be processed.
+ * *errpos*, if non-NULL, holds a pointer to the position in *line* where
+ * the problem occurs.
+ *
+ * *error_data* is a void pointer to user-supplied data.
+ *
+ * ```C
+ */
+
+typedef void
+(*TA_Error_Func)(TA_Error error,
+                 const char* error_string,
+                 unsigned int linenum,
+                 const char* line,
+                 const char* errpos,
+                 void* error_data);
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Callback: `TA_Info_Func`
+ * ------------------------
+ *
+ * A callback function to access or modify strings in the `name` table; it
+ * is called in a loop that iterates over all `name` table entries.  If
+ * defined, [`TA_Info_Post_Func`](#callback-ta_info_post_func) gets executed
+ * after this loop so that the collected data can be written back to the
+ * `name` table.
+ *
+ * *platform_id*, *encoding_id*, *language_id*, and *name_id* are the
+ * identifiers of a `name` table entry pointed to by *str* with a length
+ * pointed to by *str_len* (in bytes; the string has no trailing NULL byte).
+ * Please refer to the [OpenType specification of the `name` table] for a
+ * detailed description of the various parameters, in particular which
+ * encoding is used for a given platform and encoding ID.
+ *
+ * [OpenType specification of the `name` table]: https://www.microsoft.com/typography/otspec/name.htm
+ *
+ * The string *str* is allocated with the function specified by the
+ * `alloc-func` field of [`TTF_autohint`](#function-ttf_autohint); the
+ * application should reallocate the data if necessary, ensuring that the
+ * string length doesn't exceed 0xFFFF.
+ *
+ * *info_data* is a void pointer to user-supplied data.
+ *
+ * If an error occurs, return a non-zero value and don't modify *str* and
+ * *str_len* (such errors are handled as non-fatal).
+ *
+ * ```C
+ */
+
+typedef int
+(*TA_Info_Func)(unsigned short platform_id,
+                unsigned short encoding_id,
+                unsigned short language_id,
+                unsigned short name_id,
+                unsigned short* str_len,
+                unsigned char** str,
+                void* info_data);
+
+/*
+ * ```
+ *
+ */
+
+
+/*
+ * Callback: `TA_Info_Post_Func`
+ * -----------------------------
+ *
+ * A callback function, giving the application the possibility to access or
+ * modify strings in the `name` table after
+ * [`TA_Info_Func`](#callback-ta_info_func) has iterated over all `name`
+ * table entries.
+ *
+ * It is expected that `TA_Info_Func` stores pointers to the `name` table
+ * entries it wants to access or modify; the only parameter is thus
+ * *info_data*, which is a void pointer to the user-supplied data already
+ * provided to `TA_Info_Func`.  Obviously, calling `TA_Info_Post_Func` with
+ * `TA_Info_Func` undefined has no effect.
+ *
+ * The `name` table strings are allocated with the function specified by the
+ * `alloc-func` field of [`TTF_autohint`](#function-ttf_autohint); the
+ * application should reallocate the data if necessary, ensuring that no
+ * string length exceeds 0xFFFF.
+ *
+ * If an error occurs, return a non-zero value and don't modify the affected
+ * string and string length (such errors are handled as non-fatal).
+ *
+ * ```C
+ */
+
+typedef int
+(*TA_Info_Post_Func)(void* info_data);
+
+/*
+ * ```
+ *
+ */
+
+/* pandoc-end */
+
+
+/*
+ * Error values in addition to the FT_Err_XXX constants from FreeType.
+ *
+ * All error values specific to ttfautohint start with `TA_Err_'.
+ */
+#include <ttfautohint-errors.h>
+
+
+/* pandoc-start */
+
+/*
+ * Function: `TTF_autohint`
+ * ------------------------
+ *
+ * Read a TrueType font, remove existing bytecode (in the SFNT tables
+ * `prep`, `fpgm`, `cvt `, and `glyf`), and write a new TrueType font with
+ * new bytecode based on the autohinting of the FreeType library, optionally
+ * using a reference font to derive blue zones.
+ *
+ * It expects a format string *options* and a variable number of arguments,
+ * depending on the fields in *options*.  The fields are comma separated;
+ * whitespace within the format string is not significant, a trailing comma
+ * is ignored.  Fields are parsed from left to right; if a field occurs
+ * multiple times, the last field's argument wins.  The same is true for
+ * fields that are mutually exclusive.  Depending on the field, zero or one
+ * argument is expected.
+ *
+ * Note that fields marked as 'not implemented yet' are subject to change.
+ *
+ *
+ * ### Memory Management
+ *
+ * The next two fields are necessary on some platforms if ttfautohint is
+ * compiled as a shared library, and the application uses a different
+ * runtime library.  This can happen, for example, on the MS Windows
+ * platform if your program is written in Python and communicates via [the
+ * 'ctypes' interface](https://docs.python.org/3/library/ctypes.html) with
+ * the ttfautohint DLL.
+ *
+ * `alloc-func`
+ * :   A pointer of type [`TA_Alloc_Func`](#function-pointer-ta_alloc_func)
+ *     specifying a memory allocation function.  It gets used to allocate
+ *     the buffer given by the `out-buffer` field and the data exposed by
+ *     the [`TA_Info_Func`](#callback-ta_info_func) callback.  If not set or
+ *     set to NULL, or if `out-buffer` is not set or set to NULL,
+ *     standard\ C's `malloc` function is used.
+ *
+ * `free-func`
+ * :   A pointer of type [`TA_Free_Func`](#function-pointer-ta_free_func)
+ *     specifying a memory deallocation function.  It gets called to free
+ *     the data exposed by the [`TA_Info_Func`](#callback-ta_info_func)
+ *     callback after it has been used.  If not set or set to NULL, or if
+ *     `out_buffer` is not set or set to NULL, standard\ C's `free` function
+ *     is used.
+ *
+ *
+ * ### I/O
+ *
+ * `in-file`
+ * :   A pointer of type `FILE*` to the data stream of the input font,
+ *     opened for binary reading.  Mutually exclusive with `in-buffer`.
+ *
+ * `in-buffer`
+ * :   A pointer of type `const char*` to a buffer that contains the input
+ *     font.  Needs `in-buffer-len`.  Mutually exclusive with `in-file`.
+ *
+ * `in-buffer-len`
+ * :   A value of type `size_t`, giving the length of the input buffer.
+ *     Needs `in-buffer`.
+ *
+ * `out-file`
+ * :   A pointer of type `FILE*` to the data stream of the output font,
+ *     opened for binary writing.  Mutually exclusive with `out-buffer`.
+ *
+ * `out-buffer`
+ * :   A pointer of type `char**` to a buffer that contains the output
+ *     font.  Needs `out-buffer-len`.  Mutually exclusive with `out-file`.
+ *     The application should deallocate the memory with the function given
+ *     by `free-func`.
+ *
+ * `out-buffer-len`
+ * :   A pointer of type `size_t*` to a value giving the length of the
+ *     output buffer.  Needs `out-buffer`.
+ *
+ * `control-file`
+ * :   A pointer of type `FILE*` to the data stream of control instructions.
+ *     Mutually exclusive with `control-buffer`.
+ *
+ *     See '[Control Instructions](#control-instructions)' for the syntax
+ *     used in such a file or buffer.
+ *
+ * `control-buffer`
+ * :   A pointer of type `const char*` to a buffer that contains control
+ *     instructions.  Needs `control-buffer-len`.  Mutually exclusive with
+ *     `control-file`.
+ *
+ * `control-buffer-len`
+ * :   A value of type `size_t`, giving the length of the control
+ *     instructions buffer.  Needs `control-buffer`.
+ *
+ * `reference-file`
+ * :   A pointer of type `FILE*` to the data stream of the reference font,
+ *     opened for binary reading.  Mutually exclusive with
+ *     `reference-buffer`.
+ *
+ * `reference-buffer`
+ * :   A pointer of type `const char*` to a buffer that contains the
+ *     reference font.  Needs `reference-buffer-len`.  Mutually exclusive
+ *     with `reference-file`.
+ *
+ * `reference-buffer-len`
+ * :   A value of type `size_t`, giving the length of the reference buffer.
+ *     Needs `reference-buffer`.
+ *
+ * `reference-index`
+ * :   The face index to be used in the reference font.  The default value
+ *     is\ 0.
+ *
+ * `reference-name`
+ * :   A string that specifies the name of the reference font.  It is only
+ *     used to emit a sensible value for the `TTFA` table if `TTFA-info` is
+ *     set.
+ *
+ *
+ * ### Messages and Callbacks
+ *
+ * `progress-callback`
+ * :   A pointer of type [`TA_Progress_Func`](#callback-ta_progress_func),
+ *     specifying a callback function for progress reports.  This function
+ *     gets called after a single glyph has been processed.  If this field
+ *     is not set or set to NULL, no progress callback function is used.
+ *
+ * `progress-callback-data`
+ * :   A pointer of type `void*` to user data that is passed to the
+ *     progress callback function.
+ *
+ * `error-string`
+ * :   A pointer of type `unsigned char**` to a string (in UTF-8 encoding)
+ *     that verbally describes the error code.  You must not change the
+ *     returned value.
+ *
+ * `error-callback`
+ * :   A pointer of type [`TA_Error_Func`](#callback-ta_error_func),
+ *     specifying a callback function for error messages.  This function
+ *     gets called right before `TTF_autohint` exits.  If this field is not
+ *     set or set to NULL, no error callback function is used.
+ *
+ *     Use it as a more sophisticated alternative to `error-string`.
+ *
+ * `error-callback-data`
+ * :   A point of type `void*` to user data that is passed to the error
+ *     callback function.
+ *
+ * `info-callback`
+ * :   A pointer of type [`TA_Info_Func`](#callback-ta_info_func),
+ *     specifying a callback function for manipulating the `name` table.
+ *     This function gets called for each `name` table entry.  If not set or
+ *     set to NULL, `TA_Info_Func` is not called.
+ *
+ * `info-post-callback`
+ * :   A pointer of type [`TA_Info_Post_Func`](#callback-ta_info_post_func),
+ *     specifying a callback function for manipulating the `name` table.  It
+ *     is called after the function specified with `info-callback` has
+ *     iterated over all `name` table entries.  If not set or set to NULL,
+ *     `TA_Info_Post_Func` is not called.
+ *
+ * `info-callback-data`
+ * :   A pointer of type `void*` to user data that is passed to the info
+ *     callback functions.
+ *
+ * `debug`
+ * :   If this integer is set to\ 1, lots of debugging information is print
+ *     to stderr.  The default value is\ 0.
+ *
+ *
+ * ### General Hinting Options
+ *
+ * `hinting-range-min`
+ * :   An integer (which must be larger than or equal to\ 2) giving the
+ *     lowest PPEM value used for autohinting.  If this field is not set, it
+ *     defaults to
+ *     [`TA_HINTING_RANGE_MIN`](#preprocessor-macros-typedefs-and-enums).
+ *
+ * `hinting-range-max`
+ * :   An integer (which must be larger than or equal to the value of
+ *     `hinting-range-min`) giving the highest PPEM value used for
+ *     autohinting.  If this field is not set, it defaults to
+ *     [`TA_HINTING_RANGE_MAX`](#preprocessor-macros-typedefs-and-enums).
+ *
+ * `hinting-limit`
+ * :   An integer (which must be larger than or equal to the value of
+ *     `hinting-range-max`) that gives the largest PPEM value at which
+ *     hinting is applied.  For larger values, hinting is switched off.  If
+ *     this field is not set, it defaults to
+ *     [`TA_HINTING_LIMIT`](#preprocessor-macros-typedefs-and-enums).  If it
+ *     is set to\ 0, no hinting limit is added to the bytecode.
+ *
+ * `hint-composites`
+ * :   If this integer is set to\ 1, composite glyphs get separate hints.
+ *     This implies adding a special glyph to the font called
+ *     ['.ttfautohint'](#the-.ttfautohint-glyph).  Setting it to\ 0 (which
+ *     is the default), the hints of the composite glyphs' components are
+ *     used.  Adding hints for composite glyphs increases the size of the
+ *     resulting bytecode a lot, but it might deliver better hinting
+ *     results.  However, this depends on the processed font and must be
+ *     checked by inspection.
+ *
+ * `adjust-subglyphs`
+ * :   An integer (1\ for 'on' and 0\ for 'off', which is the default) to
+ *     specify whether native TrueType hinting of the *input font* shall be
+ *     applied to all glyphs before passing them to the (internal)
+ *     autohinter.  The used resolution is the em-size in font units; for
+ *     most fonts this is 2048ppem.  Use this only if the old hints move or
+ *     scale subglyphs independently of the output resolution, for example
+ *     some exotic CJK fonts.
+ *
+ *     `pre-hinting` is a deprecated alias name for this option.
+ *
+ *
+ * ### Hinting Algorithms
+ *
+ * ttfautohint provides three different algorithms for computing
+ * horizontal stem widths and the positioning of blue zones.
+ *
+ * * `TA_STEM_WIDTH_MODE_NATURAL`: No adjustments to stem
+ *   widths, discrete blue zone positioning.  This is what FreeType uses for
+ *   its 'light' (auto-)hinting mode.
+ *
+ * * `TA_STEM_WIDTH_MODE_QUANTIZED`: Both stem widths and blue zone
+ *   positions are slightly quantized to take discrete values.  For
+ *   example, stem values 50, 51, 72, 76, and 100 would become 50, 74, and
+ *   100 (or something similar).
+ *
+ * * `TA_STEM_WIDTH_MODE_STRONG`: If active, stem widths and blue zones are
+ *   snapped and positioned to integer pixel values as much as possible.
+ *
+ * These values are arguments to ttfautohint's three different hinting mode
+ * options.
+ *
+ * `gray-stem-width-mode`
+ * :   Specify the stem width algorithm for grayscale rendering.  Possible
+ *     integer values are `TA_STEM_WIDTH_MODE_NATURAL`,
+ *     `TA_STEM_WIDTH_MODE_QUANTIZED` (the default), and
+ *     `TA_STEM_WIDTH_MODE_STRONG`, as discussed above.
+ *
+ * `gdi-cleartype-stem-width-mode`
+ * :   Specify the stem width algorithm for GDI ClearType rendering, this
+ *     is, the rasterizer version (as returned by the GETINFO bytecode
+ *     instruction) is in the range 36\ <= version <\ 38 and ClearType is
+ *     enabled.  Possible integer values are `TA_STEM_WIDTH_MODE_NATURAL`,
+ *     `TA_STEM_WIDTH_MODE_QUANTIZED`, and `TA_STEM_WIDTH_MODE_STRONG` (the
+ *     default), as discussed above.
+ *
+ * `dw-cleartype-stem-width-mode`
+ * :   Specify the stem width algorithm for DW ClearType rendering, this is,
+ *     the rasterizer version (as returned by the GETINFO bytecode
+ *     instruction) is >=\ 38, ClearType is enabled, and subpixel
+ *     positioning is enabled also.  Possible integer values are
+ *     `TA_STEM_WIDTH_MODE_NATURAL`, `TA_STEM_WIDTH_MODE_QUANTIZED` (the
+ *     default), and `TA_STEM_WIDTH_MODE_STRONG`, as discussed above.
+ *
+ * `increase-x-height`
+ * :   An integer.  For PPEM values in the range 6\ <= PPEM
+ *     <= `increase-x-height`, round up the font's x\ height much more often
+ *     than normally (to use the terminology of TrueType's 'Super Round'
+ *     bytecode instruction, the threshold gets increased from 5/8px to
+ *     13/16px).  If it is set to\ 0, this feature is switched off.  If this
+ *     field is not set, it defaults to
+ *     [`TA_INCREASE_X_HEIGHT`](#preprocessor-macros-typedefs-and-enums).
+ *     Use this flag to improve the legibility of small font sizes if
+ *     necessary.
+ *
+ * `x-height-snapping-exceptions`
+ * :   A pointer of type `const char*` to a null-terminated string that
+ *     gives a list of comma separated PPEM values or value ranges at which
+ *     no x\ height snapping shall be applied.  A value range has the form
+ *     *value*~1~`-`*value*~2~, meaning *value*~1~ <= PPEM <= *value*~2~.
+ *     *value*~1~ or *value*~2~ (or both) can be missing; a missing value is
+ *     replaced by the beginning or end of the whole interval of valid PPEM
+ *     values, respectively.  Whitespace is not significant; superfluous
+ *     commas are ignored, and ranges must be specified in increasing order.
+ *     For example, the string `"3, 5-7, 9-"` means the values 3, 5, 6, 7,
+ *     9, 10, 11, 12, etc.  Consequently, if the supplied argument is `"-"`,
+ *     no x\ height snapping takes place at all.  The default is the empty
+ *     string (`""`), meaning no snapping exceptions.
+ *
+ * `windows-compatibility`
+ * :   If this integer is set to\ 1, two artificial blue zones are used,
+ *     positioned at the `usWinAscent` and `usWinDescent` values (from the
+ *     font's `OS/2` table).  The idea is to help ttfautohint so that the
+ *     hinted glyphs stay within this horizontal stripe since Windows clips
+ *     everything falling outside.  The default is\ 0.
+ *
+ * `gray-strong-stem-width`
+ * :   Deprecated.  The argument values 0 and 1 of this field correspond to
+ *     the argument values `TA_STEM_WIDTH_MODE_QUANTIZED` and
+ *     `TA_STEM_WIDTH_MODE_STRONG` of the field 'gray-stem-width-mode',
+ *     respectively.
+ *
+ * `gdi-cleartype-strong-stem-width`
+ * :   Deprecated.  The argument values 0 and 1 of this field correspond to
+ *     the argument values `TA_STEM_WIDTH_MODE_QUANTIZED` and
+ *     `TA_STEM_WIDTH_MODE_STRONG` of the field
+ *     'gdi-cleartype-stem-width-mode', respectively.
+ *
+ * `dw-cleartype-strong-stem-width`
+ * :   Deprecated.  The argument values 0 and 1 of this field correspond to
+ *     the argument values `TA_STEM_WIDTH_MODE_QUANTIZED` and
+ *     `TA_STEM_WIDTH_MODE_STRONG` of the field
+ *     'dw-cleartype-stem-width-mode', respectively.
+ *
+ *
+ * ### Scripts
+ *
+ * `default-script`
+ * :   A string consisting of four lowercase characters that specifies the
+ *     default script for OpenType features.  After applying all features
+ *     that are handled specially, use this value for the remaining
+ *     features.  The default value is `"latn"`; if set to `"none"`, no
+ *     script is used.  Valid values can be found in the header file
+ *     `ttfautohint-scripts.h`.
+ *
+ * `fallback-script`
+ * :   A string consisting of four lowercase characters, specifying the
+ *     default script for glyphs that can't be mapped to a script
+ *     automatically.  By default, such glyphs are hinted; if option
+ *     `fallback-scaling` is set, they are scaled only instead.  Valid
+ *     values can be found in the header file `ttfautohint-scripts.h`.
+ *
+ *     Default value is `"none"`, which means hinting without using a
+ *     script's blue zones if `fallback-scaling` isn't set.  If
+ *     `fallback_scaling` is set, value `"none"` implies no hinting for
+ *     unmapped glyphs.
+ *
+ * `fallback-scaling`
+ * :   Set this integer to\ 1 if glyphs handled by the fallback script
+ *     should be scaled only with the fallback script's scaling value,
+ *     instead of being hinted with the fallback script's hinting
+ *     parameters.
+ *
+ * `symbol`
+ * :   Set this integer to\ 1 if you want to process a font that ttfautohint
+ *     would refuse otherwise because it can't find a single standard
+ *     character for any of the supported scripts.  ttfautohint then uses a
+ *     default (hinting) value for the standard stem width instead of
+ *     deriving it from a script's set of standard characters (for the latin
+ *     script, one of them is character 'o').  The default value of this
+ *     option is\ 0.
+ *
+ * `fallback-stem-width`
+ * :   Set the horizontal stem width (hinting) value for all scripts that
+ *     lack proper standard characters.  The value is given in font units
+ *     and must be a positive integer.  If not set, or the value is zero,
+ *     ttfautohint uses a hard-coded default (50\ units at 2048 units per
+ *     EM, and linearly scaled for other UPEM values, for example 24\ units
+ *     at 1000 UPEM).
+ *
+ *     For symbol fonts (i.e., option `symbol` is given),
+ *     `fallback-stem-width` has an effect only if `fallback-script` is set
+ *     also.
+ *
+ *
+ * ### Miscellaneous
+ *
+ * `ignore-restrictions`
+ * :   If the font has set bit\ 1 in the 'fsType' field of the `OS/2` table,
+ *     the ttfautohint library refuses to process the font since a
+ *     permission to do that is required from the font's legal owner.  In
+ *     case you have such a permission you might set the integer argument to
+ *     value\ 1 to make ttfautohint handle the font.  The default value
+ *     is\ 0.
+ *
+ * `TTFA-info`
+ * :   If set to\ 1, ttfautohint creates an SFNT table called `TTFA` and
+ *     fills it with information on the parameters used while calling
+ *     `TTF_autohint`.  The format of the output data resembles the
+ *     information at the very beginning of the dump emitted by option
+ *     `debug`.  The default value is\ 0.
+ *
+ *     Main use of this option is for font editing purposes.  For example,
+ *     after a font editor has added some glyphs, a front-end to
+ *     `TTF_autohint` can parse `TTFA` and feed the parameters into another
+ *     call of `TTF_autohint`.  The new glyphs are then hinted while hints
+ *     of the old glyphs stay unchanged.
+ *
+ *     If this option is not set, and the font to be processed contains a
+ *     `TTFA` table, it gets removed.
+ *
+ *     Note that such a `TTFA` table gets ignored by all font rendering
+ *     engines.  In TrueType Collections, the `TTFA` table is added to the
+ *     first subfont.
+ *
+ * `dehint`
+ * :   If set to\ 1, remove all hints from the font.  All other hinting
+ *     options are ignored.
+ *
+ * `epoch`
+ * :   An integer of type `unsigned long long`, defined as the number of
+ *     seconds (excluding leap seconds) since 01 Jan 1970 00:00:00 UTC.  If
+ *     set, or if the value is not equal to `ULLONG_MAX`, this epoch gets
+ *     used instead of the current date and time for the 'modification time'
+ *     field in the TTF header.  Use this to get [reproducible
+ *     builds](https://reproducible-builds.org/).
+ *
+ *
+ * ### Remarks
+ *
+ *   * Obviously, it is necessary to have an input and an output data
+ *     stream.  All other options are optional.
+ *
+ *   * `hinting-range-min` and `hinting-range-max` specify the range for
+ *     which the autohinter generates optimized hinting code.  If a PPEM
+ *     value is smaller than the value of `hinting-range-min`, hinting still
+ *     takes place but the configuration created for `hinting-range-min` is
+ *     used.  The analogous action is taken for `hinting-range-max`, only
+ *     limited by the value given with `hinting-limit`.  The font's `gasp`
+ *     table is set up to always use grayscale rendering with grid-fitting
+ *     for standard hinting, and symmetric grid-fitting and symmetric
+ *     smoothing for horizontal subpixel hinting (ClearType).
+ *
+ *   * ttfautohint can process its own output a second time only if option
+ *     `hint-composites` is not set (or if the font doesn't contain
+ *     composite glyphs at all).  This limitation might change in the
+ *     future.
+ *
+ * ```C
+ */
+
+TA_LIB_EXPORT TA_Error
+TTF_autohint(const char* options,
+             ...);
+
+/*
+ * ```
+ *
+ * Macros: `TTFAUTOHINT_MAJOR`, `TTFAUTOHINT_MINOR`, `TTFAUTOHINT_REVISION`
+ * ------------------------------------------------------------------------
+ *
+ * These three macros give the major, minor, and revision number of the
+ * library, respectively.  See function
+ * [`TTF_autohint_version`](#function-ttf_autohint_version) for more
+ * details.
+ *
+ * ```C
+ */
+
+#define TTFAUTOHINT_MAJOR %TTFAUTOHINT_MAJOR%
+#define TTFAUTOHINT_MINOR %TTFAUTOHINT_MINOR%
+#define TTFAUTOHINT_REVISION %TTFAUTOHINT_REVISION%
+
+/*
+ * ```
+ *
+ * Macro: `TTFAUTOHINT_VERSION`
+ * ----------------------------
+ *
+ * This macro holds the ttfautohint version string.
+ *
+ * For tarball releases it has the form *X*.*Y*[.*Z*], with *X*, *Y*,
+ * and\ *Z* the major, minor, and revision numbers, respectively.  If the
+ * revision number is zero, it is omitted.  Examples: `2.7`, `2.7.1`.
+ *
+ * If compiling directly from the git repository, ttfautohint's bootstrap
+ * script derives the version number from the `git describe` output,
+ * appending the number of commits after a tag together with a shortened
+ * commit ID.  Example: `2.7.1.23-379b`.
+ *
+ * See function [`TTF_autohint_version`](#function-ttf_autohint_version) for
+ * more details.
+ *
+ * ```C
+ */
+
+#define TTFAUTOHINT_VERSION "%TTFAUTOHINT_VERSION%"
+
+/*
+ * ```
+ *
+ * Function: `TTF_autohint_version`
+ * --------------------------------
+ *
+ * Return the ttfautohint version triplet.  This function is useful when
+ * dynamically linking to the library, since the macros `TTFAUTOHINT_MAJOR`,
+ * `TTFAUTOHINT_MINOR`, and `TTFAUTOHINT_PATCH` cannot be used in that case.
+ *
+ * The returned integer triplet is _not_ the same as the shared library's
+ * version triplet (which the dynamic linker uses to resolve runtime
+ * dependencies).  For example, hypothetical ttfautohint versions 2.27 and
+ * 2.27.1 might both correspond to shared library version 1.0.38 in case
+ * there are only, say, documentation or packaging differences that don't
+ * affect the library code.
+ *
+ * If the pkg-config configuration file `ttfautohint.pc` is installed in a
+ * place that pkg-config can find, a call to
+ *
+ * ```
+ *     pkg-config ttfautohint --modversion
+ * ```
+ *
+ * returns the shared library version.
+ *
+ * ```C
+ */
+
+TA_LIB_EXPORT void
+TTF_autohint_version(int *major,
+                     int *minor,
+                     int *revision);
+
+/*
+ * ```
+ *
+ * Function: `TTF_autohint_version_string`
+ * ---------------------------------------
+ *
+ * Return the ttfautohint version string.  This function is useful when
+ * dynamically linking to the library, since the macro `TTFAUTOHINT_VERSION`
+ * cannot be used in that case.
+ *
+ * ```C
+ */
+
+TA_LIB_EXPORT const char*
+TTF_autohint_version_string(void);
+
+/*
+ * ```
+ *
+ */
+
+/* pandoc-end */
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* TTFAUTOHINT_H_ */
+
+/* end of ttfautohint.h */

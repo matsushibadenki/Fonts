@@ -1,7 +1,7 @@
 //! Hint bytecode is never executed here. Editing exports fresh unhinted outlines;
 //! source export can preserve all tables or remove TrueType instructions explicitly.
 use crate::font_io::{Result, MAX_FONT_BYTES};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ttf_parser::{Face, Tag};
 const DROP: [[u8; 4]; 9] = [
@@ -12,6 +12,7 @@ pub struct Info {
     pub family: String,
     pub extension: String,
     pub true_type: bool,
+    pub can_autohint: bool,
     pub instructed_glyphs: usize,
     pub instruction_bytes: usize,
     pub tables: Vec<String>,
@@ -126,6 +127,21 @@ fn parse(bytes: &[u8], index: u32) -> Result<Face<'_>> {
     Face::parse(bytes, index).map_err(|_| "font_invalid".into())
 }
 pub fn info(bytes: &[u8], index: u32) -> Result<Info> {
+    if bytes.starts_with(&[1, 0]) {
+        if bytes.len() as u64 > MAX_FONT_BYTES {
+            return Err("font_too_large".into());
+        }
+        let raw = crate::font_formats::legacy_info(bytes, index)?;
+        return Ok(Info {
+            family: raw.family,
+            extension: "cff".into(),
+            true_type: false,
+            can_autohint: false,
+            instructed_glyphs: 0,
+            instruction_bytes: 0,
+            tables: vec![],
+        });
+    }
     let face = parse(bytes, index)?;
     let true_type = face.raw_face().table(Tag::from_bytes(b"glyf")).is_some();
     if !true_type
@@ -138,6 +154,11 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info> {
         family: crate::font_io::name(&face, 1),
         extension: if true_type { "ttf" } else { "otf" }.into(),
         true_type,
+        can_autohint: true_type
+            && !face.is_variable()
+            && [b"COLR", b"sbix", b"CBDT", b"SVG ", b"VARC"]
+                .iter()
+                .all(|tag| face.raw_face().table(Tag::from_bytes(tag)).is_none()),
         instructed_glyphs: 0,
         instruction_bytes: 0,
         tables: vec![],
@@ -161,8 +182,30 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info> {
 }
 pub fn export(bytes: &[u8], index: u32, remove: bool) -> Result<Vec<u8>> {
     let metadata = info(bytes, index)?;
-    if remove && !metadata.true_type {
-        return Err("hinting_unsupported".into());
+    if bytes.starts_with(&[1, 0]) {
+        if !remove {
+            return Ok(bytes.to_vec());
+        }
+        let doc = crate::font_formats::legacy_import(bytes, index)?;
+        let scaffold = crate::font_formats::export(&doc, crate::font_formats::Format::Otf)?;
+        let parsed = parse(&scaffold, 0)?;
+        let mut tables = BTreeMap::new();
+        for r in parsed.raw_face().table_records {
+            let tag = r.tag.to_bytes();
+            let mut data = table(&parsed, &tag)?.to_vec();
+            if &tag == b"head" {
+                data[8..12].fill(0);
+            }
+            tables.insert(tag, data);
+        }
+        tables.insert(*b"CFF ", bytes.to_vec());
+        let wrapped = crate::color_fonts::assemble(tables, true)?;
+        let removed = font_hinting_native::dehint_cff(&wrapped, 0)?;
+        let actual = crate::font_formats::legacy_import(&removed, 0)?;
+        if doc != actual {
+            return Err("hinting_invalid".into());
+        }
+        return Ok(removed);
     }
     let face = parse(bytes, index)?;
     let mut tables = BTreeMap::new();
@@ -179,7 +222,7 @@ pub fn export(bytes: &[u8], index: u32, remove: bool) -> Result<Vec<u8>> {
             return Err("hinting_invalid".into());
         }
     }
-    if remove {
+    if remove && metadata.true_type {
         let mut glyf = Vec::new();
         let mut loca = Vec::new();
         for data in glyphs(&face)? {
@@ -203,6 +246,14 @@ pub fn export(bytes: &[u8], index: u32, remove: bool) -> Result<Vec<u8>> {
         maxp[14..28].fill(0);
         maxp[14..16].copy_from_slice(&1u16.to_be_bytes()); // maxZones
     }
+    if remove && !metadata.true_type {
+        let tag = if face.raw_face().table(Tag::from_bytes(b"CFF ")).is_some() {
+            *b"CFF "
+        } else {
+            *b"CFF2"
+        };
+        tables.insert(tag, font_hinting_native::dehint_cff(bytes, index)?);
+    }
     let cff = face.raw_face().table(Tag::from_bytes(b"CFF ")).is_some()
         || face.raw_face().table(Tag::from_bytes(b"CFF2")).is_some();
     let out = crate::color_fonts::assemble(tables, cff)?;
@@ -214,7 +265,120 @@ pub fn export(bytes: &[u8], index: u32, remove: bool) -> Result<Vec<u8>> {
     {
         return Err("hinting_invalid".into());
     }
+    if remove && !metadata.true_type {
+        verify_geometry(bytes, index, &out, false)?;
+    }
     Ok(out)
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Mode {
+    #[default]
+    Preserve,
+    Remove,
+    Auto,
+}
+
+/// Generate actual TrueType bytecode; no rasterized contours are baked into the outline.
+pub fn autohint(bytes: &[u8], index: u32) -> Result<Vec<u8>> {
+    if !info(bytes, index)?.can_autohint {
+        return Err("autohint_unsupported".into());
+    }
+    // Start from a clean standalone face, including for previously auto-hinted inputs.
+    let clean = export(bytes, index, true)?;
+    let native = font_hinting_native::autohint(&clean, 8, 50)?;
+    verify_geometry(&clean, 0, &native, true)?;
+    // Canonical SFNT padding/directory is required by the WOFF2 null-transform profile.
+    let result = export(&native, 0, false)?;
+    let inspected = info(&result, 0)?;
+    if inspected.instructed_glyphs == 0 || inspected.instruction_bytes == 0 {
+        return Err("autohint_empty".into());
+    }
+    Ok(result)
+}
+#[derive(Default, PartialEq)]
+struct Trace {
+    data: Vec<(u8, [f32; 6])>,
+    overflow: bool,
+}
+impl Trace {
+    fn add(&mut self, op: u8, p: [f32; 6]) {
+        if self.data.len() < 1_000_000 {
+            self.data.push((op, p));
+        } else {
+            self.overflow = true;
+        }
+    }
+}
+impl ttf_parser::OutlineBuilder for Trace {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.add(0, [x, y, 0., 0., 0., 0.]);
+    }
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.add(1, [x, y, 0., 0., 0., 0.]);
+    }
+    fn quad_to(&mut self, x: f32, y: f32, a: f32, b: f32) {
+        self.add(2, [x, y, a, b, 0., 0.]);
+    }
+    fn curve_to(&mut self, x: f32, y: f32, a: f32, b: f32, c: f32, d: f32) {
+        self.add(3, [x, y, a, b, c, d]);
+    }
+    fn close(&mut self) {
+        self.add(4, [0.; 6]);
+    }
+}
+fn verify_geometry(source: &[u8], index: u32, output: &[u8], allow_helper: bool) -> Result<()> {
+    let a = parse(source, index)?;
+    let b = parse(output, 0)?;
+    if a.units_per_em() != b.units_per_em()
+        || (!allow_helper && a.number_of_glyphs() != b.number_of_glyphs())
+        || b.number_of_glyphs() < a.number_of_glyphs()
+    {
+        return Err("hinting_invalid".into());
+    }
+    let mut total = 0;
+    for n in 0..a.number_of_glyphs() {
+        let id = ttf_parser::GlyphId(n);
+        let mut x = Trace::default();
+        let mut y = Trace::default();
+        let ab = a.outline_glyph(id, &mut x);
+        let bb = b.outline_glyph(id, &mut y);
+        if !allow_helper
+            && (a.glyph_name(id) != b.glyph_name(id)
+                || a.tables().cff.and_then(|c| c.glyph_cid(id))
+                    != b.tables().cff.and_then(|c| c.glyph_cid(id)))
+        {
+            return Err("hinting_invalid".into());
+        }
+        total += x.data.len();
+        if x.overflow
+            || y.overflow
+            || total > crate::font_io::MAX_OUTLINE_SEGMENTS
+            || ab != bb
+            || x != y
+            || a.glyph_hor_advance(id) != b.glyph_hor_advance(id)
+            || a.glyph_ver_advance(id) != b.glyph_ver_advance(id)
+        {
+            return Err("hinting_invalid".into());
+        }
+    }
+    if let Some(cmap) = a.tables().cmap {
+        let mut valid = true;
+        for sub in cmap.subtables.into_iter().filter(|s| s.is_unicode()) {
+            sub.codepoints(|cp| {
+                if let Some(c) = char::from_u32(cp) {
+                    if a.glyph_index(c) != b.glyph_index(c) {
+                        valid = false;
+                    }
+                }
+            });
+        }
+        if !valid {
+            return Err("hinting_invalid".into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -428,11 +592,111 @@ mod tests {
         assert!(strip_glyph(&data).is_err());
     }
     #[test]
-    fn cff_preserves_and_rejects_true_type_removal() {
+    fn generated_bytecode_preserves_geometry_and_renders_at_small_sizes() {
+        let bytes = source();
+        let out = autohint(&bytes, 0).unwrap();
+        assert!(info(&out, 0).unwrap().instructed_glyphs > 0);
+        assert!(table(&Face::parse(&out, 0).unwrap(), b"fpgm").is_ok());
+        let library = freetype::Library::init().unwrap();
+        let face = library.new_memory_face(out.clone(), 0).unwrap();
+        for size in [8, 12, 16, 24, 50] {
+            face.set_pixel_sizes(0, size).unwrap();
+            face.load_char(
+                'A' as usize,
+                freetype::face::LoadFlag::RENDER
+                    | freetype::face::LoadFlag::NO_AUTOHINT
+                    | freetype::face::LoadFlag::PEDANTIC,
+            )
+            .unwrap();
+            assert!(face.glyph().bitmap().width() > 0);
+        }
+        let regenerated = autohint(&out, 0).unwrap();
+        assert!(info(&regenerated, 0).unwrap().instruction_bytes > 0);
+    }
+    #[test]
+    fn cff_stems_masks_subroutines_and_private_hints_are_removed_without_other_table_changes() {
+        for (bytes, tag) in [
+            (
+                include_bytes!("../tests/data/hinting/cff-hints.otf").as_slice(),
+                *b"CFF ",
+            ),
+            (
+                include_bytes!("../tests/data/hinting/cid-hints.otf").as_slice(),
+                *b"CFF ",
+            ),
+            (
+                include_bytes!("../tests/data/hinting/cff2-hints.otf").as_slice(),
+                *b"CFF2",
+            ),
+        ] {
+            let removed = export(bytes, 0, true).unwrap();
+            let a = tables(bytes);
+            let b = tables(&removed);
+            assert_ne!(a[&tag], b[&tag]);
+            for (t, data) in a {
+                if t != tag && !DROP.contains(&t) {
+                    assert_eq!(data, b[&t]);
+                }
+            }
+            if tag == *b"CFF2" {
+                for weight in [100., 400., 900.] {
+                    let coords = [("wght".into(), weight)].into();
+                    assert_eq!(
+                        crate::variations::instantiate(bytes, 0, &coords).unwrap(),
+                        crate::variations::instantiate(&removed, 0, &coords).unwrap()
+                    );
+                }
+            }
+            let lib = freetype::Library::init().unwrap();
+            let f = lib.new_memory_face(removed, 0).unwrap();
+            for size in [8, 12, 24] {
+                f.set_pixel_sizes(0, size).unwrap();
+                f.load_char('A' as usize, freetype::face::LoadFlag::RENDER)
+                    .unwrap();
+                assert!(f.glyph().bitmap().width() > 0);
+            }
+        }
+        let original = include_bytes!("../tests/data/hinting/cff-hints.otf");
+        let raw = table(&Face::parse(original, 0).unwrap(), b"CFF ").unwrap();
+        let clean = export(raw, 0, true).unwrap();
+        assert_ne!(raw, clean);
+        assert_eq!(export(raw, 0, false).unwrap(), raw);
+    }
+    #[test]
+    fn auto_rejects_variable_color_and_empty_fonts_and_woff2_retains_generated_programs() {
+        for bytes in [
+            include_bytes!("../tests/data/variations/gvar.ttf").as_slice(),
+            include_bytes!("../tests/data/color/colrv0.ttf").as_slice(),
+        ] {
+            assert!(!info(bytes, 0).unwrap().can_autohint);
+            assert_eq!(autohint(bytes, 0).unwrap_err(), "autohint_unsupported");
+        }
+        let empty = crate::font_io::export(&FontDocument::new("Empty", "").unwrap()).unwrap();
+        assert!(autohint(&empty, 0).is_err());
+        let hinted = autohint(&source(), 0).unwrap();
+        let web = crate::font_formats::woff2::encode_sfnt(hinted.clone(), 9).unwrap();
+        let decoded = crate::font_formats::woff2::decode(&web).unwrap();
+        assert_eq!(
+            info(&hinted, 0).unwrap().instruction_bytes,
+            info(&decoded, 0).unwrap().instruction_bytes
+        );
+        verify_geometry(&hinted, 0, &decoded, false).unwrap();
+    }
+    #[test]
+    fn autohint_does_not_override_font_restrictions() {
+        let bytes = source();
+        let mut t = tables(&bytes);
+        t.get_mut(b"OS/2").unwrap()[8..10].copy_from_slice(&2u16.to_be_bytes());
+        let restricted = crate::color_fonts::assemble(t, false).unwrap();
+        assert_eq!(autohint(&restricted, 0).unwrap_err(), "autohint_native_15");
+    }
+    #[test]
+    fn cff_preserves_and_removes_hints() {
         let doc = FontDocument::new("CFF", "A").unwrap();
         let bytes = crate::font_formats::export(&doc, crate::font_formats::Format::Otf).unwrap();
         assert!(!info(&bytes, 0).unwrap().true_type);
         assert_eq!(tables(&export(&bytes, 0, false).unwrap()), tables(&bytes));
-        assert_eq!(export(&bytes, 0, true).unwrap_err(), "hinting_unsupported");
+        let removed = export(&bytes, 0, true).unwrap();
+        verify_geometry(&bytes, 0, &removed, false).unwrap();
     }
 }

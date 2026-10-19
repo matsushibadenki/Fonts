@@ -119,10 +119,22 @@ fn sfnt_tables(b: &[u8]) -> Result<Vec<Table>> {
 }
 pub fn export(doc: &FontDocument, options: Options) -> Result<Vec<u8>> {
     options.validate()?;
-    let mut sfnt = match options.outline {
+    let sfnt = match options.outline {
         Outline::TrueType => crate::font_io::export(doc)?,
         Outline::Cff => super::cff::opentype(doc, false)?,
     };
+    encode_sfnt(sfnt, options.quality)
+}
+/// Package an already validated SFNT, retaining generated hinting bytecode.
+pub fn encode_sfnt(mut sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
+    if !(1..=11).contains(&quality) {
+        return Err("woff2_options_invalid".into());
+    }
+    if sfnt.len() > crate::font_io::MAX_FONT_BYTES as usize {
+        return Err("font_too_large".into());
+    }
+    ttf_parser::Face::parse(&sfnt, 0).map_err(|_| bad())?;
+    sfnt_tables(&sfnt)?;
     // WOFF2 requires the lossless-modification flag even with null transforms.
     for i in 0..u16at(&sfnt, 4)? as usize {
         let record = 12 + 16 * i;
@@ -158,7 +170,7 @@ pub fn export(doc: &FontDocument, options: Options) -> Result<Vec<u8>> {
     }
     let mut compressed = Vec::new();
     {
-        let mut writer = brotli::CompressorWriter::new(&mut compressed, 65536, options.quality, 22);
+        let mut writer = brotli::CompressorWriter::new(&mut compressed, 65536, quality, 22);
         writer.write_all(&stream).map_err(|_| bad())?;
     }
     let length = (48 + directory.len() + compressed.len() + 3) & !3;

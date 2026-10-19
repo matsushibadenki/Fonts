@@ -20,3 +20,5 @@ roxmltree = "=0.21.1"
 lopdf = { version = "=0.45.0", default-features = false }
 
 brotli = "=9.0.0"
+
+font-hinting-native = { path = "../font-hinting-native" }

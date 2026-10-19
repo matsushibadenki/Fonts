@@ -21,7 +21,7 @@ pub struct Report {
 pub async fn font_hinting_export(
     window: WebviewWindow,
     id: u64,
-    remove: bool,
+    mode: hinting::Mode,
 ) -> Result<Option<Report>, String> {
     crate::allowed(&window)?;
     let _guard = crate::files::FileGuard::acquire()?;
@@ -30,7 +30,11 @@ pub async fn font_hinting_export(
     let (bytes, info) = tauri::async_runtime::spawn_blocking(move || {
         let original = font_io::read(&e.path)?;
         let info = hinting::info(&original, e.index)?;
-        let bytes = hinting::export(&original, e.index, remove)?;
+        let bytes = match mode {
+            hinting::Mode::Auto => hinting::autohint(&original, e.index)?,
+            hinting::Mode::Remove => hinting::export(&original, e.index, true)?,
+            hinting::Mode::Preserve => hinting::export(&original, e.index, false)?,
+        };
         Ok::<_, String>((bytes, info))
     })
     .await
@@ -42,7 +46,11 @@ pub async fn font_hinting_export(
         .take(80)
         .collect();
     let name = if name.is_empty() { "Font" } else { &name };
-    let suffix = if remove { "Unhinted" } else { "Preserved" };
+    let suffix = match mode {
+        hinting::Mode::Auto => "Autohinted",
+        hinting::Mode::Remove => "Unhinted",
+        hinting::Mode::Preserve => "Preserved",
+    };
     let ext = &info.extension;
     let dialog = rfd::AsyncFileDialog::new()
         .set_parent(&window)

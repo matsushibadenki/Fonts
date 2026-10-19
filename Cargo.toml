@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/lumapaint-core", "crates/font-core", "crates/font-renderer", "src-tauri"]
+members = ["crates/font-hinting-native", "crates/lumapaint-core", "crates/font-core", "crates/font-renderer", "src-tauri"]
 resolver = "2"
 
 [workspace.package]

@@ -1,0 +1,124 @@
+/* tablue.h */
+
+/*
+ * Copyright (C) 2013-2021 by Werner Lemberg.
+ *
+ * This file is part of the ttfautohint library, and may only be used,
+ * modified, and distributed under the terms given in `COPYING'.  By
+ * continuing to use, modify, or distribute this file you indicate that you
+ * have read `COPYING' and understand and accept it fully.
+ *
+ * The file `COPYING' mentioned in the previous paragraph is distributed
+ * with the ttfautohint library.
+ */
+
+
+/* originally file `afblue.h' (2013-Sep-11) from FreeType */
+
+
+#ifndef TABLUE_H_
+#define TABLUE_H_
+
+
+  /* an auxiliary macro to decode a UTF-8 character -- since we only use */
+  /* hard-coded, self-converted data, no error checking is performed */
+#define GET_UTF8_CHAR(ch, p) \
+  do \
+  { \
+    ch = (unsigned char)*p++; \
+    if (ch >= 0x80) \
+    { \
+      FT_UInt len_; \
+\
+\
+      if (ch < 0xE0) \
+      { \
+        len_ = 1; \
+        ch &= 0x1F; \
+      } \
+      else if (ch < 0xF0) \
+      { \
+        len_ = 2; \
+        ch &= 0x0F; \
+      } \
+      else \
+      { \
+        len_ = 3;\
+        ch &= 0x07; \
+      } \
+\
+      for (; len_ > 0; len_--) \
+        ch = (ch << 6) | (*p++ & 0x3F); \
+    } \
+  } while (0)
+
+
+/****************************************************************
+ *
+ *                        BLUE STRINGS
+ *
+ ****************************************************************/
+
+/* At the bottommost level, we define strings for finding blue zones. */
+
+
+#define TA_BLUE_STRING_MAX_LEN @TA_BLUE_STRING_MAX_LEN@
+
+/* The TA_Blue_String enumeration values are offsets into the */
+/* `ta_blue_strings' array. */
+
+typedef enum TA_Blue_String_
+{
+@TA_BLUE_STRING_ENUM@
+
+  TA_BLUE_STRING_MAX   /* do not remove */
+} TA_Blue_String;
+
+
+extern const char ta_blue_strings[];
+
+
+/****************************************************************
+ *
+ *                      BLUE STRINGSETS
+ *
+ ****************************************************************/
+
+/* The next level is to group blue strings into style-specific sets. */
+
+
+/* Properties are specific to a writing system.  We assume that a given */
+/* blue string can't be used in more than a single writing system, which */
+/* is a safe bet. */
+#define TA_BLUE_PROPERTY_LATIN_TOP (1U << 0) /* must have value 1 */
+#define TA_BLUE_PROPERTY_LATIN_SUB_TOP (1U << 1)
+#define TA_BLUE_PROPERTY_LATIN_NEUTRAL (1U << 2)
+#define TA_BLUE_PROPERTY_LATIN_X_HEIGHT (1U << 3)
+#define TA_BLUE_PROPERTY_LATIN_LONG (1U << 4)
+
+
+#define TA_BLUE_STRINGSET_MAX_LEN @TA_BLUE_STRINGSET_MAX_LEN@
+
+/* The TA_Blue_Stringset enumeration values are offsets into the */
+/* `ta_blue_stringsets' array. */
+
+typedef enum TA_Blue_Stringset_
+{
+@TA_BLUE_STRINGSET_ENUM@
+
+  TA_BLUE_STRINGSET_MAX   /* do not remove */
+} TA_Blue_Stringset;
+
+
+typedef struct TA_Blue_StringRec_
+{
+  TA_Blue_String string;
+  FT_UShort properties;
+} TA_Blue_StringRec;
+
+
+extern const TA_Blue_StringRec ta_blue_stringsets[];
+
+#endif /* TABLUE_H_ */
+
+/* end of tablue.h */

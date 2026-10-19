@@ -47,7 +47,8 @@
 15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
    - 🔴 [Later] COLRv1／SVGプレビュー、カラー編集・プロジェクト保存、カラーWOFF2。
 16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
-   - 🔴 [Later] CFF／Type 1の直接dehint、自動ヒンティング生成、命令編集と小サイズ比較。
+   - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
+   - 🔴 [Later] Type 1の直接dehint、CFF用ヒント生成、命令編集と小サイズ比較。
    - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
 17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、名前付きインスタンス・可変フォントの編集／出力。
 

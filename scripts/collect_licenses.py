@@ -154,6 +154,23 @@ def main():
                 raise ValueError(f'Native notice header not found: {file}')
             text = comments.group(0)
         sections += ['\n--- ' + ('zlib/LICENSE' if file not in native_files[:-1] else str(file.relative_to(ROOT))) + ' ---', text]
+    native_root = ROOT / 'vendor/font-hinting'
+    sections += ['\n' + '=' * 72, 'Fonts is based in part on the work of the FreeType Team and the ttfautohint library. ttfautohint uses FTL (including its generated-bytecode exception); HarfBuzz uses Old MIT and file-level licenses.']
+    report['native_hinting'] = json.loads((native_root / 'manifest.json').read_text())
+    for relative in ['ttfautohint/COPYING', 'ttfautohint/FTL.TXT', 'harfbuzz/COPYING', 'harfbuzz/src/ms-use/COPYING']:
+        file = native_root / relative
+        sections += ['\n--- ' + str(file.relative_to(ROOT)) + ' ---', '\n'.join(line.rstrip() for line in file.read_text(errors='replace').splitlines()).rstrip()]
+    # Retain individual authors' headers, including BSD/X11 and Bison's skeleton exception.
+    headers = set()
+    for file in sorted(native_root.rglob('*')):
+        if file.suffix not in ['.h', '.hh', '.c', '.cc']: continue
+        text = file.read_text(errors='replace')
+        match = re.match(r'\A(?:\s*/\*.*?\*/\s*)+', text, re.S)
+        if match and match.group(0) not in headers:
+            header = match.group(0)
+            if 'copyright' in header.lower() or 'license' in header.lower():
+                headers.add(header)
+                sections += ['\n--- ' + str(file.relative_to(ROOT)) + ' ---', '\n'.join(line.rstrip() for line in header.splitlines()).rstrip()]
     mpl = next(p for p in metadata['packages'] if p['name'] == 'option-ext')
     mpl_text = Path(mpl['manifest_path']).parent / 'LICENSE.txt'
     shutil.copyfile(mpl_text, OUT / 'licenses/MPL-2.0.txt')

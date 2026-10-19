@@ -47,6 +47,8 @@ pub enum Operation {
     Export {
         family: String,
         #[serde(default)]
+        autohint: bool,
+        #[serde(default)]
         woff2: font_core::font_formats::woff2::Options,
         #[serde(default = "ttf_format")]
         format: Format,
@@ -295,10 +297,11 @@ pub async fn font_library_action(
             family,
             format,
             woff2,
+            autohint,
         } => {
             let mut doc = document(&app)?;
             doc.family = family;
-            report = save_font(&window, doc, format, woff2).await?;
+            report = save_font_with_hinting(&window, doc, format, woff2, autohint).await?;
         }
         Operation::Convert { id, format } => {
             let e = entry(&app, id)?;
@@ -513,12 +516,38 @@ pub(crate) async fn save_font(
     format: Format,
     woff2: font_core::font_formats::woff2::Options,
 ) -> Result<Option<ExportReport>, String> {
+    save_font_with_hinting(window, doc, format, woff2, false).await
+}
+async fn save_font_with_hinting(
+    window: &WebviewWindow,
+    doc: font_core::FontDocument,
+    format: Format,
+    woff2: font_core::font_formats::woff2::Options,
+    autohint: bool,
+) -> Result<Option<ExportReport>, String> {
+    if autohint
+        && !(format == Format::Ttf
+            || (format == Format::Woff2
+                && woff2.outline == font_core::font_formats::woff2::Outline::TrueType))
+    {
+        return Err("autohint_unsupported".into());
+    }
     let parent = window.clone();
     let name = doc.family.clone();
     let verify = matches!(format, Format::Ttf | Format::Otf | Format::Woff2);
     let expected = doc.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || {
-        if format == Format::Woff2 {
+        if autohint {
+            woff2.validate()?;
+            let base = font_core::font_io::export(&doc)?;
+            font_core::variations::verify(&base, &doc)?;
+            let hinted = font_core::hinting::autohint(&base, 0)?;
+            if format == Format::Woff2 {
+                font_core::font_formats::woff2::encode_sfnt(hinted, woff2.quality)
+            } else {
+                Ok(hinted)
+            }
+        } else if format == Format::Woff2 {
             font_core::font_formats::woff2::export(&doc, woff2)
         } else {
             font_core::font_formats::export(&doc, format)
@@ -526,7 +555,7 @@ pub(crate) async fn save_font(
     })
     .await
     .map_err(|e| e.to_string())??;
-    if verify {
+    if verify && !autohint {
         let decoded;
         let sfnt = if format == Format::Woff2 {
             decoded = font_core::font_formats::woff2::decode(&bytes)?;

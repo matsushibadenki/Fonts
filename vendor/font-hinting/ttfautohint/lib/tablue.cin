@@ -1,0 +1,35 @@
+/* tablue.c */
+
+/*
+ * Copyright (C) 2013-2021 by Werner Lemberg.
+ *
+ * This file is part of the ttfautohint library, and may only be used,
+ * modified, and distributed under the terms given in `COPYING'.  By
+ * continuing to use, modify, or distribute this file you indicate that you
+ * have read `COPYING' and understand and accept it fully.
+ *
+ * The file `COPYING' mentioned in the previous paragraph is distributed
+ * with the ttfautohint library.
+ */
+
+
+/* originally file `afblue.c' (2013-Aug-28) from FreeType */
+
+
+#include "tatypes.h"
+
+
+const char ta_blue_strings[] =
+{
+@TA_BLUE_STRINGS_ARRAY@
+};
+
+
+/* stringsets are specific to styles */
+const TA_Blue_StringRec ta_blue_stringsets[] =
+{
+@TA_BLUE_STRINGSETS_ARRAY@
+};
+
+
+/* end of tablue.c */
