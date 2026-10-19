@@ -1,3 +1,4 @@
+import {hintingLabels} from './hinting-i18n';
 import {woff2Labels} from './woff2-i18n';
 import {useEffect,useRef,useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
@@ -39,6 +40,7 @@ export function FontExport({state,onOpenChange}:{state:Snapshot;onOpenChange:(op
           <label>{w.compression}<select aria-label={w.compression} disabled={busy} value={quality} onChange={e=>{setQuality(Number(e.target.value));setReport(null);}}>{([[1,w.fast],[5,w.balanced],[9,w.small],[11,w.maximum]] as const).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>
           <span className="panel-help" role="img" tabIndex={0} title={w.help} aria-label={w.help}><Icon name="info"/></span>
         </div>}
+        {format!=='cmap'&&<small className="hinting-policy" title={hintingLabels[state.workspace.locale].projectHelp}><Icon name="hinting"/> {hintingLabels[state.workspace.locale].project} <span className="panel-help" tabIndex={0} title={hintingLabels[state.workspace.locale].projectHelp} aria-label={hintingLabels[state.workspace.locale].projectHelp}><Icon name="info"/></span></small>}
         {report&&<div className="woff2-report" role="status"><strong>{format==='woff2'?w.verified:({en:'Font file verified',ja:'フォントファイルの検証が完了しました',zh_cn:'字体文件验证完成'}[state.workspace.locale])}</strong><span title={report.path}>{report.path}</span><small>{report.bytes.toLocaleString()} B</small></div>}
         {error&&<p role="alert">{error}</p>}
         <button type="submit" disabled={busy||!family.trim()}><Icon name="download"/>{busy?t.loading:t.exportFont}</button>

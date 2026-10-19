@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-10-18更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-10-19更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -46,7 +46,9 @@
 14. 🟢 [Done] 可変フォントの軸設定・wgpuプレビュー・静的インスタンスへの変換。三言語、独立文書、TTF／OTF／WOFF2、保存ダイアログと保存後検証。[仕様と検証](variable-fonts.md)。
 15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
    - 🔴 [Later] COLRv1／SVGプレビュー、カラー編集・プロジェクト保存、カラーWOFF2。
-16. 🟠 [Next] hintingの取り扱い。
+16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
+   - 🔴 [Later] CFF／Type 1の直接dehint、自動ヒンティング生成、命令編集と小サイズ比較。
+   - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
 17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、名前付きインスタンス・可変フォントの編集／出力。
 
 - ⭕️ [Pending] Windows/Linuxのネイティブ描画と実機検証、複数モニター・DPI、署名・公証。

@@ -38,3 +38,5 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。
 
 - 🟢 [Done] [カラーフォントの読み込み・GPUプレビュー・カラー保持出力](color-fonts.md)。
+
+- 🟢 [Done] [ヒンティングの検査・保持・TrueType命令除去](hinting.md)。

@@ -4,6 +4,7 @@ pub mod floating_bounds;
 pub mod font_formats;
 pub mod font_io;
 pub mod geometry;
+pub mod hinting;
 pub mod kerning;
 pub mod path_paste;
 pub mod proof;

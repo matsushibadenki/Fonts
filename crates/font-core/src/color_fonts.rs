@@ -101,17 +101,19 @@ pub fn export(bytes: &[u8], index: u32) -> Result<Vec<u8>, String> {
             return Err("color_invalid".into());
         }
     }
+    let out = assemble(tables, metadata.extension == "otf")?;
+    verify(&out, bytes, index)?;
+    Ok(out)
+}
+/// Rebuild a standalone SFNT, refreshing directory checksums and head adjustment.
+pub(crate) fn assemble(tables: BTreeMap<[u8; 4], Vec<u8>>, cff: bool) -> Result<Vec<u8>, String> {
     if tables.is_empty() || tables.len() > 4095 {
         return Err("color_invalid".into());
     }
     let count = tables.len() as u16;
     let power = 1u16 << count.ilog2();
     let mut out = Vec::new();
-    out.extend(if metadata.extension == "otf" {
-        *b"OTTO"
-    } else {
-        [0, 1, 0, 0]
-    });
+    out.extend(if cff { *b"OTTO" } else { [0, 1, 0, 0] });
     for n in [
         count,
         power * 16,
@@ -144,7 +146,6 @@ pub fn export(bytes: &[u8], index: u32) -> Result<Vec<u8>, String> {
     let adjust = 0xB1B0AFBAu32.wrapping_sub(sum(&out));
     let h = head.ok_or("color_invalid")?;
     out[h + 8..h + 12].copy_from_slice(&adjust.to_be_bytes());
-    verify(&out, bytes, index)?;
     Ok(out)
 }
 pub fn verify(output: &[u8], source: &[u8], index: u32) -> Result<(), String> {

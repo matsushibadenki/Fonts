@@ -9,6 +9,7 @@ mod font_catalog;
 mod font_library;
 mod font_paths;
 mod font_store;
+mod hinting;
 mod menu;
 mod menu_actions;
 mod model;
@@ -585,6 +586,8 @@ fn main() {
             text_focus,
             open_font_library,
             font_library::font_library_query,
+            hinting::font_hinting_info,
+            hinting::font_hinting_export,
             color_fonts::color_font_open,
             color_fonts::color_font_action,
             variations::variation_axes,
