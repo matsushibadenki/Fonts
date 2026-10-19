@@ -34,3 +34,21 @@ with TemporaryDirectory() as tmp:
   from fontTools.ttLib import newTable
   font['avar']=newTable('avar');font['avar'].segments={'wght':{-1:-1,0:0,0.5:0.75,1:1},'wdth':{-1:-1,0:0,1:1}}
   font.save(root/('cff2.otf' if cff else 'gvar.ttf'))
+
+# Named-instance fixtures keep the original variable outlines unchanged.
+from fontTools.ttLib import TTFont
+from fontTools.ttLib.tables._f_v_a_r import NamedInstance
+for source, target in [('gvar.ttf','named-gvar.ttf'),('cff2.otf','named-cff2.otf')]:
+ font=TTFont(root/source)
+ font['fvar'].instances=[]
+ for n,(en,ja,zh,weight,width) in enumerate([
+  ('Regular','標準','常规',400,100),('Bold','太字','粗体',900,100),('Condensed','長体','窄体',400,75)]):
+  name_id=500+n
+  for language,value in [(0x409,en),(0x411,ja),(0x804,zh)]:
+   font['name'].setName(value,name_id,3,1,language)
+  ps_id=510+n
+  font['name'].setName('VariableFixture-'+en,ps_id,3,1,0x409)
+  instance=NamedInstance();instance.subfamilyNameID=name_id;instance.flags=0
+  instance.coordinates={'wght':weight,'wdth':width};instance.postscriptNameID=ps_id if n<2 else 0xffff
+  font['fvar'].instances.append(instance)
+ font.save(root/target)

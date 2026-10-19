@@ -18,6 +18,19 @@ pub async fn variation_axes(
     .await
     .map_err(|e| e.to_string())?
 }
+#[tauri::command]
+pub async fn variation_catalog(
+    window: WebviewWindow,
+    id: u64,
+) -> Result<variations::Catalog, String> {
+    crate::allowed(&window)?;
+    let e = font_library::entry(window.app_handle(), id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        variations::catalog(&font_core::font_io::read(&e.path)?, e.index)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
@@ -57,11 +70,11 @@ pub async fn variation_action(
     };
     let e = font_library::entry(&app, request.id)?;
     let doc = tauri::async_runtime::spawn_blocking(move || {
-        variations::instantiate(
-            &font_core::font_io::read(&e.path)?,
-            e.index,
-            &request.coordinates,
-        )
+        let bytes = font_core::font_io::read(&e.path)?;
+        match request.instance {
+            Some(id) => variations::instantiate_named(&bytes, e.index, id, &request.coordinates),
+            None => variations::instantiate(&bytes, e.index, &request.coordinates),
+        }
     })
     .await
     .map_err(|e| e.to_string())??;

@@ -101,3 +101,45 @@ fn multiple_axes_and_avar_mapping_are_applied_together() {
         assert_eq!(doc.metadata.width, 7);
     }
 }
+
+#[test]
+fn named_instances_select_all_axes_localize_and_preserve_exported_style() {
+    for bytes in [
+        include_bytes!("data/variations/named-gvar.ttf").as_slice(),
+        include_bytes!("data/variations/named-cff2.otf").as_slice(),
+    ] {
+        let catalog = variations::catalog(bytes, 0).unwrap();
+        assert_eq!(catalog.instances.len(), 3);
+        let default = &catalog.instances[0];
+        assert_eq!(default.id, 0);
+        assert_eq!(default.name, "Regular");
+        assert_eq!(default.names["ja"], "標準");
+        assert_eq!(default.names["zh_cn"], "常规");
+        let bold = catalog.instances.iter().find(|i| i.name == "Bold").unwrap();
+        assert_eq!(bold.coordinates["wdth"], 100.);
+        assert_eq!(bold.coordinates["wght"], 900.);
+        let doc = variations::instantiate_named(bytes, 0, bold.id, &bold.coordinates).unwrap();
+        assert_eq!(doc.metadata.style, "Bold");
+        assert_eq!(doc.metadata.weight, 900);
+        assert!(doc.metadata.bold);
+        for format in [Format::Ttf, Format::Otf, Format::Woff2] {
+            let output = font_formats::export(&doc, format).unwrap();
+            let sfnt = if format == Format::Woff2 {
+                font_formats::woff2::decode(&output).unwrap()
+            } else {
+                output
+            };
+            variations::verify(&sfnt, &doc).unwrap();
+            let face = ttf_parser::Face::parse(&sfnt, 0).unwrap();
+            assert_eq!(font_core::font_io::name(&face, 2), "Bold");
+        }
+        let restored: font_core::FontDocument =
+            serde_json::from_slice(&serde_json::to_vec(&doc).unwrap()).unwrap();
+        assert_eq!(restored.metadata.style, "Bold");
+        let mut wrong = bold.coordinates.clone();
+        wrong.insert("wdth".into(), 75.);
+        assert!(variations::instantiate_named(bytes, 0, bold.id, &wrong).is_err());
+        assert!(variations::instantiate_named(bytes, 0, usize::MAX, &bold.coordinates).is_err());
+    }
+    assert_eq!(variations::catalog(TTF, 0).unwrap().instances.len(), 1);
+}

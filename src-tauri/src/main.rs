@@ -606,6 +606,7 @@ fn main() {
             color_fonts::color_font_open,
             color_fonts::color_font_action,
             variations::variation_axes,
+            variations::variation_catalog,
             variations::variation_action,
             font_library::font_library_action
         ])
