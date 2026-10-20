@@ -21,6 +21,7 @@ mod recovery_store;
 mod reference_images;
 mod snippets;
 mod thumbnails;
+mod updates;
 mod variations;
 use font_core::workspace::{Dock, Panel, Placement, Workspace};
 use model::{Action, Model, Snapshot};
@@ -75,6 +76,9 @@ fn publish(app: &tauri::AppHandle) {
     }
 }
 fn allowed(window: &WebviewWindow) -> Result<(), String> {
+    if updates::installing() {
+        return Err("update_installing".into());
+    }
     if (window.label() == "main" || window.label() == "font-library")
         || Panel::from_label(window.label()).is_some()
     {
@@ -441,6 +445,7 @@ fn confirm_documents(
 }
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .register_uri_scheme_protocol("hintpreview", |context, request| {
             let image = context
                 .app_handle()
@@ -484,6 +489,9 @@ fn main() {
                 .and_then(|w| w.restore().ok())
                 .unwrap_or_default();
             let locale = workspace.locale;
+            app.manage(updates::Updates::new(
+                app.package_info().version.to_string(),
+            ));
             app.manage(AppState(Mutex::new(Model::new(workspace))));
             app.manage(floating::Runtime::default());
             app.manage(thumbnails::Thumbnails::new());
@@ -578,6 +586,8 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            updates::updater_status,
+            updates::updater_action,
             documents::document_action,
             clipboard::paste_paths,
             clipboard::paste_text,

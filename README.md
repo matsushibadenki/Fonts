@@ -77,17 +77,20 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 カラーフォントはライブラリのパレットアイコンからプレビュー・カラー保持出力を行えます。[形式別の対応範囲](docs/color-fonts.md)。
 
+[GitHub Releases](https://github.com/matsushibadenki/Fonts/releases/latest)からmacOS版を配布します。インストール後は「環境設定 → 一般 → ソフトウェアアップデート」から更新できます。[更新・配布手順](docs/software-updates.md)。
+
 ## ライセンス
 
-2026-10-17確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
+2026-10-20確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
 
-`Cargo.lock`に解決されたRust 522パッケージと、`package-lock.json`内のnpm 81パッケージについて、バージョン・上流の宣言・本プロジェクトでの選択を[依存ライセンス一覧](docs/license-inventory.json)に記録しています。この件数には開発・テスト・任意機能・他OS向けの依存も含み、実際のバイナリに含まれる件数ではありません。`OR`は選択式、`AND`は両方の条件を満たす必要があります。
+`Cargo.lock`に解決されたRust 570パッケージと、`package-lock.json`内のnpm 81パッケージについて、バージョン・上流の宣言・本プロジェクトでの選択を[依存ライセンス一覧](docs/license-inventory.json)に記録しています。この件数には開発・テスト・任意機能・他OS向けの依存も含み、実際のバイナリに含まれる件数ではありません。`OR`は選択式、`AND`は両方の条件を満たす必要があります。
 
 | 対象 | 適用・選択するライセンス | 現在の扱い |
 | --- | --- | --- |
 | Fontsの独自Rust／TypeScript／UIコード | MIT | 🟢 [Done] ルートのLICENSE、4つのRustワークスペースパッケージ、npmパッケージに宣言。著作権表示・許諾文・免責文を保持する。 |
 | コピーしたLumaPaint core、ネイティブ描画補助 | 権利者自身のコードはMIT。第三者部分は原条件 | 🟢 [Done] 権利者による所有確認を[coreの流用記録](docs/reuse-manifest.json)・[描画補助の流用記録](docs/reuse-native.json)へ追記。外部のLumaPaint checkout自体のライセンスは変更しない。 |
 | Tauri／Wry、wgpu／Naga、serde、image、ttf-parser、png、svgtypes、lopdfなど | 主にMIT OR Apache-2.0からMITを選択 | 🟢 [Done] MITを選択可能な部分は原則MIT。各上流の著作権・告知を残す。各パッケージ内の別ライセンス部分には、その条件も適用する。 |
+| 更新機能（tauri-plugin-updater）・TLS／署名検証の依存 | MIT／Apache-2.0／ISC等 | 🟢 [Done] 上流条件を維持。ringはApache-2.0 AND ISC、webpki-root-certsの証明書データはCDLA-Permissive-2.0として告知を同梱。独自更新コードはMIT。 |
 | React／React DOM、Vite、その他のMIT依存 | MIT | 🟢 [Done] 上流MITを維持。React等の著作権・許諾文を第三者告知へ収録。Vite等の開発ツールとアプリに組み込むコードは区別する。 |
 | Tao、codespan-reporting、TypeScriptなどのApache単独依存 | Apache-2.0 | 🟢 [Done] MITへ変更せず併用。ライセンス本文・該当NOTICEを保持し、改変して配布する場合は変更点を明示する。 |
 | dpi | Apache-2.0 AND MIT | 🟢 [Done] 選択式ではないため、両方の条件を維持する。 |

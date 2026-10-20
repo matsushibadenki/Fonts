@@ -177,3 +177,5 @@ LumaPaintの元ディレクトリは変更せず、追加流用箇所のhashと�
 - 🟢 [Done] [可変フォントの軸設定・GPUプレビュー・静的インスタンス出力](variable-fonts.md)。
 
 - 🟢 [Done] [カラーフォントの読み込み・GPUプレビュー・カラー保持出力](color-fonts.md)。
+
+- 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。

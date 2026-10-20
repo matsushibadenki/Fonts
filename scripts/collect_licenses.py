@@ -33,6 +33,7 @@ def select_license(expression):
         '(MIT OR Apache-2.0) AND Unicode-3.0': 'MIT AND Unicode-3.0',
         'BSD-3-Clause AND MIT': 'BSD-3-Clause AND MIT',
         'Apache-2.0 AND MIT': 'Apache-2.0 AND MIT',
+        'Apache-2.0 AND ISC': 'Apache-2.0 AND ISC',
     }
     if value == 'CC0-1.0 OR MIT-0 OR Apache-2.0':
         return 'CC0-1.0'  # This package includes the full CC0 text locally.
@@ -40,7 +41,7 @@ def select_license(expression):
         return conjunctions[value]
     choices = value.split(' OR ')
     allowed = ['MIT', 'MIT-0', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause',
-               'ISC', 'Zlib', 'Unicode-3.0', 'MPL-2.0', 'Apache-2.0 WITH LLVM-exception']
+               'ISC', 'Zlib', 'Unicode-3.0', 'MPL-2.0', 'CDLA-Permissive-2.0', 'Apache-2.0 WITH LLVM-exception']
     if any(choice not in allowed + ['0BSD', 'CC0-1.0', 'Unlicense', 'LGPL-2.1-or-later'] for choice in choices):
         raise ValueError(f'License expression needs review: {expression}')
     for choice in allowed:
@@ -182,7 +183,7 @@ def main():
     (OUT / 'licenses/license-inventory.json').write_text(inventory)
     (OUT / 'licenses/README.txt').write_text(
         'Fonts MPL source availability\n\nThe unchanged .crate archives in sources/ contain the exact upstream Rust MPL-2.0 sources used by this lockfile. They are standard gzip-compressed tar archives and can be unpacked with tar -xzf. SHA-256 values are in license-inventory.json and match Cargo.lock.\n\nThese sources remain under MPL-2.0, not the Fonts MIT license. See MPL-2.0.txt. No MPL source files were modified.\n\nlightningcss and its platform packages in package-lock.json are MPL-2.0 build dependencies, not included as executables in the Fonts app. If redistributing these development tools, separately provide the matching upstream sources and notices.\n')
-    (OUT / 'THIRD_PARTY_NOTICES.txt').write_text('\n'.join(sections) + '\n')
+    (OUT / 'THIRD_PARTY_NOTICES.txt').write_text('\n'.join(line.rstrip() for line in '\n'.join(sections).splitlines()) + '\n')
     print(f"Collected {len(report['rust'])} Rust packages, {len(report['npm'])} npm packages and {len(report['mpl_sources'])} unchanged MPL source archives.")
     print('Selected Rust licenses:', dict(collections.Counter(p['selected_license'] for p in report['rust'])))
 

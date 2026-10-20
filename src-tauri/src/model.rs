@@ -462,6 +462,9 @@ impl Model {
         }
     }
     pub fn action(&mut self, a: Action) -> Result<(), String> {
+        if crate::updates::installing() {
+            return Err("update_installing".into());
+        }
         if self.snippets.draft.is_some() {
             if matches!(
                 a,
@@ -826,6 +829,9 @@ impl Model {
         Ok(())
     }
     pub fn pointer(&mut self, phase: &str, x: f64, y: f64) -> Result<(), String> {
+        if crate::updates::installing() {
+            return Err("update_installing".into());
+        }
         if !x.is_finite() || !y.is_finite() {
             return Err("invalid_point".into());
         }

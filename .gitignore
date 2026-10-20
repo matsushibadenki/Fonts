@@ -5,3 +5,4 @@
 *.fontproj.json
 /LumaPaint/
 /fontforge/
+/.release-secrets/

@@ -44,3 +44,5 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - 🟢 [Done] [CFFのヒント除去・TrueType自動生成](autohint-engines.md)。
 
 - [ヒンティングの小サイズ比較](hinting-comparison.md)
+
+- 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。

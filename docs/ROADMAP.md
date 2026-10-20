@@ -109,3 +109,5 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。フローティングパネルの位置・サイズの復元も🟢 [Done]。パネルの入れ子splitも🟢 [Done]。複数文書も🟢 [Done]。WOFF2出力も🟢 [Done]。可変フォントも🟢 [Done]（上記参照）。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
 
 検証: 通常Rustテスト272件、実GPUテスト4件、Clippy（全target、`-D warnings`）、整形検査、TypeScript/Vite・通常版macOSアプリのビルドが成功。復旧データの復元は自動テスト、三言語の登録・管理・配置・保存と再読込はmacOSの独立アプリで確認。
+
+- 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。

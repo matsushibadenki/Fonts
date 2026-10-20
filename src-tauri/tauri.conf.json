@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Fonts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "app.fonts.editor",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -41,6 +41,16 @@
       "resources/LICENSE-MIT.txt",
       "resources/THIRD_PARTY_NOTICES.txt",
       "resources/licenses/"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDMEIwNUFDN0FGQjJENzcKUldSM0xmdDZyQVVMVEJPNXk2d3ZrQjc2aGl1RkpDMjJlbEpVNFJib1IxMW5RRkluNEhwMHVhYk8K",
+      "endpoints": [
+        "https://github.com/matsushibadenki/Fonts/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true
+    }
   }
 }

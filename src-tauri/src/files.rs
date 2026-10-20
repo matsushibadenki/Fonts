@@ -7,6 +7,9 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 pub(crate) struct FileGuard;
 impl FileGuard {
     pub(crate) fn acquire() -> Result<Self, String> {
+        if crate::updates::installing() {
+            return Err("update_installing".into());
+        }
         BUSY.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map(|_| Self)
             .map_err(|_| "file_operation_in_progress".into())

@@ -1,3 +1,4 @@
+import {SoftwareUpdate} from './SoftwareUpdate';
 import {useRef,useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
 import {IconButton} from './Panel';
@@ -31,7 +32,7 @@ export function Preferences({state,onOpenChange}:{state:Snapshot;onOpenChange:(v
         {tabs.map((id,i)=><button key={id} id={`preferences-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`preferences-panel-${id}`} tabIndex={tab===id?0:-1} onClick={()=>selectTab(id)} onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length;selectTab(tabs[next]);document.getElementById(`preferences-tab-${tabs[next]}`)?.focus();}}>{t[id]}</button>)}
       </div>
       <section id={`preferences-panel-${tab}`} role="tabpanel" aria-labelledby={`preferences-tab-${tab}`} className="preferences-content">
-        {tab==='general'?<label className="preferences-row"><span>{t.language}<span className="panel-help" tabIndex={0} role="img" title={t.help} aria-label={t.help}><Icon name="info"/></span></span><select aria-label={t.language} value={state.workspace.locale} disabled={busy} onChange={e=>{const locale=e.target.value as Locale;if(locale!==state.workspace.locale)void change('edit',{epoch:state.epoch,action:{type:'locale',locale}});}}><option value="en">English</option><option value="ja">日本語</option><option value="zh_cn">简体中文</option></select></label>:
+        {tab==='general'?<><label className="preferences-row"><span>{t.language}<span className="panel-help" tabIndex={0} role="img" title={t.help} aria-label={t.help}><Icon name="info"/></span></span><select aria-label={t.language} value={state.workspace.locale} disabled={busy} onChange={e=>{const locale=e.target.value as Locale;if(locale!==state.workspace.locale)void change('edit',{epoch:state.epoch,action:{type:'locale',locale}});}}><option value="en">English</option><option value="ja">日本語</option><option value="zh_cn">简体中文</option></select></label><SoftwareUpdate locale={state.workspace.locale}/></>:
           <div className="preferences-row"><button type="button" className="preferences-reset" disabled={busy} onClick={()=>void change('layout',{revision:state.workspace.revision,action:{type:'reset'}})}><Icon name="reset"/>{t.reset}</button><span className="panel-help" tabIndex={0} role="img" title={t.layoutHelp} aria-label={t.layoutHelp}><Icon name="info"/></span></div>}
         {error&&<p role="alert">{t.error}</p>}
       </section>
