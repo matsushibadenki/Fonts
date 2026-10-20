@@ -26,3 +26,11 @@ GitHub Actions Secretへの秘密鍵登録は自動承認レビューで却下�
 `prepare_release.py`は現在のmacOSネイティブアーキテクチャの一つだけをmanifestに登録する。複数アーキテクチャを公開する場合は、各実機で署名した配布物を検証したうえでplatformsを統合してから公開する。
 
 ⭕️ [Pending] Windows/Linux・Intel Macの配布と実機更新、Appleのコード署名・公証。ダウンロード後のネットワーク切断、権限不足、全OSのインストーラー障害は継続検証対象。
+
+## 公開・検証記録（2026-10-20）
+
+🟢 [Done] [Fonts v0.1.1](https://github.com/matsushibadenki/Fonts/releases/tag/v0.1.1)をmacOS Apple Silicon向けに正式公開。DMG、署名済み更新アーカイブ、公開署名、latest.json、SHA256SUMSを配置した。署名と署名内バージョンを独立した検証プログラムで確認し、改ざんしたデータが拒否されることも確認した。
+
+ローカルのRustテスト367件成功（重い任意検証5件は既存のignore）、Clippy `-D warnings`、TypeScript/Vite、リリースビルドが成功。GitHub Actionsでもテスト・Clippy・macOSビルドが成功した（ソース `e90c5c6`、[実行記録](https://github.com/matsushibadenki/Fonts/actions/runs/39397220197)）。
+
+独立した0.1.0検証アプリを使い、日本語・英語・简体中文、GitHubからの0.1.1更新候補取得、実ダウンロード・署名検証、未保存文書でのインストール拒否、保存後のインストールと再起動を確認した。更新後のアプリ本体のInfo.plistと画面で0.1.1を確認し、検証文書の送り幅641が保存ファイルに残ることも確認した。
