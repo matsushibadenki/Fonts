@@ -34,3 +34,9 @@
 ローカルのRustテスト367件成功（重い任意検証5件は既存のignore）、Clippy `-D warnings`、TypeScript/Vite、リリースビルドが成功。GitHub Actionsでもテスト・Clippy・macOSビルドが成功した（ソース `e90c5c6`、[実行記録](https://github.com/matsushibadenki/Fonts/actions/runs/39397220197)）。
 
 独立した0.1.0検証アプリを使い、日本語・英語・简体中文、GitHubからの0.1.1更新候補取得、実ダウンロード・署名検証、未保存文書でのインストール拒否、保存後のインストールと再起動を確認した。更新後のアプリ本体のInfo.plistと画面で0.1.1を確認し、検証文書の送り幅641が保存ファイルに残ることも確認した。
+
+## 自動公開・検証記録（2026-10-21）
+
+🟢 [Done] 所有者承認済みのActions Secretを使用し、`v0.1.2`タグのpushから[Fonts v0.1.2](https://github.com/matsushibadenki/Fonts/releases/tag/v0.1.2)の正式公開まで自動実行した。[ワークフロー実行](https://github.com/matsushibadenki/Fonts/actions/runs/39535508401)は全工程成功（ソース `b8b2966`）。Rustテスト367件成功・既存の任意検証5件ignore、リリース検査3件成功、整形・Clippy・フロントエンド・macOSアプリとDMGのビルド成功。更新署名・署名内バージョンの独立検証、改ざんデータの拒否を確認した。
+
+公開後の全5アセットをGitHubから再取得し、アーカイブ・署名・DMG・manifestのSHA256SUMS一致、manifestのバージョン・配布URL・署名と、最新Releaseが0.1.2であることを確認した。0.1.2へのGUI経由インストールは今回再実施していない（0.1.1で実機検証済み）。Intel・Windows・LinuxとAppleコード署名・公証は引き続き⭕️ [Pending]。
