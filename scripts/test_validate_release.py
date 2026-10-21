@@ -1,10 +1,12 @@
+import json
 import unittest
-from validate_release import validate
+from validate_release import ROOT, validate
 
 
 class ReleaseValidationTests(unittest.TestCase):
     def test_current_release(self):
-        self.assertEqual(validate('v0.1.2'), '0.1.2')
+        version = json.loads((ROOT / 'package.json').read_text())['version']
+        self.assertEqual(validate(f'v{version}'), version)
 
     def test_reject_mismatched_version(self):
         with self.assertRaises(ValueError):

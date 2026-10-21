@@ -6,3 +6,5 @@
 /LumaPaint/
 /fontforge/
 /.release-secrets/
+
+__pycache__/
