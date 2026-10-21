@@ -111,3 +111,5 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 検証: 通常Rustテスト272件、実GPUテスト4件、Clippy（全target、`-D warnings`）、整形検査、TypeScript/Vite・通常版macOSアプリのビルドが成功。復旧データの復元は自動テスト、三言語の登録・管理・配置・保存と再読込はmacOSの独立アプリで確認。
 
 - 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。
+
+- 🟢 [Done] GitHub Actions Secretによる更新署名、タグからのビルド・独立署名検証・GitHub Releases公開の自動化。[運用手順](software-updates.md)。

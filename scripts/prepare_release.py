@@ -14,7 +14,9 @@ def main():
  out=a.out.resolve()/f'v{version}';out.mkdir(parents=True,exist_ok=True)
  name=f'Fonts_{version}_{arch}.app.tar.gz';shutil.copyfile(archive,out/name);shutil.copyfile(sig,out/(name+'.sig'))
  assets=[out/name,out/(name+'.sig')]
- for dmg in (bundle/'dmg').glob('*.dmg'):
+ dmgs=list((bundle/'dmg').glob(f'Fonts_{version}_{arch}.dmg'))
+ if len(dmgs)!=1: raise ValueError('Expected the versioned native DMG')
+ for dmg in dmgs:
   target=out/dmg.name;shutil.copyfile(dmg,target);assets.append(target)
  manifest={'version':version,'notes':(ROOT/f'docs/releases/v{version}.md').read_text(),'pub_date':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z'),'platforms':{f'darwin-{arch}':{'url':f'https://github.com/matsushibadenki/Fonts/releases/download/v{version}/{name}','signature':sig.read_text().strip()}}}
  (out/'latest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n');assets.append(out/'latest.json')

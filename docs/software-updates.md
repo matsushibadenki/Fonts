@@ -10,18 +10,18 @@
 
 ## 署名鍵
 
-秘密鍵は `.release-secrets/updater.key` に0600権限で保存し、ディレクトリーは0700とする。Gitから除外しており、GitHubには送信しない。リポジトリとアプリに含めるのは公開鍵のみ。この秘密鍵を安全にバックアップすること。鍵を失うと、現在の公開鍵を持つアプリへ同じ系列の更新を提供できない。
+秘密鍵は `.release-secrets/updater.key` に0600権限で保存し、ディレクトリーは0700とする。Gitから除外しており、ソースや配布物には含めない。リポジトリとアプリに含めるのは公開鍵のみ。この秘密鍵を安全にバックアップすること。鍵を失うと、現在の公開鍵を持つアプリへ同じ系列の更新を提供できない。
 
-GitHub Actions Secretへの秘密鍵登録は自動承認レビューで却下されたため実施していない。今後CIで署名したい場合は、そのリポジトリへの秘密鍵送信について明示的な承認・管理方針が必要。現在のGitHub Actionsは秘密鍵なしでテスト・未配布検証ビルドのみを行う。
+2026-10-21、所有者の明示的な承認に基づき、matsushibadenki/Fonts のActions Secret `TAURI_SIGNING_PRIVATE_KEY`へ既存鍵を登録した。秘密鍵は署名ビルドのステップだけに渡す。公開鍵は0.1.1と共通で、既存アプリから更新できる。
 
 ## 次回の公開手順
 
 1. `Cargo.toml`、`package.json`／lock、`src-tauri/tauri.conf.json`のバージョンを一致させ、`docs/releases/vX.Y.Z.md`を追加する。
 2. Rustテスト・Clippy・TypeScriptを確認し、必要なら`python3 scripts/collect_licenses.py`で告知を更新する。
-3. `TAURI_SIGNING_PRIVATE_KEY="$PWD/.release-secrets/updater.key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD='' npm run tauri -- build --bundles app,dmg --ci` でローカル署名ビルドする。
-4. `python3 scripts/prepare_release.py` を実行する。アプリの公開鍵で署名とバージョンを独立検証し、改ざんしたデータが拒否されることも確認して、`target/release-publish/vX.Y.Z/`に公開ファイルを作成する。
-5. コードをGitHubへpushし、そのコミットへ`vX.Y.Z`タグを付ける。`gh release create vX.Y.Z target/release-publish/vX.Y.Z/* --verify-tag --title 'Fonts vX.Y.Z' --notes-file docs/releases/vX.Y.Z.md`で公開する。公開するのは配布物・公開署名・manifest・チェックサムだけであり、秘密鍵を含めない。
-6. Releaseの`latest.json`と配布物を再取得し、チェックサム・アプリでの更新確認を検証する。同じタグの配布物を差し替えず、新しいバージョンで修正を公開する。
+3. コードをmainへpushし、そのコミットへ`vX.Y.Z`タグを付けてpushする。`.github/workflows/release.yml`が自動起動する。失敗時は同じタグをworkflow_dispatchの`tag`に指定して再実行できる（Releaseが既に存在する場合は停止する）。
+4. CIがタグ・全バージョン・リリースノート・mainへの所属を検証し、Rustテスト・Clippy・フロントエンドを確認する。macOS Apple Siliconアプリ・DMG・署名済み更新アーカイブをビルドする。
+5. `prepare_release.py`が公開鍵で署名と署名内バージョンを独立検証し、改ざんデータの拒否も確認する。チェックサム・manifestを生成し、全ファイルをdraft Releaseへアップロードしてから正式公開する。失敗したdraftが残った場合は内容を調査してdraftを削除してから再実行する。公開済みReleaseの配布物は差し替えず、新しいバージョンで修正する。
+6. Releaseの`latest.json`と配布物・SHA256SUMSを確認する。Apple Developer ID署名・公証はこの更新パッケージ署名とは別で、引き続き未実施。
 
 `prepare_release.py`は現在のmacOSネイティブアーキテクチャの一つだけをmanifestに登録する。複数アーキテクチャを公開する場合は、各実機で署名した配布物を検証したうえでplatformsを統合してから公開する。
 

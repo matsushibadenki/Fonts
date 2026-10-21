@@ -1103,7 +1103,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.23.1",
  "brotli",
@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "font-hinting-native"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cc",
  "freetype-sys",
@@ -1130,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "font-renderer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bytemuck",
  "font-core",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "fonts-app"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "dirs",
@@ -2392,7 +2392,7 @@ dependencies = [
 
 [[package]]
 name = "lumapaint-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "roxmltree",
  "serde",
