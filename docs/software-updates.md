@@ -40,3 +40,23 @@
 🟢 [Done] 所有者承認済みのActions Secretを使用し、`v0.1.2`タグのpushから[Fonts v0.1.2](https://github.com/matsushibadenki/Fonts/releases/tag/v0.1.2)の正式公開まで自動実行した。[ワークフロー実行](https://github.com/matsushibadenki/Fonts/actions/runs/39535508401)は全工程成功（ソース `b8b2966`）。Rustテスト367件成功・既存の任意検証5件ignore、リリース検査3件成功、整形・Clippy・フロントエンド・macOSアプリとDMGのビルド成功。更新署名・署名内バージョンの独立検証、改ざんデータの拒否を確認した。
 
 公開後の全5アセットをGitHubから再取得し、アーカイブ・署名・DMG・manifestのSHA256SUMS一致、manifestのバージョン・配布URL・署名と、最新Releaseが0.1.2であることを確認した。0.1.2へのGUI経由インストールは今回再実施していない（0.1.1で実機検証済み）。Intel・Windows・LinuxとAppleコード署名・公証は引き続き⭕️ [Pending]。
+
+## Apple Developer ID署名・公証の自動化（2026-10-21）
+
+🟢 [Done] リリースワークフローにDeveloper ID Application署名・Hardened Runtime・セキュアタイムスタンプ、公証、チケット添付（staple）を接続した。Tauriによるapp公証後、最終DMGも署名・公証・stapleする。appと更新アーカイブ内appの署名・Team ID・公証チケット・Gatekeeper、DMGの署名・チケット・Gatekeeperを検証してから更新署名検証とRelease公開へ進む。一時キーチェーンとAPIキーは終了時に削除する。いずれかが失敗・未設定なら公開しない。
+
+必要なリポジトリActions Secrets:
+
+| Secret | 内容 |
+| --- | --- |
+| `APPLE_CERTIFICATE` | 秘密鍵付きDeveloper ID Application証明書（.p12）のbase64。`openssl base64 -A -in certificate.p12`の結果を登録 |
+| `APPLE_CERTIFICATE_PASSWORD` | .p12のエクスポートパスワード |
+| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: 名前 (TEAMID)`の完全な署名名 |
+| `APPLE_TEAM_ID` | 証明書に対応する10文字のTeam ID |
+| `APPLE_API_ISSUER` | App Store ConnectのチームAPIキーのIssuer ID |
+| `APPLE_API_KEY` | APIキーのKey ID |
+| `APPLE_API_PRIVATE_KEY` | 対応する.p8の内容（base64化しない） |
+
+既存の`TAURI_SIGNING_PRIVATE_KEY`も継続使用する。秘密値をソースやチャットへ貼らず、[GitHub Actions Secrets設定](https://github.com/matsushibadenki/Fonts/settings/secrets/actions)へ登録する。Apple Developer Programの配布証明書と公証認証が必要。設定方法は[Tauri公式ドキュメント](https://v2.tauri.app/distribute/sign/macos/)を参照。
+
+⭕️ [Pending] 現在のMacには有効な署名identityがなく、GitHubにはApple用Secretsが未登録。このため実際のApple署名・公証・公証済みRelease公開は認証情報の準備待ち。既存0.1.2を差し替えず、準備後はバージョンを上げて新しいタグで公開する。

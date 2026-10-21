@@ -113,3 +113,5 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。
 
 - 🟢 [Done] GitHub Actions Secretによる更新署名、タグからのビルド・独立署名検証・GitHub Releases公開の自動化。[運用手順](software-updates.md)。
+
+- 🟢 [Done] Apple Developer ID署名・app/DMG公証・staple・Gatekeeper検証をReleaseワークフローへ接続。⭕️ [Pending] Apple証明書・公証API認証情報の登録と実公開検証。[設定手順](software-updates.md#apple-developer-id署名公証の自動化2026-10-21)。

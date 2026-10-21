@@ -42,7 +42,10 @@
       "resources/THIRD_PARTY_NOTICES.txt",
       "resources/licenses/"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "hardenedRuntime": true
+    }
   },
   "plugins": {
     "updater": {
