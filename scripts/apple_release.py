@@ -12,14 +12,23 @@ import sys
 import tempfile
 
 REQUIRED = ('APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_SIGNING_IDENTITY',
-            'APPLE_TEAM_ID', 'APPLE_API_ISSUER', 'APPLE_API_KEY', 'APPLE_API_PRIVATE_KEY',
+            'APPLE_TEAM_ID',
             'TAURI_SIGNING_PRIVATE_KEY')
+
+
+def authentication_mode(env):
+    if all(env.get(name) for name in ('APPLE_ID', 'APPLE_PASSWORD')):
+        return 'apple-id'
+    if all(env.get(name) for name in ('APPLE_API_ISSUER', 'APPLE_API_KEY', 'APPLE_API_PRIVATE_KEY')):
+        return 'api-key'
+    raise ValueError('Configure APPLE_ID + APPLE_PASSWORD or all three APPLE_API_* secrets')
 
 
 def validate_environment(env):
     missing = [name for name in REQUIRED if not env.get(name)]
     if missing:
         raise ValueError('Missing release secrets: ' + ', '.join(missing))
+    authentication_mode(env)
     if not re.fullmatch(r'[A-Z0-9]{10}', env['APPLE_TEAM_ID']):
         raise ValueError('Invalid Apple Team ID')
     identity = env['APPLE_SIGNING_IDENTITY']
@@ -58,7 +67,10 @@ def main():
         keychain = folder / 'release.keychain-db'
         cert = folder / 'certificate.p12'
         key = folder / 'AuthKey.p8'
-        for path, data in [(cert, certificate), (key, env['APPLE_API_PRIVATE_KEY'].encode())]:
+        files = [(cert, certificate)]
+        if authentication_mode(env) == 'api-key':
+            files.append((key, env['APPLE_API_PRIVATE_KEY'].encode()))
+        for path, data in files:
             path.write_bytes(data)
             path.chmod(0o600)
         password = secrets.token_urlsafe(32)
@@ -76,7 +88,20 @@ def main():
                 if result.returncode:
                     raise RuntimeError('Temporary signing keychain setup failed')
             cert.unlink()
-            env['APPLE_API_KEY_PATH'] = str(key)
+            if authentication_mode(env) == 'api-key':
+                env['APPLE_API_KEY_PATH'] = str(key)
+                credentials = ['--key', str(key), '--key-id', env['APPLE_API_KEY'], '--issuer', env['APPLE_API_ISSUER']]
+                env.pop('APPLE_ID', None)
+                env.pop('APPLE_PASSWORD', None)
+            else:
+                credentials = ['--apple-id', env['APPLE_ID'], '--password', env['APPLE_PASSWORD'], '--team-id', env['APPLE_TEAM_ID']]
+                for name in ('APPLE_API_KEY_PATH', 'APPLE_API_KEY', 'APPLE_API_ISSUER'):
+                    env.pop(name, None)
+            # Store credentials only in the temporary keychain; errors must not echo argv.
+            result = subprocess.run(['xcrun', 'notarytool', 'store-credentials', 'fonts-release',
+                '--keychain', str(keychain), *credentials], capture_output=True)
+            if result.returncode:
+                raise RuntimeError('Apple notarization credential validation failed')
             for name in ('APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_API_PRIVATE_KEY'):
                 env.pop(name, None)
             env['TAURI_SIGNING_PRIVATE_KEY_PASSWORD'] = ''
@@ -88,8 +113,8 @@ def main():
             dmg = bundle / f'dmg/Fonts_{version}_aarch64.dmg'
             run(['codesign', '--force', '--sign', env['APPLE_SIGNING_IDENTITY'], '--keychain', str(keychain), '--timestamp', str(dmg)])
             # App is notarized/stapled by Tauri; separately notarize the final signed DMG.
-            result = subprocess.check_output(['xcrun', 'notarytool', 'submit', str(dmg), '--key', str(key),
-                '--key-id', env['APPLE_API_KEY'], '--issuer', env['APPLE_API_ISSUER'],
+            result = subprocess.check_output(['xcrun', 'notarytool', 'submit', str(dmg),
+                '--keychain-profile', 'fonts-release', '--keychain', str(keychain),
                 '--wait', '--timeout', '20m', '--output-format', 'json'], env=env)
             if json.loads(result)['status'] != 'Accepted':
                 raise RuntimeError('Apple rejected the DMG notarization')

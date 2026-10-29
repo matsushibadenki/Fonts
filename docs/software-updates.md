@@ -60,3 +60,9 @@
 既存の`TAURI_SIGNING_PRIVATE_KEY`も継続使用する。秘密値をソースやチャットへ貼らず、[GitHub Actions Secrets設定](https://github.com/matsushibadenki/Fonts/settings/secrets/actions)へ登録する。Apple Developer Programの配布証明書と公証認証が必要。設定方法は[Tauri公式ドキュメント](https://v2.tauri.app/distribute/sign/macos/)を参照。
 
 ⭕️ [Pending] 現在のMacには有効な署名identityがなく、GitHubにはApple用Secretsが未登録。このため実際のApple署名・公証・公証済みRelease公開は認証情報の準備待ち。既存0.1.2を差し替えず、準備後はバージョンを上げて新しいタグで公開する。
+
+## Apple ID方式への接続（2026-10-29）
+
+🟢 [Done] 公証はAPIキーに加え`APPLE_ID`・`APPLE_PASSWORD`（アプリ用パスワード）・`APPLE_TEAM_ID`でも実行できる。両方式が揃っている場合はApple ID方式を使う。API方式の3項目はApple ID方式では不要。証明書用の3項目`APPLE_CERTIFICATE`・`APPLE_CERTIFICATE_PASSWORD`・`APPLE_SIGNING_IDENTITY`と既存の更新署名鍵はどちらの方式でも必要。`Fonts`というアプリ用パスワードのラベルを署名identityには使わない。
+
+前回のキーチェーン検査はサンドボックス内で行ったため、identityなしという結果になっていた。サンドボックス外で確認したところ、指定Teamに対応するDeveloper ID Application identityが存在した。証明書がないという以前の記載はこの検査結果で訂正する。Secretsの有無とローカル証明書の有無は別に確認する。
