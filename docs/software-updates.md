@@ -66,3 +66,11 @@
 🟢 [Done] 公証はAPIキーに加え`APPLE_ID`・`APPLE_PASSWORD`（アプリ用パスワード）・`APPLE_TEAM_ID`でも実行できる。両方式が揃っている場合はApple ID方式を使う。API方式の3項目はApple ID方式では不要。証明書用の3項目`APPLE_CERTIFICATE`・`APPLE_CERTIFICATE_PASSWORD`・`APPLE_SIGNING_IDENTITY`と既存の更新署名鍵はどちらの方式でも必要。`Fonts`というアプリ用パスワードのラベルを署名identityには使わない。
 
 前回のキーチェーン検査はサンドボックス内で行ったため、identityなしという結果になっていた。サンドボックス外で確認したところ、指定Teamに対応するDeveloper ID Application identityが存在した。証明書がないという以前の記載はこの検査結果で訂正する。Secretsの有無とローカル証明書の有無は別に確認する。
+
+## Developer ID署名・公証済み公開の検証（2026-10-29）
+
+🟢 [Done] 指定TeamのDeveloper ID Application証明書を限定して暗号化p12へ一時書き出し、証明書・ランダムなp12パスワード・署名identityとApple ID公証用情報をリポジトリActions Secretsへ登録した。一時p12は削除済み。APIキーは不要。
+
+[自動実行](https://github.com/matsushibadenki/Fonts/actions/runs/40835383183)でテスト・Clippy・Developer ID署名・app公証とstaple・DMG署名と公証とstaple・Gatekeeper・更新署名検証が全工程成功し、[Fonts v0.1.3](https://github.com/matsushibadenki/Fonts/releases/tag/v0.1.3)を正式公開した（ソース `cffcc7e`）。公開後に配布物を再取得し、SHA256SUMSの全件一致、指定Teamの署名・Hardened Runtime・タイムスタンプ、app/DMGの公証チケットを確認。このMacでも両方のGatekeeper結果が`accepted`・`source=Notarized Developer ID`となった。更新署名と署名内バージョン0.1.3、および改ざんデータの拒否もCIで確認した。
+
+Apple署名・公証の以前の⭕️ [Pending]はこの実検証で🟢 [Done]へ更新する。Intel・Windows・Linuxの配布検証は引き続き⭕️ [Pending]。今回GUI経由の更新インストールは再実施していない。
