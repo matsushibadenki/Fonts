@@ -6,6 +6,7 @@ use tauri::{Manager, WebviewWindow};
 #[derive(Clone)]
 pub struct Source {
     id: u64,
+    path: std::path::PathBuf,
     index: u32,
     bytes: Arc<Vec<u8>>,
     info: Info,
@@ -20,6 +21,7 @@ pub async fn color_font_open(window: WebviewWindow, id: u64) -> Result<Info, Str
         let info = color_fonts::info(&bytes, e.index)?;
         Ok::<_, String>(Source {
             id,
+            path: e.path,
             index: e.index,
             bytes: Arc::new(bytes),
             info,
@@ -160,22 +162,11 @@ pub async fn color_font_action(
             })
             .await
             .map_err(|e| e.to_string())??;
-            let filename: String = original
-                .info
-                .family
-                .chars()
-                .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '_' | '-'))
-                .take(80)
-                .collect();
-            let name = if filename.is_empty() {
-                "ColorFont"
-            } else {
-                &filename
-            };
+            let source_path = original.path.clone();
             let ext = original.info.extension.clone();
             let dialog = rfd::AsyncFileDialog::new()
                 .set_parent(&window)
-                .set_file_name(format!("{name}-Color.{ext}"));
+                .set_file_name(crate::font_output::filename(&source_path, &ext));
             #[cfg(not(target_os = "macos"))]
             let dialog = dialog.add_filter("OpenType color font", &[&ext]);
             let Some(file) = dialog.save_file().await else {
@@ -194,7 +185,9 @@ pub async fn color_font_action(
             {
                 return Err("font_extension_mismatch".into());
             }
-            if font_library::protected(&path)? {
+            if font_library::protected(&path)?
+                || crate::font_output::same_source(&path, &source_path)
+            {
                 return Err("font_protected_location".into());
             }
             let report = Report {

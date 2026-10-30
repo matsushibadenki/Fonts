@@ -1,8 +1,8 @@
 {
   "harfbuzz": {
-    "version": "14.6.0",
-    "archive": "https://github.com/harfbuzz/harfbuzz/releases/download/14.6.0/harfbuzz-14.6.0.tar.xz",
-    "sha256": "d07a007327277708a2a73ae437887cdbaf282937f6d03ca5467723e9099af586",
+    "version": "15.0.0",
+    "archive": "https://github.com/harfbuzz/harfbuzz/releases/download/15.0.0/harfbuzz-15.0.0.tar.xz",
+    "sha256": "968536e9abd782f07f7954044c0c4020199fcdd39b41d221ec42d2a3be4a44df",
     "license": "Old MIT and file-level notices"
   },
   "ttfautohint": {

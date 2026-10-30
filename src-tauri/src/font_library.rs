@@ -301,10 +301,11 @@ pub async fn font_library_action(
         } => {
             let mut doc = document(&app)?;
             doc.family = family;
-            report = save_font_with_hinting(&window, doc, format, woff2, autohint).await?;
+            report = save_font_with_hinting(&window, doc, format, woff2, autohint, None).await?;
         }
         Operation::Convert { id, format } => {
             let e = entry(&app, id)?;
+            let source = e.path.clone();
             let mut doc = tauri::async_runtime::spawn_blocking(move || {
                 font_core::font_io::import(&font_core::font_io::read(&e.path)?, e.index)
             })
@@ -313,7 +314,7 @@ pub async fn font_library_action(
             if let Some(family) = doc.family.strip_suffix(" Edited") {
                 doc.family = family.to_owned();
             }
-            report = save_font(&window, doc, format, Default::default()).await?;
+            report = save_source_font(&window, doc, format, Default::default(), source).await?;
         }
         Operation::ApplyCmap => {
             let (epoch, revision) = {
@@ -510,13 +511,14 @@ fn document(app: &tauri::AppHandle) -> Result<font_core::FontDocument, String> {
     }
     Ok(m.editor.document().clone())
 }
-pub(crate) async fn save_font(
+pub(crate) async fn save_source_font(
     window: &WebviewWindow,
     doc: font_core::FontDocument,
     format: Format,
     woff2: font_core::font_formats::woff2::Options,
+    source: PathBuf,
 ) -> Result<Option<ExportReport>, String> {
-    save_font_with_hinting(window, doc, format, woff2, false).await
+    save_font_with_hinting(window, doc, format, woff2, false, Some(source)).await
 }
 async fn save_font_with_hinting(
     window: &WebviewWindow,
@@ -524,6 +526,7 @@ async fn save_font_with_hinting(
     format: Format,
     woff2: font_core::font_formats::woff2::Options,
     autohint: bool,
+    source: Option<PathBuf>,
 ) -> Result<Option<ExportReport>, String> {
     if autohint
         && !matches!(
@@ -591,10 +594,14 @@ async fn save_font_with_hinting(
     } else {
         filename
     };
+    let filename = source
+        .as_ref()
+        .map(|p| crate::font_output::filename(p, format.extension()))
+        .unwrap_or_else(|| format!("{filename}.{}", format.extension()));
     let dialog = rfd::AsyncFileDialog::new()
         .set_parent(&parent)
         .set_title(format.label())
-        .set_file_name(format!("{filename}.{}", format.extension()));
+        .set_file_name(filename);
     #[cfg(not(target_os = "macos"))]
     let dialog = dialog.add_filter(format.label(), &[format.extension()]);
     let path = dialog
@@ -618,7 +625,11 @@ async fn save_font_with_hinting(
         }) {
             return Err("font_extension_mismatch".into());
         }
-        if protected(&path)? {
+        if protected(&path)?
+            || source
+                .as_ref()
+                .is_some_and(|p| crate::font_output::same_source(&path, p))
+        {
             return Err("font_protected_location".into());
         }
         let report = ExportReport {

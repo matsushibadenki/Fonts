@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-10-19更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-10-26更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -81,7 +81,7 @@ FontForgeは仕様・挙動の調査元として使用し、現行の変換エ�
 
 ## 外部ライブラリの保守
 
-- 🟢 [Done] 最新stableへの依存更新と互換性調整。Tauri 2.12.4 / React 19.3.1 / wgpu 30.0.1ほかを適用。毎週月曜09:00（日本時間）の自動確認・更新を設定。[更新・検証記録](dependency-update-2026-10-15.md)。
+- 🟢 [Done] 最新stableへの依存更新と互換性調整。Tauri 2.12.5 / React 19.3.1 / wgpu 30.0.1、FreeType 2.15.0 / HarfBuzz 15.0.0ほかを適用。毎週月曜09:00（日本時間）の自動確認・更新を設定。[最新の更新・検証記録](dependency-update-2026-10-26.md)。
 - ⭕️ [Pending] 更新後のWindows/Linux実機検証、OS由来のsurface喪失・再構成イベント、GUI目視確認。
 
 

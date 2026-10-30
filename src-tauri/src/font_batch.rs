@@ -62,19 +62,6 @@ pub struct Runtime {
     pub status: Status,
     pub cancel: bool,
 }
-fn stem(family: &str, style: &str, index: u32) -> String {
-    let s: String = format!("{family} {style} face-{index}")
-        .chars()
-        .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '_' | '-'))
-        .take(100)
-        .collect();
-    let s = s.trim().trim_end_matches('.');
-    if s.is_empty() {
-        "Font".into()
-    } else {
-        format!("Font-{s}")
-    }
-}
 fn directory(parent: &Path) -> Result<PathBuf, String> {
     let time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -264,7 +251,7 @@ fn run(
         let outcome = bytes.and_then(|bytes| {
             write_unique(
                 dir,
-                &stem(&entry.family, &entry.style, entry.index),
+                &crate::font_output::stem(&entry.path),
                 format.extension(),
                 &bytes,
             )
@@ -311,13 +298,26 @@ mod tests {
         ));
         fs::create_dir(&root).unwrap();
         let dir = directory(&root).unwrap();
-        let name = stem("../CON: 日本語/中文", "Bold*", 0);
+        let name = crate::font_output::stem(Path::new("/fonts/日本語の書体 (Bold).ttf"));
         assert!(!name.contains('/'));
         let a = write_unique(&dir, &name, "otf", b"one").unwrap();
         let b = write_unique(&dir, &name, "otf", b"two").unwrap();
         assert_ne!(a, b);
+        assert_eq!(a.file_name().unwrap(), "日本語の書体 (Bold).otf");
+        assert_eq!(b.file_name().unwrap(), "日本語の書体 (Bold)-1.otf");
         assert_eq!(fs::read(a).unwrap(), b"one");
-        assert_eq!(fs::read(b).unwrap(), b"two");
+        assert_eq!(fs::read(&b).unwrap(), b"two");
+        assert!(!crate::font_output::same_source(
+            &b,
+            &dir.join("missing.otf")
+        ));
+        #[cfg(unix)]
+        {
+            let alias = dir.join("source-alias.otf");
+            std::os::unix::fs::symlink(&b, &alias).unwrap();
+            assert!(crate::font_output::same_source(&alias, &b));
+            assert_eq!(fs::read(&b).unwrap(), b"two");
+        }
         assert!(write_unique(&dir, "invalid", "woff2", b"broken").is_err());
         assert!(!dir.join("invalid.woff2").exists());
         let doc = font_core::FontDocument::new("Batch web", "A中").unwrap();

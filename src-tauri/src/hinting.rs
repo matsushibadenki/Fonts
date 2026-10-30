@@ -39,22 +39,10 @@ pub async fn font_hinting_export(
     })
     .await
     .map_err(|e| e.to_string())??;
-    let name: String = info
-        .family
-        .chars()
-        .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '_' | '-'))
-        .take(80)
-        .collect();
-    let name = if name.is_empty() { "Font" } else { &name };
-    let suffix = match mode {
-        hinting::Mode::Auto => "Autohinted",
-        hinting::Mode::Remove => "Unhinted",
-        hinting::Mode::Preserve => "Preserved",
-    };
     let ext = &info.extension;
     let dialog = rfd::AsyncFileDialog::new()
         .set_parent(&window)
-        .set_file_name(format!("{name}-{suffix}.{ext}"));
+        .set_file_name(crate::font_output::filename(&source, ext));
     #[cfg(not(target_os = "macos"))]
     let dialog = dialog.add_filter("OpenType", &[ext]);
     let Some(file) = dialog.save_file().await else {

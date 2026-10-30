@@ -1,10 +1,10 @@
 {
-  "checked_on": "2026-10-20",
+  "checked_on": "2026-10-26",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "fe2524d8020ddb9dbde6044b1bd7d708c3dd0f1aa6bc91872d3b4f71b38537ee",
-    "package-lock.json": "7e8762b7036a36b45a7d14c061cee85986e66508f6ce90e487b97b87251e073c"
+    "Cargo.lock": "01e927fc53f649e065bb9d8971c37cba70ca9f98f5beb63fa8a728cd1eebd76d",
+    "package-lock.json": "0471e1768076f58999d40394df334795ced2eed3d24270ce8d9d155e1b33660c"
   },
   "rust": [
     {
@@ -389,7 +389,7 @@
     },
     {
       "name": "brotli",
-      "version": "9.0.0",
+      "version": "9.1.0",
       "declared_license": "BSD-3-Clause AND MIT",
       "selected_license": "BSD-3-Clause AND MIT",
       "origin": "crates.io",
@@ -414,7 +414,7 @@
     },
     {
       "name": "brotli-decompressor",
-      "version": "6.0.1",
+      "version": "6.2.0",
       "declared_license": "BSD-3-Clause/MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -606,7 +606,7 @@
     },
     {
       "name": "cc",
-      "version": "1.8.0",
+      "version": "1.10.0",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -885,7 +885,7 @@
     },
     {
       "name": "crc32fast",
-      "version": "1.5.2",
+      "version": "1.5.3",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1411,7 +1411,7 @@
     },
     {
       "name": "erased-serde",
-      "version": "0.4.10",
+      "version": "0.4.11",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1502,7 +1502,7 @@
     },
     {
       "name": "find-msvc-tools",
-      "version": "0.1.14",
+      "version": "0.1.15",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1553,7 +1553,7 @@
     },
     {
       "name": "font-core",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1563,7 +1563,7 @@
     },
     {
       "name": "font-hinting-native",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1573,7 +1573,7 @@
     },
     {
       "name": "font-renderer",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1583,7 +1583,7 @@
     },
     {
       "name": "fonts-app",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -2309,7 +2309,7 @@
     },
     {
       "name": "ico",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2321,7 +2321,7 @@
     },
     {
       "name": "icu_collections",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2333,7 +2333,7 @@
     },
     {
       "name": "icu_locale_core",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2345,7 +2345,7 @@
     },
     {
       "name": "icu_normalizer",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2357,7 +2357,7 @@
     },
     {
       "name": "icu_normalizer_data",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2369,7 +2369,7 @@
     },
     {
       "name": "icu_properties",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2381,7 +2381,7 @@
     },
     {
       "name": "icu_properties_data",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2393,7 +2393,7 @@
     },
     {
       "name": "icu_provider",
-      "version": "2.3.1",
+      "version": "2.4.0",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -2494,7 +2494,7 @@
     },
     {
       "name": "inout",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2961,7 +2961,7 @@
     },
     {
       "name": "lopdf",
-      "version": "0.45.0",
+      "version": "0.46.0",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2973,7 +2973,7 @@
     },
     {
       "name": "lumapaint-core",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -3504,7 +3504,7 @@
     },
     {
       "name": "ordered-float",
-      "version": "5.5.0",
+      "version": "5.5.1",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -3678,26 +3678,13 @@
     },
     {
       "name": "plist",
-      "version": "1.10.1",
+      "version": "1.10.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/ebarnard/rust-plist/",
       "local_notice_files": [],
       "upstream_notice_review_required": true
-    },
-    {
-      "name": "png",
-      "version": "0.17.16",
-      "declared_license": "MIT OR Apache-2.0",
-      "selected_license": "MIT",
-      "origin": "crates.io",
-      "repository": "https://github.com/image-rs/image-png",
-      "local_notice_files": [
-        "LICENSE-APACHE",
-        "LICENSE-MIT"
-      ],
-      "upstream_notice_review_required": false
     },
     {
       "name": "png",
@@ -4207,7 +4194,7 @@
     },
     {
       "name": "roxmltree",
-      "version": "0.21.1",
+      "version": "0.21.2",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -4338,7 +4325,7 @@
     },
     {
       "name": "rustls-webpki",
-      "version": "0.103.15",
+      "version": "0.103.16",
       "declared_license": "ISC",
       "selected_license": "ISC",
       "origin": "crates.io",
@@ -4809,7 +4796,7 @@
     },
     {
       "name": "smallvec",
-      "version": "1.16.3",
+      "version": "1.16.4",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5114,7 +5101,7 @@
     },
     {
       "name": "tao",
-      "version": "0.37.1",
+      "version": "0.37.2",
       "declared_license": "Apache-2.0",
       "selected_license": "Apache-2.0",
       "origin": "crates.io",
@@ -5166,7 +5153,7 @@
     },
     {
       "name": "tauri",
-      "version": "2.12.4",
+      "version": "2.12.5",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5179,7 +5166,7 @@
     },
     {
       "name": "tauri-build",
-      "version": "2.7.3",
+      "version": "2.7.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5192,7 +5179,7 @@
     },
     {
       "name": "tauri-codegen",
-      "version": "2.7.3",
+      "version": "2.7.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5205,7 +5192,7 @@
     },
     {
       "name": "tauri-macros",
-      "version": "2.7.3",
+      "version": "2.7.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5228,7 +5215,7 @@
     },
     {
       "name": "tauri-plugin-updater",
-      "version": "2.13.3",
+      "version": "2.14.0",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5255,7 +5242,7 @@
     },
     {
       "name": "tauri-runtime-wry",
-      "version": "2.12.2",
+      "version": "2.12.3",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5281,7 +5268,7 @@
     },
     {
       "name": "tauri-winres",
-      "version": "0.3.6",
+      "version": "0.3.7",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5424,7 +5411,7 @@
     },
     {
       "name": "tinystr",
-      "version": "0.8.4",
+      "version": "0.8.5",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -5450,7 +5437,7 @@
     },
     {
       "name": "tokio",
-      "version": "1.53.3",
+      "version": "1.54.1",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5872,7 +5859,7 @@
     },
     {
       "name": "uuid",
-      "version": "1.28.0",
+      "version": "1.29.0",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6202,7 +6189,7 @@
     },
     {
       "name": "webpki-root-certs",
-      "version": "1.0.9",
+      "version": "1.0.11",
       "declared_license": "CDLA-Permissive-2.0",
       "selected_license": "CDLA-Permissive-2.0",
       "origin": "crates.io",
@@ -6913,7 +6900,7 @@
     },
     {
       "name": "wry",
-      "version": "0.57.0",
+      "version": "0.57.1",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6977,7 +6964,7 @@
     },
     {
       "name": "yoke",
-      "version": "0.8.3",
+      "version": "0.8.4",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -7078,7 +7065,7 @@
     },
     {
       "name": "zerovec",
-      "version": "0.11.8",
+      "version": "0.11.9",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -7090,7 +7077,7 @@
     },
     {
       "name": "zerovec-derive",
-      "version": "0.11.6",
+      "version": "0.11.7",
       "declared_license": "Unicode-3.0",
       "selected_license": "Unicode-3.0",
       "origin": "crates.io",
@@ -7168,7 +7155,7 @@
   "npm": [
     {
       "package_path": "node_modules/@oxc-project/types",
-      "version": "0.154.0",
+      "version": "0.155.0",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7180,7 +7167,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm-eabi",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7190,7 +7177,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm64",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7200,7 +7187,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-arm64",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7210,7 +7197,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-x64",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7220,7 +7207,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-freebsd-x64",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7230,7 +7217,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm-gnueabihf",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7240,7 +7227,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-gnu",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7250,7 +7237,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-musl",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7260,7 +7247,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-ppc64-gnu",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7270,7 +7257,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-s390x-gnu",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7280,7 +7267,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-gnu",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7290,7 +7277,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-musl",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7300,7 +7287,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-openharmony-arm64",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7310,7 +7297,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-arm64-msvc",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7320,7 +7307,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-x64-msvc",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7356,7 +7343,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7369,7 +7356,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-darwin-arm64",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7379,7 +7366,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-darwin-x64",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7389,7 +7376,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-arm-gnueabihf",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7399,7 +7386,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-arm64-gnu",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7409,7 +7396,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-arm64-musl",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7419,7 +7406,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-riscv64-gnu",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7429,7 +7416,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-x64-gnu",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7439,7 +7426,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-linux-x64-musl",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7449,7 +7436,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-win32-arm64-msvc",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7459,7 +7446,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-win32-ia32-msvc",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7469,7 +7456,7 @@
     },
     {
       "package_path": "node_modules/@tauri-apps/cli-win32-x64-msvc",
-      "version": "2.12.3",
+      "version": "2.12.4",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7962,7 +7949,7 @@
     },
     {
       "package_path": "node_modules/rolldown",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -8024,7 +8011,7 @@
     },
     {
       "package_path": "node_modules/vite",
-      "version": "8.3.4",
+      "version": "8.3.5",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -8074,9 +8061,9 @@
   ],
   "native_hinting": {
     "harfbuzz": {
-      "version": "14.6.0",
-      "archive": "https://github.com/harfbuzz/harfbuzz/releases/download/14.6.0/harfbuzz-14.6.0.tar.xz",
-      "sha256": "d07a007327277708a2a73ae437887cdbaf282937f6d03ca5467723e9099af586",
+      "version": "15.0.0",
+      "archive": "https://github.com/harfbuzz/harfbuzz/releases/download/15.0.0/harfbuzz-15.0.0.tar.xz",
+      "sha256": "968536e9abd782f07f7954044c0c4020199fcdd39b41d221ec42d2a3be4a44df",
       "license": "Old MIT and file-level notices"
     },
     "ttfautohint": {

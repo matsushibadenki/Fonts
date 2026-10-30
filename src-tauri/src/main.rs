@@ -7,6 +7,7 @@ mod font_activation;
 mod font_batch;
 mod font_catalog;
 mod font_library;
+mod font_output;
 mod font_paths;
 mod font_store;
 mod hinting;

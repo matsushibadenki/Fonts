@@ -2,7 +2,7 @@ Fonts font interchange engine
 
 Portions of this software are copyright (C) 2026 The FreeType Project (www.freetype.org). All rights reserved.
 
-FreeType 2.14.3 is distributed under the FreeType License (FTL).
+FreeType 2.15.0 is distributed under the FreeType License (FTL).
 
                     The FreeType Project LICENSE
                     ----------------------------

@@ -69,6 +69,7 @@ pub async fn variation_action(
         m.proof.generation
     };
     let e = font_library::entry(&app, request.id)?;
+    let source = e.path.clone();
     let doc = tauri::async_runtime::spawn_blocking(move || {
         let bytes = font_core::font_io::read(&e.path)?;
         match request.instance {
@@ -118,7 +119,14 @@ pub async fn variation_action(
             if !matches!(format, Format::Ttf | Format::Otf | Format::Woff2) {
                 return Err("variation_unsupported".into());
             }
-            return font_library::save_font(&window, doc, format, Default::default()).await;
+            return font_library::save_source_font(
+                &window,
+                doc,
+                format,
+                Default::default(),
+                source,
+            )
+            .await;
         }
     }
     Ok(None)

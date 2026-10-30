@@ -142,10 +142,12 @@ def main():
         ROOT / 'vendor/freetype-sys/freetype2/src/gzip/zlib.h',
         ROOT / 'vendor/freetype-sys/freetype2/src/autofit/ft-hb-ft.c',
         ROOT / 'vendor/freetype-sys/freetype2/src/base/fthash.c',
+        ROOT / 'vendor/freetype-sys/freetype2/src/hvf/hvf.c',
+        ROOT / 'vendor/freetype-sys/libpng/LICENSE',
     ]
     libz = next(p for p in metadata['packages'] if p['name'] == 'libz-sys')
     native_files.append(Path(libz['manifest_path']).parent / 'src/zlib/LICENSE')
-    sections += ['\n' + '=' * 72, 'Native sources: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib)']
+    sections += ['\n' + '=' * 72, 'Native sources: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib); libpng source license (decoder not compiled)']
     for file in native_files:
         text = file.read_text(errors='replace')
         # C/H headers contain license blocks; do not turn the notice into a code dump.

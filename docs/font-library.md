@@ -91,3 +91,7 @@ macOSの読取確認では3,083フェイス（Adobe候補990フェイス）を�
 フォント制作に関する構造はローカルFontForgeの`encoding.c`と`tottf.c`も参照した。新しい実装はfont-coreとsrc-tauri内にあり、FontForgeやLumaPaintの外部ディレクトリを実行・参照せず動作する。追加依存はttf-parser（MIT/Apache-2.0）、dirs、sha2、Windows用winreg/windows-sys。Cargo.lockで固定する。
 
 検証結果: 通常のRustテスト194件成功、macOSのCoreText登録・解除テスト1件も明示実行して成功。Clippy（警告をエラー扱い）、TypeScript/Vite、macOSアプリ生成を確認。コンソールのブラウザー検査およびWindows/Linuxの実機画面は未検証。
+
+## 変換時のファイル名
+
+単体変換・一括変換・ヒンティング処理・カラー保持・可変フォントの静的出力では、元ファイルの名前を使い、出力形式の拡張子だけを変更する。内部のファミリー名への置き換えや、Font／face／Color／Autohinted等の語句は付けない。一括変換で同名が衝突した場合のみ `-1` 等の連番を付けて上書きを避ける。単体出力も元ファイルと同じ保存先は拒否する。制作中の文書の出力は従来通り入力したファミリー名を使う。

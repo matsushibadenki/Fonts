@@ -235,5 +235,5 @@ fn bundled_engine_version_is_pinned() {
     unsafe {
         FT_Library_Version(library.raw(), &mut major, &mut minor, &mut patch);
     }
-    assert_eq!((major, minor, patch), (2, 14, 3));
+    assert_eq!((major, minor, patch), (2, 15, 0));
 }

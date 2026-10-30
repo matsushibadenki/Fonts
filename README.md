@@ -104,11 +104,11 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | cssparser、cssparser-macros、dtoa-short、option-ext、selectors | MPL-2.0 | 🟢 [Done] 対象部分はMPLを維持。Cargo.lockのチェックサムと一致する変更前ソース5件を、配布リソースの[ソースアーカイブ](src-tauri/resources/licenses/sources/)へ収録。取得・展開方法とMPL本文も同梱する。将来これらを改変する場合は、その変更を含む対象ソースの提供が必要。 |
 | lightningcssとそのプラットフォーム別npmパッケージ | MPL-2.0 | 🟢 [Done] ビルド依存として原条件を維持。Fontsアプリへ開発ツールの実行ファイルは同梱しない。開発ツール自体を再配布する場合は、対応ソースと告知の提供を別途行う。 |
 | psautohint 2.4.0 | Apache-2.0 | 🟢 [Done] 静的CFF1／CID-CFF自動ヒンティングの同梱Cエンジン。[実装と検証](docs/autohint-engines.md)。 |
-| ttfautohint 1.8.4／HarfBuzz 14.6.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
-| FreeType 2.14.3 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
+| ttfautohint 1.8.4／HarfBuzz 15.0.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
+| FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |
-| vendor内のlibpngソース | PNG Reference Library License version 2等の原条件 | 🟢 [Done] 原文を保持。現在の同梱FreeTypeビルドではPNGデコーダーを有効化・コンパイルしていない。アタリ画像のPNG処理はRust側のimage／pngを使用する。 |
+| vendor内のlibpng 1.6.59ソース | PNG Reference Library License version 2等の原条件 | 🟢 [Done] 原文を保持。現在の同梱FreeTypeビルドではPNGデコーダーを有効化・コンパイルしていない。アタリ画像のPNG処理はRust側のimage／pngを使用する。 |
 | 調査用FontForge checkout | 上流全体はGPL-3.0-or-later、一部はBSD-3-Clause等 | 🟢 [Done] 現行アプリのビルド・実行・配布に組み込まない。調査用checkoutはGit管理対象外。将来のコード移植・同梱時はファイルと依存先ごとに再確認する。 |
 | 同梱スニペットの長方形・楕円・三角形・ひし形・「口」「工」の形状データ | CC0-1.0 | 🟢 [Done] 独自作成した雛形データの既存CC0を維持。登録・変形・描画のプログラムはMIT。ユーザー登録の雛形にはユーザーが指定した出典・ライセンスを保持する。 |
 | OS／Adobe等から読み込むフォント、ユーザーの画像・スニペット | 各素材・フォントのライセンス | 🟢 [Done] アプリのMITで素材を再許諾しない。閲覧・変換機能があっても、フォントの改変・埋め込み・再配布の権利を付与するものではない。 |
