@@ -763,3 +763,6 @@ mod proof_gpu;
 
 #[cfg(test)]
 mod reference_gpu;
+
+#[cfg(test)]
+mod color_gpu;

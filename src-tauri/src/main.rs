@@ -21,6 +21,7 @@ mod recovery;
 mod recovery_store;
 mod reference_images;
 mod snippets;
+mod specimen;
 mod thumbnails;
 mod updates;
 mod variations;
@@ -611,6 +612,8 @@ fn main() {
             text_focus,
             open_font_library,
             font_library::font_library_query,
+            specimen::specimen_settings,
+            specimen::specimen_create,
             hinting::font_hinting_info,
             hinting::font_hinting_compare,
             hinting::font_hinting_export,

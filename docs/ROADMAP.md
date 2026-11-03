@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-10-26更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-11-03更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -45,8 +45,12 @@
 13. 🟢 [Done] Webフォント用WOFF2出力。TrueType／CFF・圧縮設定、三言語、保存ダイアログ、保存後の読み戻し検証、ブラウザーでの読み込みを接続。[仕様と検証](woff2.md)。
 14. 🟢 [Done] 可変フォントの軸設定・wgpuプレビュー・静的インスタンスへの変換。三言語、独立文書、TTF／OTF／WOFF2、保存ダイアログと保存後検証。[仕様と検証](variable-fonts.md)。
    - 🟢 [Done] 名前付きインスタンスの選択。全軸値の一括適用、三言語名、手動変更時のカスタム切替、既定への復帰、プレビュー・静的3形式・独立文書のスタイル名保持。
-15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
-   - 🔴 [Later] COLRv1／SVGプレビュー、カラー編集・プロジェクト保存、カラーWOFF2。
+15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／COLRv1／SVGベクター／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
+   - 🟢 [Done] カラーWOFF2出力。圧縮設定・三言語UI・保存後の復号検証、カラー／組版／可変テーブルの保持、コレクションのフェイス抽出、ブラウザーのカラー描画を検証。
+   - 🟢 [Done] COLRv1プレビュー。三言語UI、CPAL切替、線形・放射・円錐グラデーション、透明度・変形・クリップ・合成、Rust保持／wgpu描画。
+   - 🟢 [Done] SVG-in-OpenTypeの安全なベクタープレビュー。静的図形・パス・グラデーション・クリップ・透明度、gzip、複数グリフ選択、CPAL、三言語UI、Rust保持／wgpu描画。[対応範囲と上限](svg-preview.md)。
+   - 🟠 [Next] SVG内の埋め込みPNG／JPEGのプレビュー。外部参照の遮断と画像サイズ上限を維持して対応範囲を広げる。
+   - 🔴 [Later] カラー編集・プロジェクト保存。
 16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
    - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
    - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
@@ -114,4 +118,41 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 - 🟢 [Done] GitHub Actions Secretによる更新署名、タグからのビルド・独立署名検証・GitHub Releases公開の自動化。[運用手順](software-updates.md)。
 
-- 🟢 [Done] Apple Developer ID署名・app/DMG公証・staple・Gatekeeper検証をReleaseワークフローへ接続。⭕️ [Pending] Apple証明書・公証API認証情報の登録と実公開検証。[設定手順](software-updates.md#apple-developer-id署名公証の自動化2026-10-21)。
+- 🟢 [Done] Apple Developer ID署名・app/DMG公証・staple・Gatekeeper検証をReleaseワークフローへ接続。🟢 [Done] Apple認証情報を登録し、公証済みv0.1.3の公開・再取得・Gatekeeper検証まで完了（2026-10-29）。[設定手順](software-updates.md#apple-developer-id署名公証の自動化2026-10-21)。
+
+## フォント見本帳（2026-11-03）
+
+- 🟢 [Done] フォントライブラリからインストール済みディレクトリー／選択フォルダーを走査し、A4・四辺15mmの見本帳を生成。日本語名＋小さな英語名、英語名のみの表示、文章の追加・変更・削除、文字サイズ、設定復元、ブラウザー印刷／PDF保存に対応。
+- 🟢 [Done] TTCの各faceを独立抽出して元のレイアウトテーブルを保持。未収録文字・対象外フォント・件数／容量上限を明示。ヒラギノ明朝とArialから3ページPDFを生成し、A4寸法・余白・改ページを目視確認。
+- ⭕️ [Pending] 実プリンターでの出力とWindows/Linuxの印刷ダイアログ実機検証。
+
+操作: フォントライブラリの「フォント見本帳」ボタン → 対象・文章・サイズを指定 → 見本帳を開く → ブラウザーの「印刷 / PDF保存」。A4・倍率100%・ブラウザーのヘッダー／フッターなしを使用する。プリンター側の余白設定による変更には注意。TTF/OTF/TTC/OTCを対象とし、Type 1等は対象外として件数表示。1回256 face・フォントデータ256MiBまで。上限時は部分作成を明示する。各文章200文字、最大8件。生成した印刷用HTMLとフォントはアプリのキャッシュ内に保持し、フォントファイルはWebViewのIPCへ転送しない。
+
+
+## カラーWebフォント出力（2026-11-03）
+
+🟢 [Done] Web公開への効果と既存エンジンの再利用性を優先し、カラーWOFF2を実装。カラー専用画面で元形式／WOFF2と圧縮を選択。Rust workerで元テーブルを保持して圧縮し、保存後に復号・全テーブル照合・チェックサム検証を行う。WOFF2仕様上のheadフラグとチェックサム調整以外の変更は拒否。既存文書とUndo履歴は変更しない。
+
+カラー関連8テスト、Clippy、TypeScript/Vite成功。COLRv0/v1・SVG・sbix・CBDT・CFF・TTCの2フェイスを圧縮1/5/11で往復検証し、プレビュー対応形式はピクセル一致を確認。Chromiumで実WOFF2の読み込みとカラー画素を確認。三言語UIの形式／圧縮／出力要求はIPCを模擬して検証。ネイティブ保存ダイアログの新形式での実操作、Windows/Linux実機、Safari/Firefox固有のカラー形式対応は⭕️ [Pending]。
+
+
+## COLRv1プレビュー（2026-11-03）
+
+🟢 [Done] 同梱HarfBuzz 15.0.0のpaint/rasterを静的に組み込み、CPAL・線形／放射／円錐グラデーション・繰り返し／反射・透明度・変形・クリップ・レイヤー合成を描画する。画素はRust側に保持し既存のwgpuプレビューへ接続。三言語の未対応表示をSVG専用へ更新し、COLRv1のサンプル・サイズ・パレット指定を有効化。既存文書・Undo/Redo・保存内容は変更しない。
+
+🟢 [Done] 幾何学テストフォントで各paint、パレット2種類、前景色、単色グリフ／空白／欠字、折り返しと領域上限、WOFF2往復後の画素一致を確認。macOS実GPUで色・透明度・向き・sRGB・パレット切替後のテクスチャ更新を読み戻し検証。Chromiumとの41,948画素比較は各チャンネルの差が最大1（8bit）。三言語UIはIPCを模擬し、920／560px幅でパレット変更→プレビュー要求と表示・コンソールを確認。
+
+🟢 [Done] Rustワークスペース376テスト成功（任意検証6件は通常実行でignore、そのうちCOLRv1実GPUテスト1件は明示実行して成功）。全targetのClippy `-D warnings`、TypeScript／Vite、整形・差分検査も成功。macOSデバッグ版Fonts.appのバンドルビルドも成功（113.67 MiB）。
+
+⭕️ [Pending] Windows/Linux実機、今回のCOLRv1によるネイティブ画面全体の手動操作、広範な実フォント・外部組版エンジンとの比較。可変カラーの軸は既定値、高度な組版・絵文字シーケンスの合成は引き続き対象外。
+
+
+## SVG-in-OpenTypeプレビュー（2026-11-03）
+
+🟢 [Done] Rustのresvg/usvg（text・system-fonts・raster-imagesなどの既定機能は無効）で静的ベクターを描画。XMLとgzip展開量、ノード数、参照展開量・深さ、描画作業量・一時レイヤー面積を制限し、外部参照・実行要素・未対応機能は描画前に拒否する。リソース解決器も常にNoneを返す。SVG/XMLや画素をWebViewへ送らず、既存のRust状態とwgpuテクスチャ経路を再利用する。
+
+🟢 [Done] 共有SVGからのglyphN選択、y-down座標・ベースライン・viewBox、複数CPALとアルファの乗算、グラデーション、クリップ、group opacity、穴、gzip／WOFF2往復の画素一致、危険・破損・過大入力の拒否を検証。macOS実GPUでsRGB・向き・透明度・パレット切替を読み戻し確認。ChromiumのSVG描画との40,620画素比較は最大チャンネル差1/255。三言語UIはIPCを模擬し、幅920／560pxでプレビュー・9種の翻訳済みエラー表示・エラー後の再実行を確認した。
+
+🟢 [Done] Rustワークスペース384テスト成功（任意検証7件は通常実行でignore、SVG実GPUテストは別途明示実行して成功）。入力・クリップ検査の追加テスト、全target Clippy `-D warnings`、TypeScript／Vite、整形・差分検査も成功。依存一覧581 Rust／81 npmと第三者告知を更新し、lockfileハッシュ・配布用一覧との一致を確認。macOSデバッグ版Fonts.appのビルドも成功（117.79 MiB）。
+
+⭕️ [Pending] Windows/Linux実機、今回のSVGによるネイティブ画面全体の手動操作、広範な実フォントでの互換性。画像・スタイルシート・フィルター・パターン・マスク等は未対応を明示し、暗黙に一部を落としてプレビューしない。

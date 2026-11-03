@@ -27,7 +27,7 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info, String> {
         let v = colr.get(..2).ok_or("color_invalid")?;
         let v = u16::from_be_bytes([v[0], v[1]]);
         formats.push(format!("COLRv{v}"));
-        unsupported = v != 0;
+        unsupported = v > 1;
         if face.tables().colr.is_none() || face.color_palettes().is_none() {
             return Err("color_invalid".into());
         }
@@ -35,8 +35,8 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info, String> {
     for (tag, name) in [(b"sbix", "sbix"), (b"CBDT", "CBDT"), (b"SVG ", "SVG")] {
         if table(&face, tag).is_some() {
             formats.push(name.into());
-            if name == "SVG" {
-                unsupported = true;
+            if name == "SVG" && face.tables().svg.is_none() {
+                return Err("color_invalid".into());
             }
         }
     }
@@ -65,7 +65,10 @@ pub fn info(bytes: &[u8], index: u32) -> Result<Info, String> {
     Ok(Info {
         family: font_io::name(&face, 1),
         formats,
-        palettes: face.color_palettes().map(|n| n.get()).unwrap_or(0),
+        palettes: table(&face, b"CPAL")
+            .and_then(ttf_parser::cpal::Table::parse)
+            .map(|t| t.palettes().get())
+            .unwrap_or(0),
         preview: !unsupported,
         extension: if table(&face, b"CFF ").is_some() || table(&face, b"CFF2").is_some() {
             "otf"
@@ -148,7 +151,20 @@ pub(crate) fn assemble(tables: BTreeMap<[u8; 4], Vec<u8>>, cff: bool) -> Result<
     out[h + 8..h + 12].copy_from_slice(&adjust.to_be_bytes());
     Ok(out)
 }
+/// WOFF2 packaging preserves every color, shaping and variation table.
+pub fn export_woff2(source: &[u8], index: u32, quality: u32) -> Result<Vec<u8>, String> {
+    let output = crate::font_formats::woff2::encode_sfnt(export(source, index)?, quality)?;
+    verify_woff2(&output, source, index)?;
+    Ok(output)
+}
+pub fn verify_woff2(output: &[u8], source: &[u8], index: u32) -> Result<(), String> {
+    let decoded = crate::font_formats::woff2::decode(output)?;
+    verify_inner(&decoded, source, index, true)
+}
 pub fn verify(output: &[u8], source: &[u8], index: u32) -> Result<(), String> {
+    verify_inner(output, source, index, false)
+}
+fn verify_inner(output: &[u8], source: &[u8], index: u32, woff2: bool) -> Result<(), String> {
     if output.len() as u64 > font_io::MAX_FONT_BYTES
         || !output.len().is_multiple_of(4)
         || sum(output) != 0xB1B0AFBA
@@ -175,7 +191,17 @@ pub fn verify(output: &[u8], source: &[u8], index: u32) -> Result<(), String> {
         let a = table(&original, &tag).ok_or("color_invalid")?;
         let b = table(&face, &tag).ok_or("color_invalid_output")?;
         if &tag == b"head" {
-            if a.len() != b.len() || a.get(..8) != b.get(..8) || a.get(12..) != b.get(12..) {
+            let mut expected = a.to_vec();
+            if woff2 {
+                let flags = expected.get_mut(16..18).ok_or("color_invalid")?;
+                // WOFF2 sets only the mandated lossless-modification flag.
+                let value = u16::from_be_bytes([flags[0], flags[1]]) | 0x0800;
+                flags.copy_from_slice(&value.to_be_bytes());
+            }
+            if expected.len() != b.len()
+                || expected.get(..8) != b.get(..8)
+                || expected.get(12..) != b.get(12..)
+            {
                 return Err("color_invalid_output".into());
             }
         } else if a != b {
@@ -268,6 +294,8 @@ pub fn preview(
     let actual = face.size_metrics().ok_or("color_render")?.y_ppem.max(1) as f64;
     let scale = size as f64 / actual;
     let parsed = Face::parse(bytes, index).map_err(|_| "color_render")?;
+    crate::svg_color::validate_table(&parsed)?;
+    let colrv1 = metadata.formats.iter().any(|f| f == "COLRv1");
     let mut canvas = image::RgbaImage::new(width, height);
     let mut x = 16i64;
     let mut baseline = size as i64 + 24;
@@ -306,6 +334,48 @@ pub fn preview(
                 }
             }
             x += advance;
+            continue;
+        }
+        let svg = parsed.glyph_svg_image(ttf_parser::GlyphId(id as u16));
+        if svg.is_some() || (colrv1 && parsed.is_color_glyph(ttf_parser::GlyphId(id as u16))) {
+            let advance = (f64::from(
+                parsed
+                    .glyph_hor_advance(ttf_parser::GlyphId(id as u16))
+                    .unwrap_or(parsed.units_per_em()),
+            ) * f64::from(size)
+                / f64::from(parsed.units_per_em()))
+            .round() as i64;
+            if x + advance > i64::from(width) - 16 {
+                x = 16;
+                baseline += i64::from(size) * 2;
+            }
+            if baseline + i64::from(size) / 4 > i64::from(height) {
+                return Err("color_render_limit".into());
+            }
+            let rgba = if let Some(svg) = svg {
+                crate::svg_color::render(
+                    &parsed,
+                    svg,
+                    ttf_parser::GlyphId(id as u16),
+                    size,
+                    palette,
+                    dimensions,
+                    [x as i32, baseline as i32],
+                )?
+            } else {
+                font_hinting_native::color::render(
+                    bytes,
+                    index,
+                    id as u16,
+                    size,
+                    palette,
+                    dimensions,
+                    [x as i32, baseline as i32],
+                )?
+            };
+            let layer = image::RgbaImage::from_raw(width, height, rgba).ok_or("color_render")?;
+            image::imageops::overlay(&mut canvas, &layer, 0, 0);
+            x += advance.max(1);
             continue;
         }
         // Decode embedded PNGs with the existing bounded Rust image decoder.

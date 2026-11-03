@@ -14,6 +14,10 @@ fn main() {
         .include("../../vendor/freetype-sys/freetype2/include")
         .file(hb.join("hb-ft.cc"))
         .file(hb.join("harfbuzz-subset.cc"))
+        .file(hb.join("hb-raster-draw.cc"))
+        .file(hb.join("hb-raster-image.cc"))
+        .file(hb.join("hb-raster-paint.cc"))
+        .file("color_wrapper.cc")
         .compile("fonts_harfbuzz");
     let mut build = cc::Build::new();
     build
@@ -57,5 +61,6 @@ fn main() {
         .compile("fonts_psautohint");
     println!("cargo:rerun-if-changed=ps_wrapper.c");
     println!("cargo:rerun-if-changed=wrapper.c");
+    println!("cargo:rerun-if-changed=color_wrapper.cc");
     println!("cargo:rerun-if-changed={}", root.display());
 }

@@ -457,7 +457,7 @@ fn open_system_manager() -> Result<(), String> {
         reveal(path)
     }
 }
-fn open_target(target: &str) -> Result<(), String> {
+pub(crate) fn open_target(target: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         #[link(name = "shell32")]

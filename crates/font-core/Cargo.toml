@@ -19,6 +19,8 @@ svgtypes = "=0.16.1"
 roxmltree = "=0.21.2"
 lopdf = { version = "=0.46.0", default-features = false }
 
-brotli = "=9.1.0"
+brotli = "=9.1.1"
 
 font-hinting-native = { path = "../font-hinting-native" }
+resvg = { version = "=0.48.1", default-features = false }
+flate2 = "=1.1.10"

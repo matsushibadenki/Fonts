@@ -53,6 +53,16 @@ pub struct Report {
     verified: bool,
     missing: usize,
 }
+#[derive(Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Output {
+    #[default]
+    Original,
+    Woff2,
+}
+fn default_quality() -> u32 {
+    5
+}
 #[derive(Deserialize)]
 pub struct Request {
     id: u64,
@@ -62,6 +72,10 @@ pub struct Request {
     palette: u16,
     epoch: u64,
     revision: u64,
+    #[serde(default)]
+    output: Output,
+    #[serde(default = "default_quality")]
+    quality: u32,
 }
 #[tauri::command]
 pub async fn color_font_action(
@@ -76,6 +90,8 @@ pub async fn color_font_action(
         palette,
         epoch,
         revision,
+        output,
+        quality,
     } = request;
     crate::allowed(&window)?;
     let app = window.app_handle().clone();
@@ -157,13 +173,17 @@ pub async fn color_font_action(
         }
         Action::Export => {
             let original = source.clone();
-            let bytes = tauri::async_runtime::spawn_blocking(move || {
-                color_fonts::export(&source.bytes, source.index)
+            let bytes = tauri::async_runtime::spawn_blocking(move || match output {
+                Output::Original => color_fonts::export(&source.bytes, source.index),
+                Output::Woff2 => color_fonts::export_woff2(&source.bytes, source.index, quality),
             })
             .await
             .map_err(|e| e.to_string())??;
             let source_path = original.path.clone();
-            let ext = original.info.extension.clone();
+            let ext = match output {
+                Output::Original => original.info.extension.clone(),
+                Output::Woff2 => "woff2".into(),
+            };
             let dialog = rfd::AsyncFileDialog::new()
                 .set_parent(&window)
                 .set_file_name(crate::font_output::filename(&source_path, &ext));
@@ -202,7 +222,14 @@ pub async fn color_font_action(
                 if saved != bytes {
                     return Err("color_invalid_output".into());
                 }
-                color_fonts::verify(&saved, &original.bytes, original.index)
+                match output {
+                    Output::Original => {
+                        color_fonts::verify(&saved, &original.bytes, original.index)
+                    }
+                    Output::Woff2 => {
+                        color_fonts::verify_woff2(&saved, &original.bytes, original.index)
+                    }
+                }
             })
             .await
             .map_err(|e| e.to_string())??;

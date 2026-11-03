@@ -1,4 +1,5 @@
 //! Small ownership boundary around bundled HarfBuzz, ttfautohint and Adobe psautohint.
+pub mod color;
 use std::ffi::{c_int, c_uint};
 // Ensure the same bundled FreeType dependency is linked, rather than a system copy.
 use freetype_sys as _;

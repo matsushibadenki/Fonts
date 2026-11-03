@@ -1,4 +1,5 @@
-//! Rust-owned font documents. No WebView or renderer owns editable font data.
+pub mod specimen;
+// Rust-owned font documents. No WebView or renderer owns editable font data.
 pub mod class_kerning;
 pub mod floating_bounds;
 pub mod font_formats;
@@ -583,3 +584,4 @@ pub mod dock_tree;
 pub mod variations;
 
 pub mod color_fonts;
+mod svg_color;

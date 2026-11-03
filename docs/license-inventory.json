@@ -1,10 +1,10 @@
 {
-  "checked_on": "2026-10-26",
+  "checked_on": "2026-11-03",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "01e927fc53f649e065bb9d8971c37cba70ca9f98f5beb63fa8a728cd1eebd76d",
-    "package-lock.json": "0471e1768076f58999d40394df334795ced2eed3d24270ce8d9d155e1b33660c"
+    "Cargo.lock": "3911c7719e6e8240d0c4a8edc67dad4eb2a2c1856a8f7b991ee8d8955aa3ef78",
+    "package-lock.json": "3fcfcbe3cb2082120e7c00ee63448adbe9583d10ef681ef3637f4fd78c16622c"
   },
   "rust": [
     {
@@ -132,15 +132,14 @@
       "upstream_notice_review_required": false
     },
     {
-      "name": "arbitrary",
-      "version": "1.5.0",
-      "declared_license": "MIT OR Apache-2.0",
-      "selected_license": "MIT",
+      "name": "arrayref",
+      "version": "0.3.9",
+      "declared_license": "BSD-2-Clause",
+      "selected_license": "BSD-2-Clause",
       "origin": "crates.io",
-      "repository": "https://github.com/rust-fuzz/arbitrary/",
+      "repository": "https://github.com/droundy/arrayref",
       "local_notice_files": [
-        "LICENSE-APACHE",
-        "LICENSE-MIT"
+        "LICENSE"
       ],
       "upstream_notice_review_required": false
     },
@@ -224,19 +223,6 @@
     {
       "name": "base64",
       "version": "0.21.7",
-      "declared_license": "MIT OR Apache-2.0",
-      "selected_license": "MIT",
-      "origin": "crates.io",
-      "repository": "https://github.com/marshallpierce/rust-base64",
-      "local_notice_files": [
-        "LICENSE-APACHE",
-        "LICENSE-MIT"
-      ],
-      "upstream_notice_review_required": false
-    },
-    {
-      "name": "base64",
-      "version": "0.22.1",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -389,7 +375,7 @@
     },
     {
       "name": "brotli",
-      "version": "9.1.0",
+      "version": "9.1.1",
       "declared_license": "BSD-3-Clause AND MIT",
       "selected_license": "BSD-3-Clause AND MIT",
       "origin": "crates.io",
@@ -885,7 +871,7 @@
     },
     {
       "name": "crc32fast",
-      "version": "1.5.3",
+      "version": "1.5.4",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -1035,6 +1021,19 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "data-url",
+      "version": "0.3.2",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/servo/rust-url",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "dbus",
       "version": "0.9.12",
       "declared_license": "Apache-2.0/MIT",
@@ -1095,19 +1094,6 @@
       "repository": "https://github.com/jhpratt/deranged",
       "local_notice_files": [
         "LICENSE-Apache",
-        "LICENSE-MIT"
-      ],
-      "upstream_notice_review_required": false
-    },
-    {
-      "name": "derive_arbitrary",
-      "version": "1.5.0",
-      "declared_license": "MIT OR Apache-2.0",
-      "selected_license": "MIT",
-      "origin": "crates.io",
-      "repository": "https://github.com/rust-fuzz/arbitrary",
-      "local_notice_files": [
-        "LICENSE-APACHE",
         "LICENSE-MIT"
       ],
       "upstream_notice_review_required": false
@@ -1384,7 +1370,7 @@
     },
     {
       "name": "encoding_rs",
-      "version": "0.8.42",
+      "version": "0.8.44",
       "declared_license": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
       "selected_license": "MIT AND BSD-3-Clause",
       "origin": "crates.io",
@@ -1523,6 +1509,18 @@
       "local_notice_files": [
         "LICENSE-APACHE",
         "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "float-cmp",
+      "version": "0.9.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/mikedilger/float-cmp",
+      "local_notice_files": [
+        "LICENSE"
       ],
       "upstream_notice_review_required": false
     },
@@ -2455,6 +2453,18 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "imagesize",
+      "version": "0.15.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/Roughsketch/imagesize",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "indexmap",
       "version": "1.9.3",
       "declared_license": "Apache-2.0 OR MIT",
@@ -2697,7 +2707,7 @@
     },
     {
       "name": "js-sys",
-      "version": "0.3.106",
+      "version": "0.3.107",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2883,7 +2893,7 @@
     },
     {
       "name": "libz-sys",
-      "version": "1.1.30",
+      "version": "1.1.31",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -2948,7 +2958,7 @@
     },
     {
       "name": "log",
-      "version": "0.4.34",
+      "version": "0.4.35",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -3205,6 +3215,18 @@
       "repository": "https://github.com/mbrubeck/rust-debug-unreachable",
       "local_notice_files": [
         "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "nix",
+      "version": "0.31.3",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/nix-rust/nix",
+      "local_notice_files": [
+        "LICENSE"
       ],
       "upstream_notice_review_required": false
     },
@@ -3479,7 +3501,7 @@
     },
     {
       "name": "openssl-probe",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -3645,6 +3667,18 @@
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/rust-phf/rust-phf",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "pico-args",
+      "version": "0.5.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/RazrFalcon/pico-args",
       "local_notice_files": [
         "LICENSE"
       ],
@@ -4167,12 +4201,37 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "resvg",
+      "version": "0.48.1",
+      "declared_license": "Apache-2.0 OR MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/linebender/resvg",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "rfd",
       "version": "0.17.2",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/PolyMeilex/rfd",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "rgb",
+      "version": "0.8.53",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/kornelski/rust-rgb",
       "local_notice_files": [
         "LICENSE"
       ],
@@ -4246,7 +4305,7 @@
     },
     {
       "name": "rustix",
-      "version": "1.1.5",
+      "version": "1.1.6",
       "declared_license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -4757,6 +4816,19 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "simplecss",
+      "version": "0.2.2",
+      "declared_license": "Apache-2.0 OR MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/linebender/simplecss",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "siphasher",
       "version": "1.0.4",
       "declared_license": "MIT OR Apache-2.0",
@@ -4905,6 +4977,18 @@
         "LICENSE-APACHE",
         "LICENSE-MIT",
         "LICENSE-ZLIB"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "strict-num",
+      "version": "0.1.1",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/RazrFalcon/strict-num",
+      "local_notice_files": [
+        "LICENSE"
       ],
       "upstream_notice_review_required": false
     },
@@ -5215,7 +5299,7 @@
     },
     {
       "name": "tauri-plugin-updater",
-      "version": "2.14.0",
+      "version": "2.14.1",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5406,6 +5490,30 @@
       "local_notice_files": [
         "LICENSE-Apache",
         "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "tiny-skia",
+      "version": "0.12.0",
+      "declared_license": "BSD-3-Clause",
+      "selected_license": "BSD-3-Clause",
+      "origin": "crates.io",
+      "repository": "https://github.com/linebender/tiny-skia",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "tiny-skia-path",
+      "version": "0.12.0",
+      "declared_license": "BSD-3-Clause",
+      "selected_license": "BSD-3-Clause",
+      "origin": "crates.io",
+      "repository": "https://github.com/linebender/tiny-skia/tree/master/path",
+      "local_notice_files": [
+        "LICENSE"
       ],
       "upstream_notice_review_required": false
     },
@@ -5701,6 +5809,19 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "typed-path",
+      "version": "0.13.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/chipsenkbeil/typed-path",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "typeid",
       "version": "1.0.3",
       "declared_license": "MIT OR Apache-2.0",
@@ -5770,14 +5891,15 @@
     },
     {
       "name": "unicode-properties",
-      "version": "0.1.4",
-      "declared_license": "MIT/Apache-2.0",
-      "selected_license": "MIT",
+      "version": "0.1.5",
+      "declared_license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "selected_license": "MIT AND Unicode-3.0",
       "origin": "crates.io",
       "repository": "https://github.com/unicode-rs/unicode-properties",
       "local_notice_files": [
         "LICENSE-APACHE",
-        "LICENSE-MIT"
+        "LICENSE-MIT",
+        "LICENSE-UNICODE"
       ],
       "upstream_notice_review_required": false
     },
@@ -5796,7 +5918,7 @@
     },
     {
       "name": "unicode-width",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -5845,12 +5967,38 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "usvg",
+      "version": "0.48.1",
+      "declared_license": "Apache-2.0 OR MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/linebender/resvg",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "utf8_iter",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "declared_license": "Apache-2.0 OR MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/hsivonen/utf8_iter",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "utf_types",
+      "version": "1.0.0",
+      "declared_license": "Apache-2.0 OR MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/hsivonen/utf_types",
       "local_notice_files": [
         "LICENSE-APACHE",
         "LICENSE-MIT"
@@ -5988,7 +6136,7 @@
     },
     {
       "name": "wasm-bindgen",
-      "version": "0.2.129",
+      "version": "0.2.130",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6001,7 +6149,7 @@
     },
     {
       "name": "wasm-bindgen-futures",
-      "version": "0.4.79",
+      "version": "0.4.80",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6014,7 +6162,7 @@
     },
     {
       "name": "wasm-bindgen-macro",
-      "version": "0.2.129",
+      "version": "0.2.130",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6027,7 +6175,7 @@
     },
     {
       "name": "wasm-bindgen-macro-support",
-      "version": "0.2.129",
+      "version": "0.2.130",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6040,7 +6188,7 @@
     },
     {
       "name": "wasm-bindgen-shared",
-      "version": "0.2.129",
+      "version": "0.2.130",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6126,7 +6274,7 @@
     },
     {
       "name": "web-sys",
-      "version": "0.3.106",
+      "version": "0.3.107",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -6939,7 +7087,7 @@
     },
     {
       "name": "xattr",
-      "version": "1.6.1",
+      "version": "1.7.0",
       "declared_license": "MIT OR Apache-2.0",
       "selected_license": "MIT",
       "origin": "crates.io",
@@ -7089,11 +7237,11 @@
     },
     {
       "name": "zip",
-      "version": "4.6.1",
+      "version": "9.2.1",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "crates.io",
-      "repository": "https://github.com/zip-rs/zip2.git",
+      "repository": "https://github.com/zip-rs/zip2",
       "local_notice_files": [
         "LICENSE"
       ],
@@ -7155,7 +7303,7 @@
   "npm": [
     {
       "package_path": "node_modules/@oxc-project/types",
-      "version": "0.155.0",
+      "version": "0.156.0",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7167,7 +7315,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm-eabi",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7177,7 +7325,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-android-arm64",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7187,7 +7335,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-arm64",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7197,7 +7345,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-darwin-x64",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7207,7 +7355,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-freebsd-x64",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7217,7 +7365,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm-gnueabihf",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7227,7 +7375,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-gnu",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7237,7 +7385,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-arm64-musl",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7247,7 +7395,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-ppc64-gnu",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7257,7 +7405,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-s390x-gnu",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7267,7 +7415,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-gnu",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7277,7 +7425,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-linux-x64-musl",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7287,7 +7435,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-openharmony-arm64",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7297,7 +7445,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-arm64-msvc",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7307,7 +7455,7 @@
     },
     {
       "package_path": "node_modules/@rolldown/binding-win32-x64-msvc",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7913,7 +8061,7 @@
     },
     {
       "package_path": "node_modules/postcss",
-      "version": "8.5.31",
+      "version": "8.5.32",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
@@ -7949,7 +8097,7 @@
     },
     {
       "package_path": "node_modules/rolldown",
-      "version": "1.2.15",
+      "version": "1.2.16",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "dev": true,
