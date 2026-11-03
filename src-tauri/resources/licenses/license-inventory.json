@@ -3,8 +3,8 @@
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "3911c7719e6e8240d0c4a8edc67dad4eb2a2c1856a8f7b991ee8d8955aa3ef78",
-    "package-lock.json": "3fcfcbe3cb2082120e7c00ee63448adbe9583d10ef681ef3637f4fd78c16622c"
+    "Cargo.lock": "5c13e8010a3fcbdf283cacfdc5f4795e92ca7c8d1517808167f8cc1f2101b146",
+    "package-lock.json": "d5e3062b972b1b9cac9a1a2e0d0d669ebbc0bd2054acacd94e248c8da04b9d22"
   },
   "rust": [
     {
@@ -1551,7 +1551,7 @@
     },
     {
       "name": "font-core",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1561,7 +1561,7 @@
     },
     {
       "name": "font-hinting-native",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1571,7 +1571,7 @@
     },
     {
       "name": "font-renderer",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -1581,7 +1581,7 @@
     },
     {
       "name": "fonts-app",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
@@ -2983,7 +2983,7 @@
     },
     {
       "name": "lumapaint-core",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "declared_license": "MIT",
       "selected_license": "MIT",
       "origin": "workspace",
