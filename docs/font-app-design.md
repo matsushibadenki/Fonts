@@ -102,7 +102,7 @@ command例: `create_project`、`open_glyph`、`apply_edit`、`set_spacing`、`un
 
 FontForgeのCソースを数ファイルだけコピーしてコンパイルできるとは判断しない。次工程でGUI無効のheadlessビルド、依存閉包、初期化・終了、エラーcallback、global state、スレッド制約を検証する。CのポインタをJSへ渡さず、Rust側のopaque handleと明確なfree関数を持つ狭いC ABIを設計する。FontForge操作はまず専用単一workerに直列化し、UI threadでは実行しない。バックグラウンドジョブはrevisionを固定したsnapshotを処理する。
 
-採用する場合は必要なソース・headers・CMake・通知を `vendor/fontforge-core` へ収容し、独立ビルドを確認する。採用しない場合はFontBackend interfaceを維持し、Rust実装に置換する。現時点でどちらも完成していない。旧GUI、gdraw、Python scriptingは製品の必須構成にしない。
+採用する場合は必要なソース・headers・CMake・通知を `vendor/fontforge-core` へ収容し、独立ビルドを確認する。採用しない場合はFontBackend interfaceを維持し、Rust実装に置換する。初期設計時点では未確定だったが、現在はRust実装と同梱FreeTypeによる独立経路を採用している。FontForgeバックエンドは製品の依存にしない。旧GUI、gdraw、Python scriptingは製品の必須構成にしない。
 
 ## 7. LumaPaintからの流用
 
@@ -160,7 +160,7 @@ UI言語はEnglish、日本語、简体中文。翻訳キーで管理し、backe
 
 ## 11. 参照元削除の条件
 
-現在のRust workspaceはコピーしたcoreのみで成立する。FontForgeは実行時依存として導入していない。今回、参照元ディレクトリとsymlinkは削除しない。
+現在のRust workspaceはコピーしたcoreのみで成立する。FontForgeは実行時依存として導入していない。2026-11-04に独立コピーでの製品全体の検証と参照元削除へ進めた。現在の結果は[参照元の分離・削除記録](reference-checkout-removal.md)を参照。
 
 最終削除前に、参照元を含まない一時ディレクトリへCargo.toml、Cargo.lock、cratesと必要な製品ファイルだけを複製し、build/testを行う。後続のrenderer/backend導入後も同じ確認を必須にする。依存manifest、build scripts、resourceパスに参照元の絶対パスや`../LumaPaint`などがないことを確認する。通知とソース由来の記録を残す。ネットワークからの通常のcrate取得は許容するが、開発者のLumaPaint checkoutや削除予定のFontForge cloneを要求しない。
 

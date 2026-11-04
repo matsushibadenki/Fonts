@@ -26,5 +26,6 @@ jobs:
       - run: npm ci
       - run: cargo fmt --all -- --check
       - run: cargo test --locked --workspace
+      - run: python3 scripts/check_self_contained.py
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - run: npm run tauri -- build --debug --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'

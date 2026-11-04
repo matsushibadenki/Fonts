@@ -218,3 +218,10 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🔴 [Later] 矩形選択、制御点の複数選択、曲線を保持するブール演算、B側の複数輪郭グループ。
 
 検証: Rust413テスト成功（任意実行8件を除く）、Clippy全target、TypeScript／Vite、macOSデバッグ版Fonts.appのビルド成功。三言語UI・保存／読込・異常終了復旧と最終アセットの収録を確認。
+
+## 参照checkoutの分離・削除（2026-11-04）
+
+- 🟢 [Done] fontforgeディレクトリとルートのLumaPaintリンクを除いた独立コピーで、空のtargetからRust413テスト・フロントエンド・macOSアプリ生成を検証。
+- 🟢 [Done] バイナリのライブラリ参照を確認後に両方を削除。製品内のcore・同梱エンジンと、流用履歴・著作権・ライセンス告知を保持。
+- 🟢 [Done] 外部のローカル依存・リンク・リソースを検査するスクリプトを追加し、macOS CIへ接続。削除後の元workspaceでも成功。[検証記録](reference-checkout-removal.md)。
+- ⭕️ [Pending] Windows/Linux実機と、この変更push後のGitHub Actions実行結果。

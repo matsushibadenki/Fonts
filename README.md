@@ -13,7 +13,7 @@ npm ci
 npm run tauri dev
 ```
 
-この作業環境では依存パッケージをローカルへコピー済みなので、そのまま `npm run tauri dev` で起動できます。LumaPaint checkoutやFontForge cloneは不要です。Node.js 22.13以降、Rust toolchain、macOSのXcode Command Line Toolsを使用します。
+この作業環境では依存パッケージをローカルへコピー済みなので、そのまま `npm run tauri dev` で起動できます。LumaPaint checkoutやFontForge cloneは不要です。 2026-11-04に参照用ディレクトリ／リンクを削除し、両方を含まない独立コピーで全テストとmacOSアプリ生成を確認しました。[検証記録とCI検査](docs/reference-checkout-removal.md)。Node.js 22.13以降、Rust toolchain、macOSのXcode Command Line Toolsを使用します。
 
 ## macOSアプリのビルド
 
@@ -111,7 +111,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |
 | vendor内のlibpng 1.6.59ソース | PNG Reference Library License version 2等の原条件 | 🟢 [Done] 原文を保持。現在の同梱FreeTypeビルドではPNGデコーダーを有効化・コンパイルしていない。アタリ画像のPNG処理はRust側のimage／pngを使用する。 |
-| 調査用FontForge checkout | 上流全体はGPL-3.0-or-later、一部はBSD-3-Clause等 | 🟢 [Done] 現行アプリのビルド・実行・配布に組み込まない。調査用checkoutはGit管理対象外。将来のコード移植・同梱時はファイルと依存先ごとに再確認する。 |
+| 調査用FontForge checkout | 上流全体はGPL-3.0-or-later、一部はBSD-3-Clause等 | 🟢 [Done] 現行アプリのビルド・実行・配布に組み込まない。調査用checkoutは独立検証後の2026-11-04に削除済み。参照commitと流用記録は製品側で保持。将来のコード移植・同梱時はファイルと依存先ごとに再確認する。 |
 | 同梱スニペットの長方形・楕円・三角形・ひし形・「口」「工」の形状データ | CC0-1.0 | 🟢 [Done] 独自作成した雛形データの既存CC0を維持。登録・変形・描画のプログラムはMIT。ユーザー登録の雛形にはユーザーが指定した出典・ライセンスを保持する。 |
 | OS／Adobe等から読み込むフォント、ユーザーの画像・スニペット | 各素材・フォントのライセンス | 🟢 [Done] アプリのMITで素材を再許諾しない。閲覧・変換機能があっても、フォントの改変・埋め込み・再配布の権利を付与するものではない。 |
 | macOSのシステムFramework／WebView、WindowsのWebView2、LinuxのGTK／WebKitGTK等 | 各OS・SDK条件、LGPL／BSD等 | ⭕️ [Pending] OS別配布形態での最終確認。LinuxのRustバインディングがMITでも、リンク先のGTK／WebKitGTK等の条件は別途適用する。 |

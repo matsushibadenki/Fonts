@@ -46,3 +46,5 @@ Rustの文書・編集・保存、Tauri画面、macOS wgpu描画、ドッキン�
 - [ヒンティングの小サイズ比較](hinting-comparison.md)
 
 - 🟢 [Done] [三言語ソフトウェアアップデート・ローカル署名とGitHub Releases配布](software-updates.md)。
+
+- [参照checkoutの削除・独立性検証](reference-checkout-removal.md)
