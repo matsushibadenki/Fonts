@@ -106,20 +106,22 @@ pub fn html(
     } else {
         ""
     };
+    let page_label = match locale {
+        "ja" => "ページ",
+        "zh_cn" => "页",
+        _ => "Pages",
+    };
     format!(
-        r#"<!doctype html><html lang="{locale}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><style>
-{styles}
-@page{{size:A4 portrait;margin:15mm;}}
-*{{box-sizing:border-box}}body{{margin:0;background:#ecebe8;color:#242421;font:12px -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif}}nav{{position:sticky;top:0;padding:12px 20px;background:#fafaf9;border-bottom:1px solid #d8d7d3;display:flex;gap:16px;align-items:center;z-index:1}}button{{background:#252d35;color:white;border:0;padding:10px 20px;border-radius:6px;cursor:pointer}}button:disabled{{opacity:.4}}nav span{{font-size:12px}}main{{width:210mm;margin:24px auto;padding:15mm;background:white;box-shadow:0 3px 24px #0001}}h1{{font-size:24pt;font-weight:500;letter-spacing:-.03em;margin:0 0 10mm;border-bottom:2px solid #252d35;padding-bottom:5mm;overflow-wrap:anywhere}}article{{padding:6mm 0 7mm;border-bottom:1px solid #ccc;break-inside:avoid}}article header{{break-after:avoid;margin-bottom:4mm}}h2{{font-size:15pt;font-weight:600;line-height:1.5;margin:0;overflow-wrap:anywhere}}small{{display:block;font-size:9pt;color:#63635e;line-height:1.6}}.style{{display:block;font-size:8pt;color:#777;margin-top:1mm}}.sample{{font-size:{size}pt;line-height:1.65;margin:3mm 0;white-space:pre-wrap;overflow-wrap:anywhere;orphans:2;widows:2}}.missing{{font-size:8pt;color:#85551b}}.failed .sample{{display:none}}@media print{{nav{{display:none}}body{{background:white}}main{{width:auto;margin:0;padding:0;box-shadow:none}}}}@media screen and (max-width:820px){{main{{width:100%;margin:0;padding:20px}}nav{{flex-wrap:wrap}}}}
-</style><nav><button id="print" disabled>{print}</button><span>{help}</span><span>{status}: {skipped}{limit}</span></nav><main><h1>{title}</h1>{body}</main><script>
-(async()=>{{for(const a of document.querySelectorAll('article')){{try{{await document.fonts.load('24px '+a.dataset.font);if(!document.fonts.check('24px '+a.dataset.font))throw Error();}}catch{{a.classList.add('failed');const p=document.createElement('p');p.textContent='{failed}';a.append(p);}}}}for(const e of document.querySelectorAll('.missing-label'))e.textContent='{missing}';await document.fonts.ready;document.getElementById('print').disabled=false;}})();document.getElementById('print').onclick=()=>window.print();
-</script></html>"#,
+        r#"<!doctype html><html lang="{locale}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><style>{styles}
+{layout_css}</style><body style="--sample-size:{size}pt"><nav><button id="print" disabled>{print}</button><span>{help}</span><span>{status}: {skipped}{limit}</span><span>{page_label}: <b id="page-count">—</b></span><span id="layout-error" role="alert"></span></nav><template id="book-title"><h1>{title}</h1></template><template id="cards">{body}</template><span id="missing-label" hidden>{missing}</span><span id="load-error-label" hidden>{failed}</span><main id="pages"></main><script>{layout_js}</script></body></html>"#,
         title = escape(title),
         locale = if ["ja", "en", "zh_cn"].contains(&locale) {
             locale
         } else {
             "en"
-        }
+        },
+        layout_css = include_str!("specimen.css"),
+        layout_js = include_str!("specimen-layout.js"),
     )
 }
 #[cfg(test)]

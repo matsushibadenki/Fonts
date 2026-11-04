@@ -446,11 +446,6 @@ pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
     } else {
         &doc.metadata.style
     };
-    let ps_style: String = style
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .take(40)
-        .collect();
     let strings = [
         (0, doc.metadata.copyright.clone()),
         (1, doc.family.clone()),
@@ -458,7 +453,7 @@ pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
         (3, format!("Fonts:{ps}:1.0")),
         (4, format!("{} {style}", doc.family)),
         (5, "Version 1.000".into()),
-        (6, format!("{ps}-{ps_style}")),
+        (6, crate::font_names::postscript_name(doc)),
         (13, doc.metadata.license.clone()),
         (14, doc.metadata.license_url.clone()),
     ];

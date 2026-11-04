@@ -19,6 +19,8 @@ export interface Snapshot {
   kerning:{left:number;right:number;value:number}[];kerning_total:number;
   snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null};
   images:ReferenceImage[];image_selected:number|null;image_editing:boolean;
+  selected_nodes:[number,number][];
+  pen_points:number;pen_continuing:boolean;
   selection:{contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
   properties:FontProperties;presets:[string,number][];
   proof:{color:boolean;source:string|null;active:boolean;settings:ProofSettings;missing:number[];empty:number;comparison:boolean;height:number};

@@ -1,4 +1,5 @@
 //! Bounded, offline SVG-in-OpenType rendering. Never hand font XML to a WebView.
+use base64::Engine;
 use resvg::{tiny_skia, usvg};
 use roxmltree::{Document, Node};
 use std::{collections::BTreeMap, io::Read};
@@ -272,6 +273,42 @@ fn cost(
     Ok((total, height))
 }
 
+// Decode once under explicit allocation limits, then pass only normalized PNG to resvg.
+fn embedded_image(value: &str, pixels: &mut u64) -> Result<String, &'static str> {
+    let (header, payload) = value.split_once(',').ok_or("color_svg_unsupported")?;
+    let format = match header {
+        "data:image/png;base64" => image::ImageFormat::Png,
+        "data:image/jpeg;base64" | "data:image/jpg;base64" => image::ImageFormat::Jpeg,
+        _ => return Err("color_svg_unsupported"),
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(payload)
+        .map_err(|_| "color_svg_invalid")?;
+    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(&bytes), format);
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(4096);
+    limits.max_image_height = Some(4096);
+    limits.max_alloc = Some(32 * 1024 * 1024);
+    reader.limits(limits);
+    let (width, height) = image::ImageReader::with_format(std::io::Cursor::new(&bytes), format)
+        .into_dimensions()
+        .map_err(|_| "color_svg_invalid")?;
+    let area = u64::from(width) * u64::from(height);
+    *pixels = pixels.checked_add(area).ok_or("color_svg_limit")?;
+    if width == 0 || height == 0 || width > 4096 || height > 4096 || *pixels > 4_000_000 {
+        return Err("color_svg_limit");
+    }
+    let decoded = reader.decode().map_err(|_| "color_svg_invalid")?;
+    let mut png = std::io::Cursor::new(Vec::new());
+    decoded
+        .write_to(&mut png, image::ImageFormat::Png)
+        .map_err(|_| "color_svg_invalid")?;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png.into_inner())
+    ))
+}
+
 fn prepare(
     text: &str,
     face: &Face<'_>,
@@ -314,6 +351,7 @@ fn prepare(
     let mut ids = BTreeMap::new();
     let mut attrs = Vec::new();
     let mut links = Vec::new();
+    let mut image_pixels = 0;
     for (i, node) in nodes.iter().enumerate() {
         if node.ancestors().count() > DEPTH_LIMIT {
             return Err("color_svg_limit");
@@ -336,6 +374,7 @@ fn prepare(
                     | "stop"
                     | "clipPath"
                     | "use"
+                    | "image"
             )
             || (i != 0 && node.tag_name().name() == "svg")
         {
@@ -378,8 +417,18 @@ fn prepare(
                 return Err("color_svg_invalid");
             }
         }
+        if node.tag_name().name() == "image" {
+            if node.attributes().filter(|a| a.name() == "href").count() > 1 {
+                return Err("color_svg_invalid");
+            }
+            let href = values.get_mut("href").ok_or("color_svg_invalid")?;
+            *href = embedded_image(href, &mut image_pixels)?;
+        }
         let mut refs = Vec::new();
         for (name, value) in &mut values {
+            if name == "href" && node.tag_name().name() == "image" {
+                continue;
+            }
             if value.len() > 256 * 1024 {
                 return Err("color_svg_limit");
             }
@@ -415,7 +464,14 @@ fn prepare(
     }
     let weights: Vec<_> = attrs
         .iter()
-        .map(|v| 1 + v.values().map(String::len).sum::<usize>() / 8)
+        .map(|v| {
+            1 + v
+                .iter()
+                .filter(|(k, v)| !(k.as_str() == "href" && v.starts_with("data:")))
+                .map(|(_, v)| v.len())
+                .sum::<usize>()
+                / 8
+        })
         .collect();
     cost(
         0,
@@ -501,6 +557,13 @@ fn render_budget(
     }
     for node in group.children() {
         *work += 1;
+        if let usvg::Node::Image(image) = node {
+            let size = image.size();
+            *pixels += f64::from(size.width()) * f64::from(size.height());
+            if *pixels > 16_000_000. {
+                return Err("color_svg_limit");
+            }
+        }
         if let usvg::Node::Path(p) = node {
             *work += p.data().len();
         }
@@ -557,7 +620,9 @@ pub(crate) fn render(
         .ok_or("color_svg_invalid")?,
         // Defense in depth: never use the default resolver, which can read local files.
         image_href_resolver: usvg::ImageHrefResolver {
-            resolve_data: Box::new(|_, _, _| None),
+            resolve_data: Box::new(|mime, bytes, _| {
+                (mime == "image/png").then_some(usvg::ImageKind::PNG(bytes))
+            }),
             resolve_string: Box::new(|_, _| None),
         },
         ..Default::default()
@@ -612,6 +677,108 @@ mod tests {
         &bytes[(y * 256 + x) * 4..(y * 256 + x + 1) * 4]
     }
 
+    fn image_uri(format: image::ImageFormat) -> String {
+        let rgba = image::RgbaImage::from_pixel(2, 2, image::Rgba([240, 30, 20, 128]));
+        let mut output = std::io::Cursor::new(Vec::new());
+        let image = image::DynamicImage::ImageRgba8(rgba);
+        if format == image::ImageFormat::Jpeg {
+            image.to_rgb8().write_to(&mut output, format).unwrap();
+        } else {
+            image.write_to(&mut output, format).unwrap();
+        }
+        format!(
+            "data:image/{};base64,{}",
+            if format == image::ImageFormat::Png {
+                "png"
+            } else {
+                "jpeg"
+            },
+            base64::engine::general_purpose::STANDARD.encode(output.into_inner())
+        )
+    }
+
+    #[test]
+    fn embedded_png_and_jpeg_keep_color_alpha_transform_clip_and_use() {
+        for format in [image::ImageFormat::Png, image::ImageFormat::Jpeg] {
+            let uri = image_uri(format);
+            let svg = document(&format!(
+                r##"<defs><clipPath id="clip"><rect y="-700" width="300" height="700"/></clipPath><image id="img" href="{uri}" y="-700" width="700" height="700"/></defs><g opacity=".5" clip-path="url(#clip)"><use href="#img" transform="translate(20 0)"/></g>"##
+            ));
+            let output = draw(svg.as_bytes()).unwrap();
+            let p = pixel(&output, 30, 70);
+            assert!((i16::from(p[0]) - 240).abs() < 5, "{p:?}");
+            assert!((i16::from(p[1]) - 30).abs() < 5, "{p:?}");
+            assert!(
+                (i16::from(p[3])
+                    - if format == image::ImageFormat::Png {
+                        64
+                    } else {
+                        128
+                    })
+                .abs()
+                    <= 1,
+                "{p:?}"
+            );
+            assert_eq!(pixel(&output, 70, 70), [0; 4]);
+            let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+            std::io::Write::write_all(&mut gzip, svg.as_bytes()).unwrap();
+            assert_eq!(output, draw(&gzip.finish().unwrap()).unwrap());
+        }
+    }
+
+    #[test]
+    fn embedded_images_reject_wrong_formats_damage_dimensions_and_expansion() {
+        for uri in [
+            "data:image/svg+xml;base64,AAAA",
+            "data:image/gif;base64,AAAA",
+            "data:image/png,abc",
+            "https://example.invalid/a.png",
+            "file:///tmp/a.png",
+        ] {
+            assert_eq!(
+                error(&format!(r#"<image href="{uri}"/>"#)),
+                "color_svg_unsupported"
+            );
+        }
+        assert_eq!(
+            error(r#"<image href="data:image/png;base64,AAAA"/>"#),
+            "color_svg_invalid"
+        );
+        let oversized = image::RgbaImage::new(4097, 1);
+        let mut png = std::io::Cursor::new(Vec::new());
+        oversized
+            .write_to(&mut png, image::ImageFormat::Png)
+            .unwrap();
+        let uri = format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(png.into_inner())
+        );
+        assert_eq!(
+            error(&format!(r#"<image href="{uri}"/>"#)),
+            "color_svg_limit"
+        );
+        let uri = image_uri(image::ImageFormat::Png);
+        assert_eq!(
+            error(&format!(r#"<image href="{uri}" xlink:href="{uri}"/>"#)),
+            "color_svg_invalid"
+        );
+        let large = image::RgbaImage::new(1000, 1000);
+        let mut png = std::io::Cursor::new(Vec::new());
+        large.write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let uri = format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(png.into_inner())
+        );
+        assert_eq!(
+            error(&format!(r#"<image href="{uri}"/>"#).repeat(5)),
+            "color_svg_limit"
+        );
+        let mut body =
+            format!(r#"<defs><image id="img" href="{uri}" width="10" height="10"/></defs>"#);
+        body += &r##"<use href="#img"/>"##.repeat(17);
+        assert_eq!(error(&body), "color_svg_limit");
+    }
+
     #[test]
     fn malformed_svg_record_must_not_silently_fall_back_to_monochrome() {
         let face = Face::parse(include_bytes!("../tests/data/color/svg.ttf"), 0).unwrap();
@@ -652,12 +819,11 @@ mod tests {
         assert_eq!(pixel(&fallback, 25, 60), [255, 0, 0, 255]);
     }
     #[test]
-    fn rejects_active_content_and_all_external_or_embedded_resources() {
+    fn rejects_active_content_and_external_resources() {
         for body in [
             r#"<script>alert(1)</script>"#,
             r#"<foreignObject/>"#,
             r#"<image href="file:///etc/passwd"/>"#,
-            r#"<image href="data:image/png;base64,AAA="/>"#,
             r#"<use href="https://example.invalid/a.svg#g"/>"#,
             r#"<use xlink:href="/tmp/font.svg#g"/>"#,
             r#"<rect fill="url(https://example.invalid/a.svg#g)"/>"#,

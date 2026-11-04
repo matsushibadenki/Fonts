@@ -48,9 +48,10 @@ enum Word {
     Quit,
     Library,
     Snippets,
+    ImportFont,
 }
 fn text(locale: Locale, key: Word) -> &'static str {
-    const EN: [&str; 38] = [
+    const EN: [&str; 39] = [
         "File",
         "Edit",
         "View",
@@ -89,8 +90,9 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "Quit Fonts",
         "Font Library…",
         "Components / Snippets",
+        "Import Font — All Glyphs…",
     ];
-    const JA: [&str; 38] = [
+    const JA: [&str; 39] = [
         "ファイル",
         "編集",
         "表示",
@@ -129,8 +131,9 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "Fontsを終了",
         "フォントライブラリ…",
         "部品・スニペット",
+        "フォントの全文字を読み込む…",
     ];
-    const ZH: [&str; 38] = [
+    const ZH: [&str; 39] = [
         "文件",
         "编辑",
         "显示",
@@ -169,6 +172,7 @@ fn text(locale: Locale, key: Word) -> &'static str {
         "退出 Fonts",
         "字体库…",
         "部件与片段",
+        "导入字体的全部字形…",
     ];
     (match locale {
         Locale::En => EN,
@@ -218,6 +222,7 @@ pub fn build(app: &tauri::AppHandle, locale: Locale) -> tauri::Result<Menu<tauri
                 &[
                     &item("new", New, Some("CmdOrCtrl+N"))?,
                     &item("open", Open, Some("CmdOrCtrl+O"))?,
+                    &item("import_font", ImportFont, None)?,
                     &item("font_library", Library, Some("CmdOrCtrl+Shift+F"))?,
                     &separator()?,
                     &item("save", Save, Some("CmdOrCtrl+S"))?,

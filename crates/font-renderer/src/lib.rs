@@ -577,12 +577,14 @@ impl Renderer {
     ) -> Result<(), String> {
         let mut m = mesh(&glyph.contours, v, options.nodes, options.fill)?;
         if options.nodes {
-            if let Some((ci, point)) = overlay.node {
+            for (ci, point) in overlay
+                .nodes
+                .iter()
+                .map(|&(ci, i)| (ci, geometry::EditPoint::Anchor(i)))
+                .chain(overlay.node)
+            {
                 if let Some(c) = glyph.contours.get(ci) {
-                    if let Some((_, p)) = geometry::edit_points(c)
-                        .into_iter()
-                        .find(|(kind, _)| *kind == point)
-                    {
+                    if let Some(p) = geometry::point_position(c, point) {
                         let p = v.screen(p);
                         let color = [0.12, 0.42, 0.85, 1.];
                         for (a, b) in [

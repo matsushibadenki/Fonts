@@ -111,7 +111,19 @@ pub async fn open(window: WebviewWindow) -> Result<(), String> {
     let selected = tauri::async_runtime::spawn_blocking(move || {
         rfd::FileDialog::new()
             .set_parent(&parent)
+            .add_filter(
+                "Projects and fonts",
+                &[
+                    "json", "ttf", "otf", "ttc", "otc", "woff2", "pfa", "pfb", "cff", "cid",
+                ],
+            )
             .add_filter("Fonts project", &["json"])
+            .add_filter(
+                "Font",
+                &[
+                    "ttf", "otf", "ttc", "otc", "woff2", "pfa", "pfb", "cff", "cid",
+                ],
+            )
             .pick_file()
     })
     .await
@@ -119,6 +131,12 @@ pub async fn open(window: WebviewWindow) -> Result<(), String> {
     let Some(path) = selected else {
         return Ok(());
     };
+    if !path
+        .extension()
+        .is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("json"))
+    {
+        return crate::font_import::open_path(&window, path).await;
+    }
     let input = path.clone();
     // Parse before adding a tab. Invalid input leaves all open documents intact.
     let document = tauri::async_runtime::spawn_blocking(move || {

@@ -1,3 +1,4 @@
+import {PathOperations} from './PathOperations';
 import {PanelArrangement} from './PanelArrangement';
 import {invoke} from '@tauri-apps/api/core';
 import {Kerning} from './Kerning';
@@ -77,6 +78,7 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
         <button className={`review-button ${state.reviewed?'is-reviewed':''}`} onClick={()=>void edit({type:'review',id:state.glyph,revision:state.revision})}><Icon name="check"/>{t(state.reviewed?'reviewed':'review')}</button>
       </div>}
       {id==='outline' && <div className="outline-sections"><ReferenceImages key={`${state.epoch}-${state.glyph}`} state={state}/><div>
+        <PathOperations state={state} edit={edit}/>
         <div className="panel-count">{state.contours.length} {t('contours')}</div>
         {state.contours.length===0?<p className="empty">{t('empty')}</p>:<div className="contour-list">{state.contours.map((c,i)=><div className="contour-item" key={i}><div className="contour-row"><input type="checkbox" aria-label={`${snippetLabels[state.workspace.locale].selectContour} #${i+1}`} checked={state.snippets.contours.includes(i)} disabled={!!state.snippets.placement} onChange={e=>void snippetCommand(state,{type:'contour',index:i,selected:e.target.checked}).then(()=>setSnippetFailure('')).catch(e=>setSnippetFailure(snippetError(state.workspace.locale,e)))}/><Icon name="contour"/><span>#{i+1}</span><span>{c.nodes} {t('points')}</span><span className="contour-state" title={t(c.closed?'closed':'open')}>{c.closed?'○':'⌒'}</span></div><ContourEditor key={`${state.epoch}-${state.glyph}-${i}`} state={state} index={i} edit={edit}/></div>)}</div>}
       </div></div>}

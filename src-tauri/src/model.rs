@@ -26,11 +26,17 @@ pub struct Model {
     pub size: [f64; 2],
     pub drag: Option<Drag>,
     pub pen: Vec<Point>,
+    pub pen_edit: crate::pen::Draft,
+    pub selected_nodes: std::collections::BTreeSet<(usize, usize)>,
     pub selected: Option<(usize, font_core::geometry::EditPoint)>,
     pub path: Option<PathBuf>,
     pub saved_revision: Option<u64>,
 }
 pub struct Drag {
+    pub points: std::collections::BTreeSet<(usize, usize)>,
+    pub origin: Point,
+    pub position: Point,
+    pub independent: bool,
     pub original: Glyph,
     pub contour: usize,
     pub anchor: font_core::geometry::EditPoint,
@@ -79,6 +85,9 @@ pub struct Snapshot {
     image_selected: Option<u64>,
     image_editing: bool,
     selection: Option<SelectionSummary>,
+    pen_points: usize,
+    pen_continuing: bool,
+    selected_nodes: Vec<(usize, usize)>,
     proof: crate::proof::Summary,
     properties: font_core::FontProperties,
     presets: Vec<(&'static str, usize)>,
@@ -203,6 +212,42 @@ pub enum Action {
         revision: u64,
     },
     FinishPen,
+    FinishOpenPen,
+    SelectAllNodes,
+    ClearNodes,
+    MoveSelected {
+        dx: f64,
+        dy: f64,
+        revision: u64,
+    },
+    SplitPath {
+        id: GlyphId,
+        contour: usize,
+        anchor: usize,
+        revision: u64,
+    },
+    ContinuePath {
+        id: GlyphId,
+        contour: usize,
+        anchor: usize,
+        revision: u64,
+    },
+    JoinPaths {
+        id: GlyphId,
+        contour: usize,
+        anchor: usize,
+        target: usize,
+        target_end: bool,
+        revision: u64,
+    },
+    BackPen,
+    PathOperation {
+        id: GlyphId,
+        contour: usize,
+        segment: usize,
+        operation: String,
+        revision: u64,
+    },
     Cancel,
     ResetView,
 }
@@ -252,7 +297,9 @@ impl Model {
             size: [600., 600.],
             drag: None,
             pen: vec![],
+            pen_edit: Default::default(),
             selected: None,
+            selected_nodes: Default::default(),
             proof: crate::proof::Proof::default(),
             path: None,
             saved_revision: None,
@@ -280,7 +327,9 @@ impl Model {
         self.glyph = glyph;
         self.drag = None;
         self.selected = None;
+        self.selected_nodes.clear();
         self.pen.clear();
+        self.pen_edit = Default::default();
         self.zoom = 1.;
         self.pan = [0., 0.];
         self.saved_revision = path.as_ref().map(|_| 0);
@@ -316,16 +365,12 @@ impl Model {
                 g.contours.extend(contours);
             }
         }
-        if let Some(&start) = self.pen.first() {
-            g.contours.push(Contour {
-                smooth: Default::default(),
-                start,
-                segments: self.pen[1..]
-                    .iter()
-                    .map(|&end| Segment::Line { end })
-                    .collect(),
-                closed: false,
-            });
+        if let Some(contour) = self.pen_contour(false) {
+            if let Some((index, _)) = &self.pen_edit.source {
+                g.contours[*index] = contour;
+            } else {
+                g.contours.push(contour);
+            }
         }
         g
     }
@@ -360,6 +405,9 @@ impl Model {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
         Snapshot {
+            pen_points: self.pen.len(),
+            pen_continuing: self.pen_edit.source.is_some(),
+            selected_nodes: self.selected_nodes.iter().copied().collect(),
             documents: self.document_summaries(),
             document_id: self.document_id,
             class_kerning: doc.class_kerning.clone(),
@@ -578,6 +626,9 @@ impl Model {
                 if anchor > c.segments.len() {
                     return Err("InvalidGeometry".into());
                 }
+                self.selected_nodes.clear();
+                self.selected_nodes
+                    .insert((contour, font_core::geometry::canonical_anchor(c, anchor)));
                 self.selected = Some((
                     contour,
                     font_core::geometry::EditPoint::Anchor(font_core::geometry::canonical_anchor(
@@ -640,6 +691,7 @@ impl Model {
                 self.editor
                     .replace_glyph(revision, g)
                     .map_err(|e| e.to_string())?;
+                self.selected_nodes.clear();
                 self.selected = Some((
                     contour,
                     font_core::geometry::EditPoint::Anchor(if split {
@@ -689,6 +741,7 @@ impl Model {
                     .map_err(|e| e.to_string())?;
                 if let Some(id) = ids.first() {
                     self.selected = None;
+                    self.selected_nodes.clear();
                     self.glyph = *id;
                 }
             }
@@ -706,8 +759,10 @@ impl Model {
                     .map_err(|e| e.to_string())?;
                 if let Some(id) = ids.first() {
                     self.selected = None;
+                    self.selected_nodes.clear();
                     self.glyph = *id;
                     self.pen.clear();
+                    self.pen_edit = Default::default();
                 }
             }
             Action::SelectGlyph { id } => {
@@ -716,12 +771,16 @@ impl Model {
                 }
                 self.glyph = id;
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.pen.clear();
+                self.pen_edit = Default::default();
             }
             Action::Tool { tool } => {
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.tool = tool;
                 self.pen.clear();
+                self.pen_edit = Default::default();
             }
             Action::Zoom { value } => {
                 if !value.is_finite() || !(0.2..=8.).contains(&value) {
@@ -779,7 +838,9 @@ impl Model {
             }
             Action::Undo { revision } => {
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.pen.clear();
+                self.pen_edit = Default::default();
                 self.editor.undo(revision).map_err(|e| e.to_string())?;
                 if !self.editor.document().glyphs.contains_key(&self.glyph) {
                     self.glyph = self
@@ -794,32 +855,186 @@ impl Model {
             }
             Action::Redo { revision } => {
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.pen.clear();
+                self.pen_edit = Default::default();
                 self.editor.redo(revision).map_err(|e| e.to_string())?;
             }
-            Action::FinishPen => {
-                if self.pen.len() < 3 {
-                    return Err("need_three_points".into());
+            Action::SelectAllNodes => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
                 }
-                let mut g = self.editor.document().glyphs[&self.glyph].clone();
-                g.contours.push(Contour {
-                    smooth: Default::default(),
-                    start: self.pen[0],
-                    segments: self.pen[1..]
-                        .iter()
-                        .map(|&end| Segment::Line { end })
-                        .collect(),
-                    closed: true,
-                });
+                self.tool = Tool::Nodes;
+                self.nodes = true;
+                self.proof.active = false;
+                self.proof.generation += 1;
+                self.selected_nodes = self.editor.document().glyphs[&self.glyph]
+                    .contours
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(ci, c)| {
+                        font_core::geometry::edit_points(c)
+                            .into_iter()
+                            .filter_map(move |(p, _)| {
+                                if let font_core::geometry::EditPoint::Anchor(i) = p {
+                                    Some((ci, i))
+                                } else {
+                                    None
+                                }
+                            })
+                    })
+                    .collect();
+                self.selected = None;
+            }
+            Action::ClearNodes => {
+                self.selected_nodes.clear();
+                self.selected = None;
+            }
+            Action::MoveSelected { dx, dy, revision } => {
+                if revision != self.editor.revision() {
+                    return Err("Conflict".into());
+                }
+                if dx == 0. && dy == 0. {
+                    return Ok(());
+                }
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
+                font_core::path_edit::move_anchors(
+                    &mut glyph.contours,
+                    &self.selected_nodes,
+                    [dx, dy],
+                )
+                .map_err(|e| e.to_string())?;
+                glyph.status = GlyphStatus::Draft;
+                self.editor
+                    .replace_glyph(revision, glyph)
+                    .map_err(|e| e.to_string())?;
+            }
+            Action::SplitPath {
+                id,
+                contour,
+                anchor,
+                revision,
+            } => {
+                if self.has_draft() || id != self.glyph {
+                    return Err("edit_in_progress".into());
+                }
+                let mut glyph = self.editor.document().glyphs[&id].clone();
+                let parts = font_core::path_edit::split(
+                    glyph.contours.get(contour).ok_or("InvalidGeometry")?,
+                    anchor,
+                )
+                .map_err(|e| e.to_string())?;
+                glyph.contours.splice(contour..=contour, parts);
+                glyph.status = GlyphStatus::Draft;
+                self.editor
+                    .replace_glyph(revision, glyph)
+                    .map_err(|e| e.to_string())?;
+                self.selected = None;
+                self.selected_nodes.clear();
+                self.snippets.contours.clear();
+            }
+            Action::ContinuePath {
+                id,
+                contour,
+                anchor,
+                revision,
+            } => self.continue_path(id, contour, anchor, revision)?,
+            Action::JoinPaths {
+                id,
+                contour,
+                anchor,
+                target,
+                target_end,
+                revision,
+            } => {
+                if self.has_draft() || id != self.glyph {
+                    return Err("edit_in_progress".into());
+                }
+                if revision != self.editor.revision() {
+                    return Err("Conflict".into());
+                }
+                let mut glyph = self.editor.document().glyphs[&id].clone();
+                let first = glyph.contours.get(contour).ok_or("InvalidGeometry")?;
+                if first.closed
+                    || first.segments.is_empty()
+                    || !(anchor == 0 || anchor == first.segments.len())
+                {
+                    return Err("InvalidGeometry".into());
+                }
+                if contour == target {
+                    if (anchor == 0) == !target_end {
+                        return Err("InvalidGeometry".into());
+                    }
+                    font_core::path_edit::set_closed(&mut glyph.contours[contour], true)
+                        .map_err(|e| e.to_string())?;
+                } else {
+                    let second = glyph.contours.get(target).ok_or("InvalidGeometry")?;
+                    let joined = font_core::path_edit::join(first, anchor == 0, second, target_end)
+                        .map_err(|e| e.to_string())?;
+                    glyph.contours[contour] = joined;
+                    glyph.contours.remove(target);
+                }
+                glyph.status = GlyphStatus::Draft;
+                self.editor
+                    .replace_glyph(revision, glyph)
+                    .map_err(|e| e.to_string())?;
+                self.selected = None;
+                self.selected_nodes.clear();
+                self.snippets.contours.clear();
+            }
+            Action::FinishPen => self.finish_pen(true)?,
+            Action::FinishOpenPen => self.finish_pen(false)?,
+            Action::BackPen => {
+                if self.pen.len() == 1 && self.pen_edit.source.is_some() {
+                    self.pen.clear();
+                    self.pen_edit = Default::default();
+                } else {
+                    self.pen.pop();
+                    self.pen_edit.handles.truncate(self.pen.len());
+                    self.pen_edit.incoming.truncate(self.pen.len());
+                }
+                self.pen_edit.pressed = None;
+            }
+            Action::PathOperation {
+                id,
+                contour,
+                segment,
+                operation,
+                revision,
+            } => {
+                if id != self.glyph || !self.pen.is_empty() {
+                    return Err("edit_in_progress".into());
+                }
+                let mut g = self
+                    .editor
+                    .document()
+                    .glyphs
+                    .get(&id)
+                    .ok_or("missing_glyph")?
+                    .clone();
+                let c = g.contours.get_mut(contour).ok_or("InvalidGeometry")?;
+                match operation.as_str() {
+                    "reverse" => font_core::path_edit::reverse(c),
+                    "toggle_closed" => font_core::path_edit::set_closed(c, !c.closed),
+                    "straighten" => font_core::path_edit::straighten(c, segment),
+                    _ => return Err("InvalidGeometry".into()),
+                }
+                .map_err(|e| e.to_string())?;
                 g.status = GlyphStatus::Draft;
                 self.editor
-                    .replace_glyph(self.editor.revision(), g)
+                    .replace_glyph(revision, g)
                     .map_err(|e| e.to_string())?;
-                self.pen.clear();
+                self.selected = None;
+                self.selected_nodes.clear();
+                self.snippets.contours.clear();
             }
             Action::Cancel => {
                 self.drag = None;
                 self.pen.clear();
+                self.pen_edit = Default::default();
             }
             Action::ResetView => {
                 self.zoom = 1.;
@@ -829,6 +1044,25 @@ impl Model {
         Ok(())
     }
     pub fn pointer(&mut self, phase: &str, x: f64, y: f64) -> Result<(), String> {
+        self.pointer_modified(phase, x, y, false)
+    }
+    pub fn pointer_modified(
+        &mut self,
+        phase: &str,
+        x: f64,
+        y: f64,
+        alt: bool,
+    ) -> Result<(), String> {
+        self.pointer_input(phase, x, y, alt, false)
+    }
+    pub fn pointer_input(
+        &mut self,
+        phase: &str,
+        x: f64,
+        y: f64,
+        alt: bool,
+        shift: bool,
+    ) -> Result<(), String> {
         if crate::updates::installing() {
             return Err("update_installing".into());
         }
@@ -860,6 +1094,7 @@ impl Model {
                             .and_then(|p| p.source)
                         {
                             self.selected = None;
+                            self.selected_nodes.clear();
                             self.snippets = Default::default();
                             self.images = Default::default();
                             self.glyph = id;
@@ -871,20 +1106,11 @@ impl Model {
             }
             return Ok(());
         }
+        if self.tool == Tool::Pen {
+            return self.pen_pointer(phase, [x, y], false);
+        }
         let p = self.viewport().document([x, y]);
         match phase {
-            "down" if self.tool == Tool::Pen => {
-                if self.pen.len() >= 4096 {
-                    return Err("too_many_points".into());
-                }
-                if self
-                    .pen
-                    .last()
-                    .is_none_or(|q| (q[0] - p[0]).hypot(q[1] - p[1]) * self.viewport().scale() > 3.)
-                {
-                    self.pen.push(p);
-                }
-            }
             "down" if self.tool == Tool::Nodes && self.nodes => {
                 self.drag = None;
                 let g = &self.editor.document().glyphs[&self.glyph];
@@ -904,9 +1130,34 @@ impl Model {
                         (distance < 10.).then_some((ci, point, distance))
                     })
                     .min_by(|a, b| a.2.total_cmp(&b.2));
+                if let Some((ci, font_core::geometry::EditPoint::Anchor(i), _)) = found {
+                    if shift {
+                        if !self.selected_nodes.insert((ci, i)) {
+                            self.selected_nodes.remove(&(ci, i));
+                            self.selected = self
+                                .selected_nodes
+                                .first()
+                                .map(|&(ci, i)| (ci, font_core::geometry::EditPoint::Anchor(i)));
+                            return Ok(());
+                        }
+                    } else if !self.selected_nodes.contains(&(ci, i)) {
+                        self.selected_nodes.clear();
+                        self.selected_nodes.insert((ci, i));
+                    }
+                } else {
+                    self.selected_nodes.clear();
+                }
                 self.selected = found.map(|(ci, point, _)| (ci, point));
                 if let Some((contour, anchor, _)) = found {
+                    let origin = p;
+                    let position =
+                        font_core::geometry::point_position(&g.contours[contour], anchor)
+                            .ok_or("InvalidGeometry")?;
                     self.drag = Some(Drag {
+                        points: self.selected_nodes.clone(),
+                        origin,
+                        position,
+                        independent: alt,
                         original: g.clone(),
                         draft: g.clone(),
                         contour,
@@ -917,8 +1168,29 @@ impl Model {
             }
             "move" => {
                 if let Some(d) = self.drag.as_mut() {
+                    if d.points.len() > 1 {
+                        let mut contours = d.original.contours.clone();
+                        font_core::path_edit::move_anchors(
+                            &mut contours,
+                            &d.points,
+                            [p[0] - d.origin[0], p[1] - d.origin[1]],
+                        )
+                        .map_err(|e| e.to_string())?;
+                        d.draft.contours = contours;
+                        return Ok(());
+                    }
+                    let p = [
+                        d.position[0] + p[0] - d.origin[0],
+                        d.position[1] + p[1] - d.origin[1],
+                    ];
                     let c = &mut d.draft.contours[d.contour];
-                    font_core::geometry::move_point(c, d.anchor, p).map_err(|e| e.to_string())?;
+                    d.independent |= alt;
+                    if d.independent {
+                        font_core::path_edit::move_independent(c, d.anchor, p)
+                    } else {
+                        font_core::geometry::move_point(c, d.anchor, p)
+                    }
+                    .map_err(|e| e.to_string())?;
                 }
             }
             "up" => {
@@ -1323,6 +1595,7 @@ mod tests {
         m.action(Action::Tool { tool: Tool::Pen }).unwrap();
         for p in [[200., 200.], [300., 200.], [250., 300.]] {
             m.pointer("down", p[0], p[1]).unwrap();
+            m.pointer("up", p[0], p[1]).unwrap();
         }
         assert_eq!(m.editor.document().glyphs[&1].contours.len(), 2);
         m.action(Action::FinishPen).unwrap();

@@ -105,7 +105,7 @@ pub(super) fn encode_prepared(
     let glyph_names = prepared
         .and_then(|p| p.names.clone())
         .unwrap_or_else(|| postscript::names(doc));
-    let name = postscript::ps_name(&doc.family);
+    let name = crate::font_names::postscript_name(doc);
     let name_index = index(&[name.into_bytes()])?;
     let seed = prepared.and_then(|p| p.seed.as_ref());
     let mut strings = seed.map(|s| s.strings.clone()).unwrap_or_default();

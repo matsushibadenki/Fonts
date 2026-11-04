@@ -6,7 +6,9 @@ mod floating;
 mod font_activation;
 mod font_batch;
 mod font_catalog;
+mod font_import;
 mod font_library;
+mod font_names;
 mod font_output;
 mod font_paths;
 mod font_store;
@@ -16,6 +18,8 @@ mod menu_actions;
 mod model;
 #[cfg(target_os = "macos")]
 mod native;
+mod path_boolean;
+mod pen;
 mod proof;
 mod recovery;
 mod recovery_store;
@@ -133,6 +137,8 @@ struct PointerRequest {
     revision: u64,
     glyph: u32,
     shift: bool,
+    #[serde(default)]
+    alt: bool,
     token: String,
     epoch: u64,
     x: f64,
@@ -149,6 +155,7 @@ fn pointer(
         revision,
         glyph,
         shift,
+        alt,
         token,
         epoch,
         x,
@@ -174,7 +181,21 @@ fn pointer(
             if m.glyph != glyph || m.editor.revision() != revision {
                 return Err("Conflict".into());
             }
-            m.pointer(&phase, x, y)?;
+            if m.tool == font_core::workspace::Tool::Pen && !m.proof.active {
+                if alt {
+                    m.pen_pointer_modified(&phase, [x, y], shift, true)?;
+                } else {
+                    m.pen_pointer(&phase, [x, y], shift)?;
+                }
+            } else {
+                if shift {
+                    m.pointer_input(&phase, x, y, alt, true)?;
+                } else if alt {
+                    m.pointer_modified(&phase, x, y, true)?;
+                } else {
+                    m.pointer(&phase, x, y)?;
+                }
+            }
         }
     }
     // Pointer moves redraw on demand but do not broadcast document snapshots.
@@ -368,6 +389,11 @@ async fn layout(window: WebviewWindow, action: LayoutAction, revision: u64) -> R
 async fn new_project(window: WebviewWindow) -> Result<(), String> {
     allowed(&window)?;
     files::new(window).await
+}
+#[tauri::command]
+async fn open_project(window: WebviewWindow) -> Result<(), String> {
+    allowed(&window)?;
+    files::open(window).await
 }
 #[tauri::command]
 async fn save_project(window: WebviewWindow) -> Result<(), String> {
@@ -592,6 +618,7 @@ fn main() {
             updates::updater_action,
             documents::document_action,
             clipboard::paste_paths,
+            path_boolean::boolean_paths,
             clipboard::paste_text,
             font_batch::font_batch_start,
             font_batch::font_batch_query,
@@ -609,9 +636,17 @@ fn main() {
             layout,
             save_project,
             new_project,
+            open_project,
             text_focus,
             open_font_library,
             font_library::font_library_query,
+            font_import::font_import_choose,
+            font_import::font_import_face,
+            font_import::font_import_release,
+            font_names::font_names_progress,
+            font_names::font_names_clear,
+            font_names::font_names_scan,
+            font_names::font_names_repair,
             specimen::specimen_settings,
             specimen::specimen_create,
             hinting::font_hinting_info,

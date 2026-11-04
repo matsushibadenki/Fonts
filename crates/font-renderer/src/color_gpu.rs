@@ -19,6 +19,15 @@ fn svg_colors_gradients_alpha_and_palette_survive_wgpu() {
     );
 }
 
+#[test]
+#[ignore = "Requires a real GPU adapter"]
+fn svg_embedded_images_survive_wgpu() {
+    check_color_image(
+        include_bytes!("../../font-core/tests/data/color/svg-images.ttf"),
+        &["A", "B", "C"],
+    );
+}
+
 fn check_color_image(source: &[u8], glyphs: &[&str]) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let format = wgpu::TextureFormat::Rgba8UnormSrgb;

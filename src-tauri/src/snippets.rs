@@ -238,6 +238,7 @@ impl Model {
                 });
                 self.images = Default::default();
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.tool = Tool::Snippets;
             }
             Action::Transform { placement } => {

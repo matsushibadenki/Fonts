@@ -52,6 +52,7 @@ fn images_render_orientation_alpha_rotation_order_and_outline_with_texture_reuse
             &mut m,
             v,
             &EditorOverlay {
+                nodes: &Default::default(),
                 node: None,
                 images,
                 assets: &assets,

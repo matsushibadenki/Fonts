@@ -2,7 +2,7 @@ import type { Locale } from './types';
 const en = {
   panelLayout:'Arrange panel',panelTarget:'Target panel',splitLeft:'Split to the left',splitRight:'Split to the right',splitTop:'Split above',splitBottom:'Split below',tab:'Merge as tab',splitResize:'Resize split',splitHelp:'Choose a target and direction, or drag a panel header onto a panel edge. The center merges tabs. Drag dividers or use arrow keys. Floating panels return to their original slot when closed.',
   snippets:'Components / snippets',snippetHelp:'Select contours to register. Templates insert independent outline copies; drag the placement box, then confirm. Esc cancels.',
-  newDocument:'New blank document',
+  newDocument:'New blank document',openFile:'Open project or font',
   invalidUnicode:'Enter valid characters or Unicode scalar code points (U+0000–U+10FFFF, excluding surrogates).',unicodeLimit:'Limit exceeded: 65534 unique characters per batch and 65535 glyphs per project.',
   addCharacters:'Add characters',characters:'Characters',codepoints:'Code points',inputMode:'Input mode',noMatches:'No matching characters',pageNumber:'Page',previousPage:'Previous page',nextPage:'Next page',unicodeHelp:'Add literal characters or hexadecimal code points and ranges (U+3041-U+3096, U+1F600). Up to 65534 unique scalars per batch. Existing characters are preserved. Sequences are added as separate characters.',
   glyphs:'Glyphs',metrics:'Metrics',outline:'Outline',draw:'Draw',space:'Space',test:'Test',export:'Export',
@@ -18,14 +18,14 @@ const en = {
   drop:'Drop panel',floatHelp:'Use a dock button to return this panel. Closing the window also docks it. Position and size are saved and restored at startup, and kept inside the available display area.',
   finish:'Close contour',cancel:'Cancel edit',empty:'No contours',language:'Language',
   startup:'Open this editor with npm run tauri dev.',error:'Operation failed',retry:'Retry',
-  penHint:'Click to add points · Enter to close · Esc to cancel',nodesHint:'Drag anchors · ⌘Z undo · ⌘V paste Illustrator / LumaPaint paths',
+  penHint:'Click to add points · Enter to close · Esc to cancel',nodesHint:'Drag anchors · Option/Alt-drag handles independently · ⌘Z undo · ⌘V paste Illustrator / LumaPaint paths',
   gpuError:'GPU canvas unavailable',baseline:'Baseline',ready:'Ready',
 };
 export type Key = keyof typeof en;
 const ja:Record<Key,string> = {
   panelLayout:'パネル配置',panelTarget:'配置先パネル',splitLeft:'左に分割',splitRight:'右に分割',splitTop:'上に分割',splitBottom:'下に分割',tab:'タブにまとめる',splitResize:'分割比率を変更',splitHelp:'配置先と方向を選択するか、見出しをパネルの端へドラッグ。中央はタブにまとめます。境界はドラッグや矢印キーで調整。分離パネルは閉じると元の位置へ戻ります。',
   snippets:'部品・スニペット',snippetHelp:'輪郭を選んで登録。雛形は独立した輪郭として配置されます。配置枠をドラッグして調整し、確定します。Escで取消。',
-  newDocument:'新規空ドキュメント',
+  newDocument:'新規空ドキュメント',openFile:'プロジェクト・フォントを開く',
   invalidUnicode:'有効な文字またはコードポイントを入力してください（U+0000〜U+10FFFF、サロゲートを除く）。',unicodeLimit:'上限を超えました。1回65534文字、プロジェクト全体65535グリフまでです。',
   addCharacters:'文字を追加',characters:'文字列',codepoints:'コードポイント',inputMode:'入力方法',noMatches:'一致する文字なし',pageNumber:'ページ',previousPage:'前のページ',nextPage:'次のページ',unicodeHelp:'文字列、または16進数のコードポイントと範囲（U+3041-U+3096, U+1F600）を追加します。1回65534文字まで。登録済みの文字は保持します。結合文字列は個別の文字として追加します。',
   glyphs:'文字一覧',metrics:'メトリクス',outline:'輪郭',draw:'描く',space:'揃える',test:'試す',export:'完成',
@@ -38,12 +38,12 @@ const ja:Record<Key,string> = {
   outlineHelp:'四角い端点・丸い曲線ハンドルをドラッグして編集。ペンはクリックで点を追加し、Enterかダブルクリックで閉じます。Escで取り消し。',
   pending:'この工程は今後実装します。',native:'ネイティブGPU描画',loading:'ワークスペースを開いています…',drop:'パネルを配置',
   floatHelp:'ドックのボタンやウインドウを閉じる操作で戻せます。位置とサイズは保存し、再起動時に復元します。モニター構成が変わると画面内へ補正します。',finish:'輪郭を閉じる',cancel:'編集を取り消す',empty:'輪郭なし',language:'表示言語',
-  startup:'npm run tauri dev でエディターを起動してください。',error:'操作に失敗しました',retry:'再試行',penHint:'クリックで点を追加 · Enterで閉じる · Escで取り消し',nodesHint:'点をドラッグ · ⌘Zで元に戻す · ⌘VでIllustrator・LumaPaintのパスを貼り付け',gpuError:'GPU描画を開始できません',baseline:'基準線',ready:'準備完了',
+  startup:'npm run tauri dev でエディターを起動してください。',error:'操作に失敗しました',retry:'再試行',penHint:'クリックで点を追加 · Enterで閉じる · Escで取り消し',nodesHint:'点をドラッグ · Option／Altでハンドルを独立編集 · ⌘Zで元に戻す · ⌘VでIllustrator・LumaPaintのパスを貼り付け',gpuError:'GPU描画を開始できません',baseline:'基準線',ready:'準備完了',
 };
 const zh:Record<Key,string> = {
   panelLayout:'排列面板',panelTarget:'目标面板',splitLeft:'向左拆分',splitRight:'向右拆分',splitTop:'向上拆分',splitBottom:'向下拆分',tab:'合并为标签页',splitResize:'调整拆分比例',splitHelp:'选择目标与方向，或将面板标题拖到面板边缘；中央合并为标签页。拖动分隔线或使用方向键调整。关闭浮动面板时返回原位置。',
   snippets:'部件与片段',snippetHelp:'选择轮廓以注册。模板插入独立轮廓副本。拖动放置框调整后确认，Esc 取消。',
-  newDocument:'新建空白文档',
+  newDocument:'新建空白文档',openFile:'打开项目或字体',
   invalidUnicode:'请输入有效字符或 Unicode 标量码点（U+0000–U+10FFFF，不含代理码点）。',unicodeLimit:'超出上限：每批65534个不同字符，每个项目65535个字形。',
   addCharacters:'添加字符',characters:'字符串',codepoints:'码点',inputMode:'输入方式',noMatches:'无匹配字符',pageNumber:'页码',previousPage:'上一页',nextPage:'下一页',unicodeHelp:'添加字符串或十六进制码点与范围（U+3041-U+3096, U+1F600）。每批最多65534个不同标量。保留已有字符。序列将按单独字符添加。',
   glyphs:'字符',metrics:'度量',outline:'轮廓',draw:'绘制',space:'间距',test:'测试',export:'完成',
@@ -53,6 +53,6 @@ const zh:Record<Key,string> = {
   metricHelp:'前进宽度决定到下一个字符的距离。此阶段全局上下边界为只读。',outlineHelp:'拖动方形锚点或圆形曲线手柄进行编辑。钢笔：点击添加节点，按 Enter 或双击闭合，Esc 取消。',
   pending:'此步骤将在后续实现。',native:'原生 GPU 画布',loading:'正在打开工作区…',drop:'放置面板',floatHelp:'使用停靠按钮或关闭窗口可返回停靠区。位置和大小会保存并在启动时恢复；显示器布局变化时会调整到可见区域。',
   finish:'闭合轮廓',cancel:'取消编辑',empty:'暂无轮廓',language:'显示语言',startup:'请通过 npm run tauri dev 启动编辑器。',error:'操作失败',retry:'重试',
-  penHint:'点击添加节点 · Enter 闭合 · Esc 取消',nodesHint:'拖动锚点 · ⌘Z 撤销 · ⌘V 粘贴 Illustrator / LumaPaint 路径',gpuError:'GPU 画布不可用',baseline:'基线',ready:'就绪',
+  penHint:'点击添加节点 · Enter 闭合 · Esc 取消',nodesHint:'拖动锚点 · Option/Alt 独立拖动控制柄 · ⌘Z 撤销 · ⌘V 粘贴 Illustrator / LumaPaint 路径',gpuError:'GPU 画布不可用',baseline:'基线',ready:'就绪',
 };
 export const messages:Record<Locale,Record<Key,string>> = {en,ja,zh_cn:zh};

@@ -8,6 +8,8 @@ pub mod geometry;
 pub mod hinting;
 pub mod hinting_preview;
 pub mod kerning;
+pub mod path_boolean;
+pub mod path_edit;
 pub mod path_paste;
 pub mod proof;
 pub mod reference_images;
@@ -585,3 +587,5 @@ pub mod variations;
 
 pub mod color_fonts;
 mod svg_color;
+
+pub mod font_names;

@@ -314,3 +314,23 @@ fn color_woff2_rejects_bad_settings_and_mismatched_content() {
     assert!(color::export_woff2(COLR, 99, 5).is_err());
     assert!(color::export_woff2(b"bad", 0, 5).is_err());
 }
+
+#[test]
+fn svg_embedded_images_woff2_preserve_all_pixels() {
+    let source = include_bytes!("data/color/svg-images.ttf");
+    let bytes = color::export_woff2(source, 0, 5).unwrap();
+    color::verify_woff2(&bytes, source, 0).unwrap();
+    let decoded = font_core::font_formats::woff2::decode(&bytes).unwrap();
+    for text in ["A", "B", "C", "ABC"] {
+        let original = color::preview(source, 0, text, 100, 0, [512, 256]).unwrap();
+        assert!(original
+            .image
+            .rgba()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|p| p[3] > 0));
+        let result = color::preview(&decoded, 0, text, 100, 0, [512, 256]).unwrap();
+        assert_eq!(original.image.rgba(), result.image.rgba());
+    }
+}

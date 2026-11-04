@@ -1,4 +1,21 @@
 const paths = {
+  selectAll:'M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5M8 8h8v8H8z',
+  movePoints:'M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3',
+  cutPath:'M4 5l16 14M4 19 20 5M7 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M7 19a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+  union:'M3 3h12v6h6v12H9v-6H3z',
+  difference:'M3 3h12v6H9v6H3zM15 9h6v12H9v-6',
+  intersection:'M9 9h6v6H9zM3 3h12v12H3zM9 9h12v12H9z',
+  xor:'M3 3h12v6H9v6H3zM15 9h6v12H9v-6h6z',
+
+  continuePath:'M3 18h8V6h6m-3-3 3 3-3 3M1 16h4v4H1z',
+  joinPath:'M2 6h6v12h6M10 6h4v12h8M6 4h4v4H6zM12 16h4v4h-4z',
+  independent:'M3 6l8 6 10-8M9 10h4v4H9zM1 4h4v4H1zM19 2h4v4h-4z',
+
+  closePath:'M5 5h14v14H5zM3 3h4v4H3zM17 17h4v4h-4z',
+  openPath:'M5 5h14v14H9M3 3h4v4H3zM7 17h4v4H7z',
+  reversePath:'M4 8h15l-4-4m4 4-4 4M20 16H5l4-4m-4 4 4 4',
+  straightPath:'M5 19 19 5M3 17h4v4H3zM17 3h4v4h-4z',
+
   hinting:'M3 5h18M3 19h18M7 19 12 5l5 14M9 14h6M3 9h3M18 15h3',
   palette:'M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 1-4 1 1 0 0 1 1-2h2a4 4 0 0 0 4-4c0-5-5-8-10-8ZM7 8h.01M12 6h.01M17 9h.01M6 13h.01',
   split:'M3 3h18v18H3zM12 3v18M12 12h9',

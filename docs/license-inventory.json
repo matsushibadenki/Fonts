@@ -1,9 +1,9 @@
 {
-  "checked_on": "2026-11-03",
+  "checked_on": "2026-11-04",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "5c13e8010a3fcbdf283cacfdc5f4795e92ca7c8d1517808167f8cc1f2101b146",
+    "Cargo.lock": "34953a32d4cbc1c35cfc55333bd61cbff81d66e308446484585ed821e81f8211",
     "package-lock.json": "d5e3062b972b1b9cac9a1a2e0d0d669ebbc0bd2054acacd94e248c8da04b9d22"
   },
   "rust": [
@@ -709,6 +709,18 @@
       "selected_license": "Apache-2.0",
       "origin": "crates.io",
       "repository": "https://github.com/brendanzab/codespan",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "color_quant",
+      "version": "1.1.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/image-rs/color_quant.git",
       "local_notice_files": [
         "LICENSE"
       ],
@@ -1905,6 +1917,19 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "gif",
+      "version": "0.14.2",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/image-rs/image-gif",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "gio",
       "version": "0.18.4",
       "declared_license": "MIT",
@@ -2280,6 +2305,62 @@
       "upstream_notice_review_required": false
     },
     {
+      "name": "i_float",
+      "version": "5.0.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/iShape-Rust/iFloat",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "i_key_sort",
+      "version": "0.12.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/iShape-Rust/iKeySort",
+      "local_notice_files": [],
+      "upstream_notice_review_required": true
+    },
+    {
+      "name": "i_overlay",
+      "version": "9.1.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/iShape-Rust/iOverlay",
+      "local_notice_files": [],
+      "upstream_notice_review_required": true
+    },
+    {
+      "name": "i_shape",
+      "version": "5.0.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/iShape-Rust/i_shape",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "i_tree",
+      "version": "0.20.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/iShape-Rust/iTree",
+      "local_notice_files": [
+        "LICENSE"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
       "name": "iana-time-zone",
       "version": "0.1.65",
       "declared_license": "MIT OR Apache-2.0",
@@ -2446,6 +2527,19 @@
       "selected_license": "MIT",
       "origin": "crates.io",
       "repository": "https://github.com/image-rs/image",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "image-webp",
+      "version": "0.2.4",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/image-rs/image-webp",
       "local_notice_files": [
         "LICENSE-APACHE",
         "LICENSE-MIT"
@@ -3946,6 +4040,19 @@
       "local_notice_files": [
         "LICENSE-APACHE.md",
         "LICENSE.md"
+      ],
+      "upstream_notice_review_required": false
+    },
+    {
+      "name": "quick-error",
+      "version": "2.0.1",
+      "declared_license": "MIT/Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "http://github.com/tailhook/quick-error",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
       ],
       "upstream_notice_review_required": false
     },
@@ -6376,6 +6483,19 @@
       "repository": "https://github.com/wravery/webview2-rs",
       "local_notice_files": [],
       "upstream_notice_review_required": true
+    },
+    {
+      "name": "weezl",
+      "version": "0.1.12",
+      "declared_license": "MIT OR Apache-2.0",
+      "selected_license": "MIT",
+      "origin": "crates.io",
+      "repository": "https://github.com/image-rs/weezl",
+      "local_notice_files": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "upstream_notice_review_required": false
     },
     {
       "name": "weezl",

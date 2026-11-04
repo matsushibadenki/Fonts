@@ -193,6 +193,7 @@ fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
             fill: model.fill,
         },
         font_renderer::EditorOverlay {
+            nodes: &model.selected_nodes,
             node: model.selected,
             images: &images,
             assets: model.editor.document().reference_images.assets(),

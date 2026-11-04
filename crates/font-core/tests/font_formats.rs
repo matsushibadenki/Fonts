@@ -237,3 +237,13 @@ fn bundled_engine_version_is_pinned() {
     }
     assert_eq!((major, minor, patch), (2, 15, 0));
 }
+
+#[test]
+fn cff_export_uses_the_same_postscript_name_as_sfnt() {
+    for format in [Format::Otf, Format::CidOtf] {
+        let output = font_formats::export(&source(), format).unwrap();
+        let info = font_core::font_names::inspect(&output).unwrap().unwrap();
+        assert!(!info.mismatch);
+        assert_eq!(info.postscript, "FormatsTest-Regular");
+    }
+}

@@ -22,5 +22,7 @@ lopdf = { version = "=0.46.0", default-features = false }
 brotli = "=9.1.1"
 
 font-hinting-native = { path = "../font-hinting-native" }
-resvg = { version = "=0.48.1", default-features = false }
+resvg = { version = "=0.48.1", default-features = false, features = ["raster-images"] }
 flate2 = "=1.1.10"
+
+i_overlay = "=9.1.0"

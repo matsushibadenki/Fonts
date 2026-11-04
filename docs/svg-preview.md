@@ -13,7 +13,7 @@
 | インラインstyle | 🟢 [Done] 対応する表示属性の単純な宣言。スタイルシート・CSSエスケープ・!important等は拒否 |
 | UTF-8 XML／gzip | 🟢 [Done] 展開量に上限。metadata／title／descは描画前に除外 |
 | 共有SVG文書 | 🟢 [Done] glyphNをuseとして参照し、対象以外のグリフを描画しない。単一グリフ文書に限りID省略を互換扱い |
-| 埋め込みPNG／JPEG | 🟠 [Next] 現在は画像要素を拒否。既存sbix／CBDTのPNGプレビューは対応済み |
+| 埋め込みPNG／JPEG | 🟢 [Done] base64 data URLのimage要素。透明度・変形・クリップ・ローカルuse・preserveAspectRatioに対応 |
 | スタイルシート、フィルター、パターン、マスク、入れ子SVG、linearRGB補間等 | 🔴 [Later] 今回の静的ベクター対応範囲外。異なる色や部分的な表示へ暗黙に置き換えず拒否 |
 | スクリプト、イベント、外部参照、DTD／実体、foreignObject、テキスト、アニメーション | 非対応。外部通信・ローカルファイルの読み込み・スクリプト実行は行わない |
 
@@ -21,12 +21,14 @@ SVGの原点はベースライン、Y方向は下向き。初期ビューポー�
 
 ## 描画経路と上限
 
-Rustがフォントを保持し、worker内でSVGの展開・検査・再構築・ラスタライズを行う。resvg/usvg 0.48.1は既定機能を無効化し、テキスト・システムフォント探索・画像デコーダーを追加しない。画像リソース解決器はdata URL用と通常URL用の両方で常にNoneを返す。元XMLをそのままレンダラーへ渡さず、対応要素と属性だけで再構築する。未知の描画要素や属性はエラーにする。
+Rustがフォントを保持し、worker内でSVGの展開・検査・再構築・ラスタライズを行う。resvg/usvg 0.48.1は既定機能を無効化し、テキスト・システムフォント探索は無効。埋め込み画像はRustのimageで寸法・総画素数を検査して復号し、PNGへ正規化する。data URL用解決器は正規化PNGのみを受け入れ、通常URL用解決器は常にNoneを返す。resvgのraster-images機能を使用するが、GIF／WebP／埋め込みSVGは入力検査で拒否する。元XMLをそのままレンダラーへ渡さず、対応要素と属性だけで再構築する。未知の描画要素や属性はエラーにする。
 
 | 対象 | 上限 |
 | --- | --- |
 | 元フォント／プレビュー領域 | 256 MiB／2048×1024（既存設定） |
 | SVG文書 | 圧縮前後それぞれ2 MiB |
+| 埋め込み画像 | 1辺4096px、文書内合計400万画素、復号割当32 MiB。元のdata URLもSVG全体2 MiBの制限内。PNG／JPEGのみ、静止画として復号 |
+| use展開後の画像・一時レイヤー | 合計1600万画素。画像の繰り返し配置も加算 |
 | XMLノード／1属性値 | 8192ノード／256 KiB |
 | XML・参照の深さ | 48 |
 | 展開前の参照グラフ | 重み付き32768。属性長も重みに含め、循環・参照先欠落・ID重複を拒否 |
@@ -41,7 +43,7 @@ resvgのpremultiplied RGBAをstraight RGBAへ変換し、RustのImageAssetに保
 
 🟢 [Done] 独自のMITテストフォントで、10グリフを共有するSVG、gzip、色・透明度・グラデーション、変形・クリップ・穴、currentColor、CPALの両パレット、単色輪郭へのフォールバック、WOFF2往復後の画素一致を検証。生成器は`crates/font-core/tests/data/color/generate_svg.py`で、FontToolsは開発時のみ使用する。
 
-🟢 [Done] SVGレコードの不正なグリフ範囲・オフセット・長さ、外部URL・ファイル参照・data URL画像・script・イベント・DOCTYPE・処理命令・循環参照・重複ID・参照欠落・指数的use・深い参照連鎖・gzip bomb・破損gzip・巨大な半透明レイヤーを拒否する自動テスト。viewBox・ベースライン・ルートの非クリップ・metadataの除外も確認した。
+🟢 [Done] SVGレコードの不正なグリフ範囲・オフセット・長さ、外部URL・ファイル参照・未対応data URL画像・script・イベント・DOCTYPE・処理命令・循環参照・重複ID・参照欠落・指数的use・深い参照連鎖・gzip bomb・破損gzip・巨大な半透明レイヤーを拒否する自動テスト。viewBox・ベースライン・ルートの非クリップ・metadataの除外も確認した。
 
 🟢 [Done] macOSの実GPUからsRGB・透明度・向き・パレット切替後の画素を読み戻し。ChromiumのSVGレンダラーとの比較は40,620画素で最大チャンネル差1/255。三言語UIはPlaywrightで幅920／560pxを確認し、IPCを模擬してパレット指定、翻訳済みエラー9通り、エラー後の再プレビュー、はみ出し・コンソールエラーなしを検証した。
 
@@ -57,3 +59,11 @@ cargo run -p font-core --example color_preview -- FONT.ttf OUTPUT.png ABC 0
 ```
 
 resvg/usvgは選択式からMIT、tiny-skia系はBSD-3-Clauseを維持。関連する著作権・ライセンスを配布用の第三者告知と依存一覧に収録する。実行時に外部コマンド、Python、システム側のSVGライブラリを要求しない。
+
+## 埋め込み画像（2026-11-04）
+
+🟢 [Done] PNGの色・アルファ、JPEG、group opacity、変形・クリップ・use、gzip、WOFF2往復を自動検証。破損・未対応形式・外部URL・二重href・寸法超過・画像総量超過・use展開後の画像予算超過を拒否する。独自MIT fixtureの生成器は`generate_svg_images.py`。PNG/JPEGを正規化した後のデータだけがラスタライザーへ到達する。大容量データは引き続きRust/GPU側に保持する。
+
+🟢 [Done] macOSの実GPUで埋め込みPNG／JPEG・クリップ・透明度・上下方向・sRGBを読み戻し確認。WOFF2復号後の全画素一致も確認。
+
+⭕️ [Pending] 広範な実フォントとWindows/Linux実機の互換性確認。

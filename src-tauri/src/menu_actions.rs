@@ -50,7 +50,7 @@ pub fn handle(app: &tauri::AppHandle, id: &str) {
                 );
             });
         }
-        "new" | "open" | "save" | "save_as" => {
+        "new" | "open" | "import_font" | "save" | "save_as" => {
             let Some(window) = main_window(app) else {
                 return;
             };
@@ -60,6 +60,7 @@ pub fn handle(app: &tauri::AppHandle, id: &str) {
                 let result = match action.as_str() {
                     "new" => crate::files::new(window).await,
                     "open" => crate::files::open(window).await,
+                    "import_font" => crate::font_import::font_import_choose(window).await,
                     _ => crate::files::save(window, action == "save_as").await,
                 };
                 error(&handle, result);

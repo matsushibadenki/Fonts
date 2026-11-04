@@ -65,6 +65,7 @@ pub async fn paste_paths(
             .paste_paths(revision, glyph, contours)
             .map_err(str::to_owned)?;
         m.selected = None;
+        m.selected_nodes.clear();
         m.snippets.contours = inserted.collect();
         m.tool = font_core::workspace::Tool::Nodes;
     }

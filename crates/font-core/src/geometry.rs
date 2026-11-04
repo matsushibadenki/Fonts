@@ -102,6 +102,23 @@ pub fn edit_points(c: &Contour) -> Vec<(EditPoint, Point)> {
     }
     points
 }
+/// Constant-time lookup for selection overlays; avoids rebuilding all edit points per selection.
+pub fn point_position(c: &Contour, point: EditPoint) -> Option<Point> {
+    match point {
+        EditPoint::Anchor(0) => Some(c.start),
+        EditPoint::Anchor(i) => c.segments.get(i.checked_sub(1)?).map(end),
+        EditPoint::Control1(i) => match c.segments.get(i)? {
+            Segment::Quadratic { control, .. } => Some(*control),
+            Segment::Cubic { control1, .. } => Some(*control1),
+            _ => None,
+        },
+        EditPoint::Control2(i) => match c.segments.get(i)? {
+            Segment::Cubic { control2, .. } => Some(*control2),
+            _ => None,
+        },
+    }
+}
+
 fn endpoint(s: &mut Segment) -> &mut Point {
     match s {
         Segment::Line { end } | Segment::Quadratic { end, .. } | Segment::Cubic { end, .. } => end,

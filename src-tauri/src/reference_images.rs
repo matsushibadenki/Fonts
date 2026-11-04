@@ -99,6 +99,7 @@ impl Model {
             .map_err(|e| e.to_string())?;
         self.images.selected = Some(id);
         self.selected = None;
+        self.selected_nodes.clear();
         self.tool = Tool::Images;
         use font_core::workspace::{Dock, Panel, Placement};
         if let Some(Placement::Docked { dock }) =
@@ -147,6 +148,7 @@ impl Model {
                 }
                 self.images.selected = id;
                 self.selected = None;
+                self.selected_nodes.clear();
                 self.tool = Tool::Images;
             }
             Action::Update { image } => {

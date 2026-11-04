@@ -1,3 +1,5 @@
+import {pathError} from './path-i18n';
+import {FontImport,fontImportError} from './FontImport';
 import {DocumentTabs,documentError} from './DocumentTabs';
 import {DockTree} from './DockTree';
 import {referenceCommand} from './ReferenceImages';
@@ -62,16 +64,19 @@ export default function App(){
         <span className="brand"><img className="brand-icon" src="/app-icon.svg" alt=""/>Fonts<span className="slash">/</span></span><span className="family">{state.family}{state.dirty&&<span className="dirty-dot" title={t('draft')}>●</span>}</span>
         <nav className="workflow" aria-label="Workflow">{(['draw','space','test','export'] as const).map(k=><button key={k} className={(state.proof.active?k==='test':k==='draw')?'active':''} disabled={k==='space'||k==='export'} title={k==='space'||k==='export'?t('pending'):t(k)} onClick={()=>void proofCommand(state,k==='test'?{type:'prepare',settings:state.proof.settings}:{type:'close'}).then(()=>setError('')).catch(e=>setError(proofError(state,String(e))))}>{t(k)}</button>)}</nav>
         <div className="app-actions">
-          <IconButton icon="newDocument" label={t('newDocument')} onClick={()=>void run('new_project')}/>
-          <IconButton icon="library" label={libraryMessages[state.workspace.locale].library} onClick={()=>void run('open_font_library')}/>
-          <FontProperties state={state} onOpenChange={setOverlayOpen}/>
-          <span className="action-divider" aria-hidden="true"/>
           <IconButton icon="undo" label={t('undo')} disabled={!state.can_undo} onClick={()=>void edit({type:'undo',revision:state.revision})}/>
           <IconButton icon="redo" label={t('redo')} disabled={!state.can_redo} onClick={()=>void edit({type:'redo',revision:state.revision})}/>
+          <span className="action-divider" aria-hidden="true"/>
+          <IconButton icon="newDocument" label={t('newDocument')} onClick={()=>void run('new_project')}/>
+          <IconButton icon="folder" label={t('openFile')} onClick={()=>void run('open_project')}/>
+          <FontImport state={state} onError={setError} onOpenChange={setOverlayOpen}/>
           <span className="action-divider" aria-hidden="true"/>
           <IconButton icon="save" label={t('save')} onClick={()=>void run('save_project')}/>
           <FontExport state={state} onOpenChange={setOverlayOpen}/>
           <Recovery locale={state.workspace.locale} onOpenChange={setOverlayOpen}/>
+          <span className="action-divider" aria-hidden="true"/>
+          <IconButton icon="library" label={libraryMessages[state.workspace.locale].library} onClick={()=>void run('open_font_library')}/>
+          <FontProperties state={state} onOpenChange={setOverlayOpen}/>
           <span className="action-divider" aria-hidden="true"/>
           <Preferences state={state} onOpenChange={setOverlayOpen}/>
         </div>
@@ -87,7 +92,7 @@ export default function App(){
       </main>
       <footer className="statusbar"><span>{state.codepoints.length?glyphLabel(state.character):state.name} · {state.codepoints.map(unicodeCode).join(', ')}</span><span>{t('baseline')} 0 <b>·</b> {t('ascender')} {state.ascender} <b>·</b> {t('descender')} {state.descender}</span><span>{state.contours.length} {t('contours')} <b>·</b> {t(state.reviewed?'reviewed':'draft')}</span></footer>
     </>}
-    {error&&<div role="alert" className="error-toast"><Icon name="info"/><span title={error}>{t('error')}: {error==='UnicodeConflict'?fontEditMessages[state.workspace.locale].conflict:error==='InvalidUnicode'?t('invalidUnicode'):error==='TooLarge'?t('unicodeLimit'):documentError(state.workspace.locale,error)??referenceError(state.workspace.locale,error)}</span><button aria-label={t('cancel')} onClick={()=>setError('')}><Icon name="close"/></button></div>}
+    {error&&<div role="alert" className="error-toast"><Icon name="info"/><span title={error}>{t('error')}: {error==='UnicodeConflict'?fontEditMessages[state.workspace.locale].conflict:error==='InvalidUnicode'?t('invalidUnicode'):error==='TooLarge'?t('unicodeLimit'):pathError(state.workspace.locale,error)??documentError(state.workspace.locale,error)??fontImportError(state.workspace.locale,referenceError(state.workspace.locale,error))}</span><button aria-label={t('cancel')} onClick={()=>setError('')}><Icon name="close"/></button></div>}
   </div>;
 }
 function DockArea({dock,state,t,edit,layout,onDrag,onDrop,dragging}:{dragging:PanelId|null;dock:Dock;state:Snapshot;t:(k:Key)=>string;edit:(a:{type:string;[k:string]:unknown})=>Promise<void>;layout:(a:Layout)=>Promise<void>;onDrag:(p:PanelId|null)=>void;onDrop:(p:PanelId,d:Dock)=>Promise<void>}){
