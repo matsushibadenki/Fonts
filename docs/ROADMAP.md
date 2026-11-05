@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-11-04更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-11-05更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -21,7 +21,7 @@
 3. 🟢 [Done] 既存グリフのUnicode割当・文書メタデータ編集、文字セットのプリセット。Undo/Redo・保存・出力へ接続。詳細は[font-editing.md](font-editing.md)。
 4. 🟢 [Done] 輪郭パネルから直線・二次・三次曲線の中間点追加と終点削除。形状を保つ分割、閉鎖点・最小輪郭の保護、Undo/Redo。詳細は[輪郭編集](contour-topology.md)。
    - 🟢 [Done] 滑らか／角の切替、キャンバスの選択点と輪郭パネルの連動。三言語UI、ハンドル連動、JSON保存に対応。
-   - 🟠 [Next] 安定node IDと永続UUID。現行の操作はepoch/revisionで守られた輪郭・点アドレスを使用する。
+   - 🟢 [Done] 安定node IDと永続UUID。点・制御点・輪郭の参照を編集、Undo/Redo、保存・復旧へ接続。[仕様と検証](stable-node-identities.md)。
 5. 🟢 [Done] 文字一覧に実際のグリフ輪郭サムネイルを表示。Unicode未割り当てのCIDグリフ・異体字も字形で確認できる。[実装と検証](glyph-thumbnails.md)。
    - Rust/wgpuで128pxの実輪郭を描画し、表示ページの画像をlazy load。アプリ所有のworkerと最大512件のLRUキャッシュを使用。小さなPNGをネイティブ画像プロトコルで配信し、輪郭・生フレームをJavaScriptのIPCへ転送しない。
    - Unicode／CIDラベルを保持し、空白・輪郭なし・描画失敗を区別。編集・Undo/Redo・文書切替で更新。macOSの独立検証アプリで300グリフのページ切替、CID検索、編集・Undo/Redo、ドッキング／フローティング表示を確認。大規模実書体・別OSの追加検証はPending。
@@ -32,7 +32,7 @@
 7. 🟢 [Done] 独立コピー型の部首・図形スニペット。複数輪郭の選択登録、改名・タグ・分類・出典・ライセンス・お気に入り、複製・削除、検索とwgpuサムネイルを実装。UPM換算、配置前の移動・拡縮・回転、確定／取消、三言語UI、Undo/Redo・埋め込み保存・復旧に接続。[仕様と検証](components-snippets.md)。
    - 🟢 [Done] 独自作成の長方形・楕円・三角形・ひし形・「口」「工」の幾何形。プロジェクト内ライブラリとして保持し、元グリフや雛形の削除後も配置済み輪郭を保持する。
    - ⭕️ [Pending] Windows/Linux実機、複数モニター・DPIと大規模ライブラリの実機負荷検証。
-   - 🔴 [Later] 安定IDに基づく部品の参照配置・共有更新・利用先一覧・参照解除。既存のcomponent計画をここへ統合する。
+   - 🟢 [Done] 安定IDに基づく部品の参照配置・共有更新・利用先一覧・参照解除。[仕様](linked-components.md)。
 8. 🟢 [Done] Illustrator・LumaPaintからパスを直接ペースト。macOSの専用JSON／SVG／PDF／制限付きAICBをRustで解析し、文字枠へ独立コピー。三言語、1回のUndo/Redo、保存・復旧へ接続。両アプリの実コピーと入力欄の文字貼り付けを確認。[仕様と検証](clipboard-paths.md)。
    - ⭕️ [Pending] Windows/Linuxのクリップボード実装・実機検証。
 9. 🟢 [Done] pair kerningの編集・試し組み・出力。グリフIDの明示ペア、三言語メトリクスUI、Undo/Redo・保存・復旧、試し組みのON/OFF、TTF／OTF GPOSへ接続。[仕様と検証](pair-kerning.md)。
@@ -185,7 +185,7 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 🟢 [Done] Rustワークスペース392テスト成功（任意実行8件を除く）、埋め込み画像の実GPUテストを別途実行して成功。TypeScript／Vite、macOSデバッグ版アプリのビルド成功。
 
-🟠 [Next] 輪郭の安定node IDと永続UUID。点の追加・削除後の参照を安定させ、共有部品・参照配置を支える基盤を優先する。
+🟢 [Done] 輪郭の安定node IDと永続UUID。[仕様と検証](stable-node-identities.md)。
 
 ⭕️ [Pending] 広範な実フォント、Windows/Linux実機、ネイティブ画面全体での手動操作。
 
@@ -212,10 +212,10 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 - 🟢 [Done] Shift＋クリックの複数アンカー選択、全選択／解除、選択点の一括ドラッグ・数値移動・矢印移動。Rust所有の点集合とwgpu強調、曲線ハンドル・閉鎖重複点の扱いに対応。
 - 🟢 [Done] 選択点でのパス切断。開輪郭は2本へ分割、閉輪郭は曲線を失わず開く。滑らか設定を再配置。
-- 🟢 [Done] 非ゼロ巻き数の合成／差分／交差／排他的合成。選択した閉輪郭群Aと別の閉輪郭BをRust workerで処理。曲線は許容誤差0.01フォント単位の細分化により直線列へ変換することを三言語UIで明示。点数・交差量・同時実行を制限し、revision変更後の結果を拒否。
+- 🟢 [Done] 非ゼロ巻き数の合成／差分／交差／排他的合成。選択した閉輪郭群Aと別の閉輪郭BをRust workerで処理。初期実装の直線列出力は、後続の曲線保持型演算へ置換済み（下記参照）。点数・交差量・同時実行を制限し、revision変更後の結果を拒否。
 - 🟢 [Done] 三言語アイコンUI、操作単位Undo/Redo、実ファイル保存・読込・復旧ストア再起動後の一致へ接続。[操作・制約と検証](multi-point-path-processing.md)。
 - ⭕️ [Pending] ネイティブ画面・ペンタブ、Windows/Linux、広範な実書体での演算互換性。
-- 🔴 [Later] 矩形選択、制御点の複数選択、曲線を保持するブール演算、B側の複数輪郭グループ。
+- 🟢 [Done] 制御点の複数選択、曲線保持型ブール演算、矩形選択、B側の輪郭群。後続工程を参照。
 
 検証: Rust413テスト成功（任意実行8件を除く）、Clippy全target、TypeScript／Vite、macOSデバッグ版Fonts.appのビルド成功。三言語UI・保存／読込・異常終了復旧と最終アセットの収録を確認。
 
@@ -225,3 +225,45 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🟢 [Done] バイナリのライブラリ参照を確認後に両方を削除。製品内のcore・同梱エンジンと、流用履歴・著作権・ライセンス告知を保持。
 - 🟢 [Done] 外部のローカル依存・リンク・リソースを検査するスクリプトを追加し、macOS CIへ接続。削除後の元workspaceでも成功。[検証記録](reference-checkout-removal.md)。
 - ⭕️ [Pending] Windows/Linux実機と、この変更push後のGitHub Actions実行結果。
+
+## 選択・輪郭群の操作効率改善（2026-11-04）
+
+操作性への効果を優先し、既存の複数点移動とブール演算へ直結する2項目を実装した。安定node ID／永続UUIDは後続工程で実装済み（下記参照）。
+
+- 🟢 [Done] 空白ドラッグによる矩形アンカー選択、Shift追加、キャンセル時の選択復元。Rust所有の枠とwgpu強調、ズーム／パン、他パネルからの割り込み保護、既存の一括移動・Undo/Redoへ接続。
+- 🟢 [Done] B側の閉輪郭群指定。両側の穴、Bの設定／解除、epoch・glyph・revisionによる誤適用防止、4演算・Undo/Redo・保存／復旧に接続。三言語UIと幅1000／380pxを検証。[操作・検証](rectangle-selection-boolean-groups.md)。
+- ⭕️ [Pending] ネイティブ画面・ペンタブ、Windows/Linux実機。
+
+検証: Rust418件、アプリ側76件の再検証、全target Clippy、TypeScript／Vite、macOSデバッグバンドルが成功。最終UIの収録と自己完結検査も成功。
+
+## 安定node ID・永続UUID（2026-11-04）
+
+- 🟢 [Done] 文書・輪郭・端点・制御点のUUID。追加・削除・分割・反転・連結、独立コピー、Undo/Redo、保存・復旧に対応。連結時の同一点は参照の別名を保持する。
+- 🟢 [Done] 三言語UIの点選択と連結対象を安定参照へ接続。プロジェクトv2、v1の移行、重複・不正IDの拒否、フォント出力への非混入。[仕様と検証](stable-node-identities.md)。
+- 🟢 [Done] Rust 430テスト成功、任意実行8件を除外。Clippy、三言語×2幅のUI検証に成功。
+- 🟢 [Done] 制御点の複数選択・一括加工。[仕様と検証](control-point-batch-editing.md)。
+- ⭕️ [Pending] ネイティブ画面全体での手動操作、Windows/Linux実機。
+
+## 制御点の複数選択・一括加工（2026-11-05）
+
+- 🟢 [Done] 端点・二次／三次の制御点を混在してShift選択・矩形選択。全制御点選択、選択取消、件数表示、wgpuの青い円／四角に対応。
+- 🟢 [Done] 選択点の一括ドラッグ・数値移動・矢印キー・拡縮・回転。付随ハンドルの二重変換防止、UUID維持、1回のUndo/Redo、保存・復旧、三言語のアイコンUIへ接続。[操作と検証](control-point-batch-editing.md)。
+- 🟢 [Done] Rust 439テスト成功、任意実行9件を除外。追加した実GPU描画テストは別途成功。Clippy、三言語×2幅のUI検証に成功。
+- 🟢 [Done] 曲線保持型ブール演算。[仕様と検証](curve-preserving-boolean.md)。
+- ⭕️ [Pending] ネイティブ画面全体・ペンタブ・Windows/Linux実機。
+
+## 曲線保持型ブール演算（2026-11-05）
+
+- 🟢 [Done] 4演算・輪郭群・穴に対応。元区間の由来を追跡し、交点補正とde Casteljau分割で二次・三次曲線を再構成。包含する同一曲線区間は分割位置が異なっても判定用分割を共有する。
+- 🟢 [Done] 三言語の説明・曖昧な接続のエラー、Rust workerとrevision検査、wgpu描画、1回のUndo/Redo、保存・復旧・フォント出力へ接続。JSONの小数座標の正確な往復も修正。[仕様と検証](curve-preserving-boolean.md)。
+- 🟢 [Done] Rust449件成功（任意実行10件を除く）、追加した実GPUテストを別途成功。Clippyと三言語×2幅のUI検証に成功。
+- 🟢 [Done] 安定IDに基づく部品の参照配置・共有更新。[仕様](linked-components.md)。
+- ⭕️ [Pending] 広範な実フォント・極小形状・複雑な部分重複曲線、ネイティブ画面全体・ペンタブ・Windows/Linux実機。
+
+## 部品の参照配置・共有更新（2026-11-05）
+
+- 🟢 [Done] UUIDを持つ部品定義・配置・点の対応表。改名・輪郭の順序変更に依存せず、共有更新で残る点の配置先IDを保持する。位置・拡縮・回転、利用先への移動、編集元への移動、参照解除、使用中定義の削除保護に対応。
+- 🟢 [Done] 三言語の参照部品タブ、wgpuサムネイル・配置プレビュー・本描画、全利用先の1回のUndo/Redo、埋め込み保存・復旧・試し組み・TTF／OTF／WOFF2出力へ接続。プロジェクトv3、旧v1／v2の読み込み、変換済み輪郭の整合性検証。[仕様と検証](linked-components.md)。
+- 🟢 [Done] Rust459件成功（任意実行11件を除く）、新規実GPUテストを別途成功。Clippy全targetと三言語×2幅・狭いパネルのUI検証に成功。
+- 🟠 [Next] 部品の入れ子参照・循環参照検査。
+- ⭕️ [Pending] 大規模な漢字書体・多数配置の負荷検証、ネイティブ画面全体・ペンタブ・Windows/Linux実機。

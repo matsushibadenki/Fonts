@@ -24,15 +24,19 @@ pub struct Model {
     pub nodes: bool,
     pub fill: bool,
     pub size: [f64; 2],
+    pub marquee: Option<crate::node_marquee::Marquee>,
+    pub boolean_b: (u64, GlyphId, u64, std::collections::BTreeSet<usize>),
     pub drag: Option<Drag>,
     pub pen: Vec<Point>,
     pub pen_edit: crate::pen::Draft,
+    pub selected_controls: font_core::point_transform::Selection,
     pub selected_nodes: std::collections::BTreeSet<(usize, usize)>,
     pub selected: Option<(usize, font_core::geometry::EditPoint)>,
     pub path: Option<PathBuf>,
     pub saved_revision: Option<u64>,
 }
 pub struct Drag {
+    pub controls: font_core::point_transform::Selection,
     pub points: std::collections::BTreeSet<(usize, usize)>,
     pub origin: Point,
     pub position: Point,
@@ -55,6 +59,9 @@ pub struct GlyphSummary {
 }
 #[derive(Serialize)]
 pub struct ContourSummary {
+    linked: bool,
+    uuid: Option<font_core::identity::Uuid>,
+    start_id: Option<font_core::identity::Uuid>,
     nodes: usize,
     closed: bool,
     segments: Vec<SegmentSummary>,
@@ -62,12 +69,14 @@ pub struct ContourSummary {
 }
 #[derive(Serialize)]
 pub struct SegmentSummary {
+    node_id: Option<font_core::identity::Uuid>,
     end: Point,
     deletable: bool,
     closure: bool,
 }
 #[derive(Serialize)]
 pub struct SelectionSummary {
+    node_id: Option<font_core::identity::Uuid>,
     contour: usize,
     anchor: usize,
     smooth: bool,
@@ -75,6 +84,8 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    components: crate::components::Summary,
+    document_uuid: font_core::identity::Uuid,
     documents: Vec<crate::documents::Summary>,
     document_id: u64,
     class_kerning: font_core::class_kerning::ClassKerning,
@@ -87,7 +98,9 @@ pub struct Snapshot {
     selection: Option<SelectionSummary>,
     pen_points: usize,
     pen_continuing: bool,
+    selected_controls: Vec<(usize, font_core::geometry::EditPoint)>,
     selected_nodes: Vec<(usize, usize)>,
+    boolean_right: Vec<usize>,
     proof: crate::proof::Summary,
     properties: font_core::FontProperties,
     presets: Vec<(&'static str, usize)>,
@@ -133,6 +146,10 @@ pub enum Action {
         left: GlyphId,
         right: GlyphId,
         value: i16,
+        revision: u64,
+    },
+    SelectStableNode {
+        reference: font_core::identity::NodeRef,
         revision: u64,
     },
     SelectNode {
@@ -215,11 +232,19 @@ pub enum Action {
     FinishOpenPen,
     SelectAllNodes,
     ClearNodes,
+    SetBooleanB,
+    ClearBooleanB,
     MoveSelected {
         dx: f64,
         dy: f64,
         revision: u64,
     },
+    TransformSelected {
+        scale: Point,
+        angle: f64,
+        revision: u64,
+    },
+    SelectAllControls,
     SplitPath {
         id: GlyphId,
         contour: usize,
@@ -258,6 +283,7 @@ impl Model {
         let mut doc =
             FontDocument::new("Untitled Sans", Self::STARTER_CHARACTERS).expect("valid starter");
         let polygon = |p: &[Point]| Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: p[0],
             segments: p[1..].iter().map(|&end| Segment::Line { end }).collect(),
@@ -295,10 +321,13 @@ impl Model {
             nodes: true,
             fill: false,
             size: [600., 600.],
+            marquee: None,
+            boolean_b: Default::default(),
             drag: None,
             pen: vec![],
             pen_edit: Default::default(),
             selected: None,
+            selected_controls: Default::default(),
             selected_nodes: Default::default(),
             proof: crate::proof::Proof::default(),
             path: None,
@@ -319,7 +348,7 @@ impl Model {
             .copied()
             .find(|id| *id != 0)
             .unwrap_or(0);
-        self.snippets = Default::default();
+        self.snippets.clear_transient();
         self.images = Default::default();
         self.proof = crate::proof::Proof::default();
         self.editor = editor;
@@ -328,6 +357,8 @@ impl Model {
         self.drag = None;
         self.selected = None;
         self.selected_nodes.clear();
+        self.selected_controls.clear();
+        self.marquee = None;
         self.pen.clear();
         self.pen_edit = Default::default();
         self.zoom = 1.;
@@ -354,6 +385,13 @@ impl Model {
             descender: doc.descender,
         }
     }
+    pub fn point_selection(&self) -> font_core::point_transform::Selection {
+        self.selected_nodes
+            .iter()
+            .map(|&(ci, i)| (ci, font_core::geometry::EditPoint::Anchor(i)))
+            .chain(self.selected_controls.iter().copied())
+            .collect()
+    }
     pub fn visible_glyph(&self) -> Glyph {
         let mut g = self
             .drag
@@ -361,6 +399,13 @@ impl Model {
             .map(|d| d.draft.clone())
             .unwrap_or_else(|| self.editor.document().glyphs[&self.glyph].clone());
         if let Some(d) = &self.snippets.draft {
+            if let Some((_, Some(id))) = d.reference {
+                if let Some(i) = self.editor.document().components.instances.get(&id) {
+                    let ids: std::collections::BTreeSet<_> = i.nodes.values().collect();
+                    g.contours
+                        .retain(|c| !c.identity.contours.first().is_some_and(|v| ids.contains(v)));
+                }
+            }
             if let Ok(contours) = d.source.transformed(&d.placement) {
                 g.contours.extend(contours);
             }
@@ -395,6 +440,7 @@ impl Model {
             return None;
         }
         Some(SelectionSummary {
+            node_id: font_core::identity::node_id(c, point),
             contour,
             anchor,
             smooth: c.smooth.contains(&anchor),
@@ -404,10 +450,15 @@ impl Model {
     pub fn snapshot(&self) -> Snapshot {
         let doc = self.editor.document();
         let g = &doc.glyphs[&self.glyph];
+        let linked = doc.components.linked_contours(self.glyph);
         Snapshot {
+            components: self.component_summary(),
+            document_uuid: doc.document_uuid,
             pen_points: self.pen.len(),
             pen_continuing: self.pen_edit.source.is_some(),
+            selected_controls: self.selected_controls.iter().copied().collect(),
             selected_nodes: self.selected_nodes.iter().copied().collect(),
+            boolean_right: self.boolean_operand_b(),
             documents: self.document_summaries(),
             document_id: self.document_id,
             class_kerning: doc.class_kerning.clone(),
@@ -455,6 +506,16 @@ impl Model {
                 .contours
                 .iter()
                 .map(|c| ContourSummary {
+                    linked: c
+                        .identity
+                        .contours
+                        .first()
+                        .is_some_and(|&id| linked.contains(&id)),
+                    uuid: c.identity.contours.first().copied(),
+                    start_id: font_core::identity::node_id(
+                        c,
+                        font_core::geometry::EditPoint::Anchor(0),
+                    ),
                     nodes: font_core::geometry::edit_points(c)
                         .iter()
                         .filter(|(p, _)| matches!(p, font_core::geometry::EditPoint::Anchor(_)))
@@ -472,6 +533,10 @@ impl Model {
                                 | Segment::Cubic { end, .. } => end,
                             };
                             SegmentSummary {
+                                node_id: font_core::identity::node_id(
+                                    c,
+                                    font_core::geometry::EditPoint::Anchor(i + 1),
+                                ),
                                 end,
                                 deletable: font_core::geometry::can_delete_segment_end(c, i),
                                 closure: c.closed && i + 1 == c.segments.len() && end == c.start,
@@ -543,7 +608,7 @@ impl Model {
             self.snippets.contours.clear();
         }
         // Modal edits cannot be interleaved with commands from a floating window.
-        if self.drag.is_some() && !matches!(a, Action::Cancel) {
+        if (self.drag.is_some() || self.marquee.is_some()) && !matches!(a, Action::Cancel) {
             return Err("edit_in_progress".into());
         }
         if self.images.drag.is_some()
@@ -607,6 +672,36 @@ impl Model {
                     .set_kerning(revision, left, right, value)
                     .map_err(|e| e.to_string())?;
             }
+            Action::SelectStableNode {
+                reference,
+                revision,
+            } => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                if revision != self.editor.revision() {
+                    return Err("Conflict".into());
+                }
+                let doc = self.editor.document();
+                let address = font_core::identity::resolve_in_glyph(doc, self.glyph, reference)
+                    .or_else(|| font_core::identity::resolve(doc, reference))
+                    .ok_or("node_reference_missing")?;
+                if address.glyph != self.glyph {
+                    self.images = Default::default();
+                    self.snippets.clear_transient();
+                    self.proof.active = false;
+                }
+                self.glyph = address.glyph;
+                self.selected = Some((address.contour, address.point));
+                self.selected_nodes.clear();
+                self.selected_controls.clear();
+                if let font_core::geometry::EditPoint::Anchor(i) = address.point {
+                    self.selected_nodes.insert((address.contour, i));
+                } else {
+                    self.selected_controls
+                        .insert((address.contour, address.point));
+                }
+            }
             Action::SelectNode {
                 id,
                 contour,
@@ -627,6 +722,8 @@ impl Model {
                     return Err("InvalidGeometry".into());
                 }
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.selected_nodes
                     .insert((contour, font_core::geometry::canonical_anchor(c, anchor)));
                 self.selected = Some((
@@ -692,6 +789,8 @@ impl Model {
                     .replace_glyph(revision, g)
                     .map_err(|e| e.to_string())?;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.selected = Some((
                     contour,
                     font_core::geometry::EditPoint::Anchor(if split {
@@ -742,6 +841,8 @@ impl Model {
                 if let Some(id) = ids.first() {
                     self.selected = None;
                     self.selected_nodes.clear();
+                    self.selected_controls.clear();
+                    self.marquee = None;
                     self.glyph = *id;
                 }
             }
@@ -760,6 +861,8 @@ impl Model {
                 if let Some(id) = ids.first() {
                     self.selected = None;
                     self.selected_nodes.clear();
+                    self.selected_controls.clear();
+                    self.marquee = None;
                     self.glyph = *id;
                     self.pen.clear();
                     self.pen_edit = Default::default();
@@ -772,12 +875,16 @@ impl Model {
                 self.glyph = id;
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.pen.clear();
                 self.pen_edit = Default::default();
             }
             Action::Tool { tool } => {
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.tool = tool;
                 self.pen.clear();
                 self.pen_edit = Default::default();
@@ -839,6 +946,8 @@ impl Model {
             Action::Undo { revision } => {
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.pen.clear();
                 self.pen_edit = Default::default();
                 self.editor.undo(revision).map_err(|e| e.to_string())?;
@@ -856,10 +965,37 @@ impl Model {
             Action::Redo { revision } => {
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.pen.clear();
                 self.pen_edit = Default::default();
                 self.editor.redo(revision).map_err(|e| e.to_string())?;
             }
+            Action::SetBooleanB => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                let selected = &self.snippets.contours;
+                if selected.is_empty()
+                    || selected.len() > 1024
+                    || selected.iter().any(|&i| {
+                        self.editor.document().glyphs[&self.glyph]
+                            .contours
+                            .get(i)
+                            .is_none_or(|c| !c.closed)
+                    })
+                {
+                    return Err("boolean_geometry".into());
+                }
+                self.boolean_b = (
+                    self.epoch,
+                    self.glyph,
+                    self.editor.revision(),
+                    selected.clone(),
+                );
+                self.snippets.contours.clear();
+            }
+            Action::ClearBooleanB => self.boolean_b.3.clear(),
             Action::SelectAllNodes => {
                 if self.has_draft() {
                     return Err("edit_in_progress".into());
@@ -868,6 +1004,7 @@ impl Model {
                 self.nodes = true;
                 self.proof.active = false;
                 self.proof.generation += 1;
+                self.selected_controls.clear();
                 self.selected_nodes = self.editor.document().glyphs[&self.glyph]
                     .contours
                     .iter()
@@ -888,6 +1025,8 @@ impl Model {
             }
             Action::ClearNodes => {
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.selected = None;
             }
             Action::MoveSelected { dx, dy, revision } => {
@@ -901,10 +1040,64 @@ impl Model {
                     return Err("edit_in_progress".into());
                 }
                 let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
-                font_core::path_edit::move_anchors(
+                font_core::point_transform::transform(
                     &mut glyph.contours,
-                    &self.selected_nodes,
+                    &self.point_selection(),
+                    [1., 1.],
+                    0.,
                     [dx, dy],
+                )
+                .map_err(|e| e.to_string())?;
+                glyph.status = GlyphStatus::Draft;
+                self.editor
+                    .replace_glyph(revision, glyph)
+                    .map_err(|e| e.to_string())?;
+            }
+            Action::SelectAllControls => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                self.tool = Tool::Nodes;
+                self.nodes = true;
+                self.proof.active = false;
+                self.proof.generation += 1;
+                self.selected_nodes.clear();
+                self.selected = None;
+                self.selected_controls = self.editor.document().glyphs[&self.glyph]
+                    .contours
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(ci, c)| {
+                        font_core::geometry::edit_points(c)
+                            .into_iter()
+                            .filter_map(move |(p, _)| {
+                                (!matches!(p, font_core::geometry::EditPoint::Anchor(_)))
+                                    .then_some((ci, p))
+                            })
+                    })
+                    .collect();
+            }
+            Action::TransformSelected {
+                scale,
+                angle,
+                revision,
+            } => {
+                if revision != self.editor.revision() {
+                    return Err("Conflict".into());
+                }
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                if scale == [1., 1.] && angle == 0. {
+                    return Ok(());
+                }
+                let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
+                font_core::point_transform::transform(
+                    &mut glyph.contours,
+                    &self.point_selection(),
+                    scale,
+                    angle,
+                    [0., 0.],
                 )
                 .map_err(|e| e.to_string())?;
                 glyph.status = GlyphStatus::Draft;
@@ -934,6 +1127,8 @@ impl Model {
                     .map_err(|e| e.to_string())?;
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.snippets.contours.clear();
             }
             Action::ContinuePath {
@@ -983,6 +1178,8 @@ impl Model {
                     .map_err(|e| e.to_string())?;
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.snippets.contours.clear();
             }
             Action::FinishPen => self.finish_pen(true)?,
@@ -1029,12 +1226,15 @@ impl Model {
                     .map_err(|e| e.to_string())?;
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
+                self.marquee = None;
                 self.snippets.contours.clear();
             }
             Action::Cancel => {
                 self.drag = None;
                 self.pen.clear();
                 self.pen_edit = Default::default();
+                self.cancel_marquee();
             }
             Action::ResetView => {
                 self.zoom = 1.;
@@ -1095,7 +1295,9 @@ impl Model {
                         {
                             self.selected = None;
                             self.selected_nodes.clear();
-                            self.snippets = Default::default();
+                            self.selected_controls.clear();
+                            self.marquee = None;
+                            self.snippets.clear_transient();
                             self.images = Default::default();
                             self.glyph = id;
                             self.proof.active = false;
@@ -1110,6 +1312,10 @@ impl Model {
             return self.pen_pointer(phase, [x, y], false);
         }
         let p = self.viewport().document([x, y]);
+        let valid_point = p.iter().all(|v| v.is_finite() && v.abs() <= 1_000_000.);
+        if matches!(phase, "down" | "move") && !valid_point {
+            return Err("invalid_point".into());
+        }
         match phase {
             "down" if self.tool == Tool::Nodes && self.nodes => {
                 self.drag = None;
@@ -1130,30 +1336,65 @@ impl Model {
                         (distance < 10.).then_some((ci, point, distance))
                     })
                     .min_by(|a, b| a.2.total_cmp(&b.2));
-                if let Some((ci, font_core::geometry::EditPoint::Anchor(i), _)) = found {
-                    if shift {
-                        if !self.selected_nodes.insert((ci, i)) {
-                            self.selected_nodes.remove(&(ci, i));
-                            self.selected = self
-                                .selected_nodes
-                                .first()
-                                .map(|&(ci, i)| (ci, font_core::geometry::EditPoint::Anchor(i)));
-                            return Ok(());
+                if found.is_none() {
+                    self.begin_marquee(p, shift);
+                    return Ok(());
+                }
+                if let Some((ci, point, _)) = found {
+                    let contained = match point {
+                        font_core::geometry::EditPoint::Anchor(i) => {
+                            self.selected_nodes.contains(&(ci, i))
                         }
-                    } else if !self.selected_nodes.contains(&(ci, i)) {
+                        _ => self.selected_controls.contains(&(ci, point)),
+                    };
+                    if !shift && !contained {
                         self.selected_nodes.clear();
-                        self.selected_nodes.insert((ci, i));
+                        self.selected_controls.clear();
                     }
-                } else {
-                    self.selected_nodes.clear();
+                    let keep = !shift || !contained;
+                    match point {
+                        font_core::geometry::EditPoint::Anchor(i) => {
+                            if keep {
+                                self.selected_nodes.insert((ci, i));
+                            } else {
+                                self.selected_nodes.remove(&(ci, i));
+                            }
+                        }
+                        _ => {
+                            if keep {
+                                self.selected_controls.insert((ci, point));
+                            } else {
+                                self.selected_controls.remove(&(ci, point));
+                            }
+                        }
+                    }
+                    if !keep {
+                        self.selected = self.point_selection().first().copied();
+                        return Ok(());
+                    }
                 }
                 self.selected = found.map(|(ci, point, _)| (ci, point));
                 if let Some((contour, anchor, _)) = found {
+                    let locked = self
+                        .editor
+                        .document()
+                        .components
+                        .linked_contours(self.glyph);
+                    if self.point_selection().iter().any(|&(ci, _)| {
+                        g.contours[ci]
+                            .identity
+                            .contours
+                            .first()
+                            .is_some_and(|&id| locked.contains(&id))
+                    }) {
+                        return Ok(());
+                    }
                     let origin = p;
                     let position =
                         font_core::geometry::point_position(&g.contours[contour], anchor)
                             .ok_or("InvalidGeometry")?;
                     self.drag = Some(Drag {
+                        controls: self.selected_controls.clone(),
                         points: self.selected_nodes.clone(),
                         origin,
                         position,
@@ -1167,12 +1408,22 @@ impl Model {
                 }
             }
             "move" => {
+                if self.marquee.is_some() {
+                    self.update_marquee(p);
+                    return Ok(());
+                }
                 if let Some(d) = self.drag.as_mut() {
-                    if d.points.len() > 1 {
+                    if d.points.len() + d.controls.len() > 1 {
                         let mut contours = d.original.contours.clone();
-                        font_core::path_edit::move_anchors(
+                        font_core::point_transform::transform(
                             &mut contours,
-                            &d.points,
+                            &d.points
+                                .iter()
+                                .map(|&(ci, i)| (ci, font_core::geometry::EditPoint::Anchor(i)))
+                                .chain(d.controls.iter().copied())
+                                .collect(),
+                            [1., 1.],
+                            0.,
                             [p[0] - d.origin[0], p[1] - d.origin[1]],
                         )
                         .map_err(|e| e.to_string())?;
@@ -1194,6 +1445,13 @@ impl Model {
                 }
             }
             "up" => {
+                if self.marquee.is_some() {
+                    if valid_point {
+                        self.update_marquee(p);
+                    }
+                    self.marquee = None;
+                    return Ok(());
+                }
                 if let Some(mut d) = self.drag.take() {
                     if d.original != d.draft {
                         d.draft.status = GlyphStatus::Draft;
@@ -1203,7 +1461,10 @@ impl Model {
                     }
                 }
             }
-            "cancel" => self.drag = None,
+            "cancel" => {
+                self.drag = None;
+                self.cancel_marquee();
+            }
             "down" => {}
             _ => return Err("invalid_pointer_phase".into()),
         }
@@ -1442,6 +1703,7 @@ mod tests {
         let mut m = Model::new(Workspace::default());
         let mut g = m.editor.document().glyphs[&m.glyph].clone();
         g.contours = vec![Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             segments: vec![Segment::Cubic {
@@ -1452,6 +1714,7 @@ mod tests {
             closed: true,
         }];
         m.editor.replace_glyph(0, g.clone()).unwrap();
+        let g = m.editor.document().glyphs[&m.glyph].clone();
         let start = m.viewport().screen([100., 600.]);
         let finish = m.viewport().screen([150., 650.]);
         m.pointer("down", start[0], start[1]).unwrap();

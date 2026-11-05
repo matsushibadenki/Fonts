@@ -52,6 +52,8 @@ fn images_render_orientation_alpha_rotation_order_and_outline_with_texture_reuse
             &mut m,
             v,
             &EditorOverlay {
+                marquee: None,
+                controls: &Default::default(),
                 nodes: &Default::default(),
                 node: None,
                 images,
@@ -141,6 +143,7 @@ fn images_render_orientation_alpha_rotation_order_and_outline_with_texture_reuse
         "repeated transforms reuse one texture"
     );
     let outline = Contour {
+        identity: Default::default(),
         start: [50., 450.],
         segments: vec![
             Segment::Line { end: [150., 450.] },

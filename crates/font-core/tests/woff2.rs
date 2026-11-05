@@ -11,6 +11,7 @@ use font_core::{
 fn source() -> FontDocument {
     let mut d = FontDocument::new("WOFF2 日本 中文", "AV中 😀").unwrap();
     d.glyphs.get_mut(&1).unwrap().contours = vec![Contour {
+        identity: Default::default(),
         start: [30., 0.],
         segments: vec![
             Segment::Cubic {

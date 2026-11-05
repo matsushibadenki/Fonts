@@ -3,6 +3,7 @@ use font_core::{geometry, storage, Contour, Editor, Error, FontDocument, GlyphSt
 fn outline() -> Vec<Contour> {
     vec![
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             segments: vec![
@@ -15,6 +16,7 @@ fn outline() -> Vec<Contour> {
             closed: true,
         },
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [200., 100.],
             segments: vec![Segment::Cubic {
@@ -46,6 +48,7 @@ fn stale_window_edits_and_invalid_changes_are_atomic() {
     let mut a = original.glyphs[&1].clone();
     a.contours = outline();
     assert_eq!(editor.replace_glyph(0, a.clone()), Ok(1));
+    let committed = editor.document().glyphs[&1].contours.clone();
     assert_eq!(editor.replace_glyph(0, a.clone()), Err(Error::Conflict));
     a.advance = f64::NAN;
     assert_eq!(editor.replace_glyph(1, a), Err(Error::InvalidDocument));
@@ -53,7 +56,7 @@ fn stale_window_edits_and_invalid_changes_are_atomic() {
     assert_eq!(editor.undo(1), Ok(2));
     assert_eq!(editor.document(), &original);
     assert_eq!(editor.redo(2), Ok(3));
-    assert_eq!(editor.document().glyphs[&1].contours, outline());
+    assert_eq!(editor.document().glyphs[&1].contours, committed);
     editor.undo(3).unwrap();
     let mut b = editor.document().glyphs[&2].clone();
     b.advance = 700.;
@@ -104,6 +107,7 @@ fn save_reload_preserves_f64_curves_and_failed_save_keeps_old_file() {
     let mut doc = FontDocument::new("字体 Demo", "Aあ字").unwrap();
     doc.glyphs.get_mut(&1).unwrap().contours = outline();
     doc.glyphs.get_mut(&1).unwrap().advance = 600.123456789;
+    font_core::identity::upgrade(&mut doc).unwrap();
     storage::save(&path, &doc).unwrap();
     assert_eq!(storage::load(&path).unwrap(), doc);
     doc.family = "Changed".into();

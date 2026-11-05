@@ -139,12 +139,12 @@ pub async fn open(window: WebviewWindow) -> Result<(), String> {
     }
     let input = path.clone();
     // Parse before adding a tab. Invalid input leaves all open documents intact.
-    let document = tauri::async_runtime::spawn_blocking(move || {
-        font_core::storage::load(&input).map_err(|e| e.to_string())
+    let (document, migrated) = tauri::async_runtime::spawn_blocking(move || {
+        font_core::storage::load_with_migration(&input).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
-    add_document(&window, document, Some(path))
+    add_loaded_document(&window, document, Some(path), migrated)
         .await
         .map(|_| ())
 }
@@ -158,12 +158,20 @@ pub(crate) async fn add_document(
     document: FontDocument,
     path: Option<std::path::PathBuf>,
 ) -> Result<u64, String> {
+    add_loaded_document(window, document, path, false).await
+}
+async fn add_loaded_document(
+    window: &WebviewWindow,
+    document: FontDocument,
+    path: Option<std::path::PathBuf>,
+    migrated: bool,
+) -> Result<u64, String> {
     let app = window.app_handle().clone();
     on_main(window, move || {
         let id = {
             let state = app.state::<AppState>();
             let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
-            m.open_document(document, path)?;
+            m.open_loaded_document(document, path, migrated)?;
             m.document_id
         };
         crate::publish(&app);

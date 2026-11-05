@@ -57,6 +57,7 @@ impl Model {
         }
         // Coupling applies only where both adjacent segments have handles.
         let mut contour = Contour {
+            identity: Default::default(),
             start,
             segments,
             closed: closed && self.pen_edit.source.is_none(),
@@ -167,6 +168,7 @@ impl Model {
         };
         self.selected = None;
         self.selected_nodes.clear();
+        self.selected_controls.clear();
         self.images = Default::default();
         self.snippets.contours.clear();
         self.proof.active = false;
@@ -426,6 +428,7 @@ mod tests {
         let mut m = model();
         let mut g = m.editor.document().glyphs[&m.glyph].clone();
         let c = Contour {
+            identity: Default::default(),
             start: [0., 0.],
             segments: vec![
                 Segment::Cubic {

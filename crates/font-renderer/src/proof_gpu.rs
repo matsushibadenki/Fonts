@@ -9,6 +9,7 @@ fn proof_layers_preserve_holes_and_overlapping_glyphs() {
     let gpu = pollster::block_on(Gpu::new(&instance, None, format))
         .expect("GPU adapter required for this test");
     let polygon = |pts: &[[f64; 2]]| Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: pts[0],
         segments: pts[1..].iter().map(|&end| Segment::Line { end }).collect(),

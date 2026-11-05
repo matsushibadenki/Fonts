@@ -18,6 +18,7 @@ fn main() -> Result<(), String> {
         d.metadata.license = "Test font".into();
         d.glyphs.get_mut(&1).unwrap().contours = vec![
             Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [10., 20.],
                 segments: vec![Segment::Cubic {
@@ -28,6 +29,7 @@ fn main() -> Result<(), String> {
                 closed: true,
             },
             Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [200., 100.],
                 segments: vec![Segment::Quadratic {

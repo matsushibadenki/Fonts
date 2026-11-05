@@ -38,7 +38,8 @@ pub enum Action {
 }
 impl Model {
     pub fn has_draft(&self) -> bool {
-        self.drag.is_some()
+        self.marquee.is_some()
+            || self.drag.is_some()
             || self.images.drag.is_some()
             || self.snippets.draft.is_some()
             || !self.pen.is_empty()
@@ -74,6 +75,7 @@ impl Model {
             return Err("Conflict".into());
         }
         if self.proof.active
+            || self.marquee.is_some()
             || self.drag.is_some()
             || self.snippets.draft.is_some()
             || !self.pen.is_empty()
@@ -100,6 +102,7 @@ impl Model {
         self.images.selected = Some(id);
         self.selected = None;
         self.selected_nodes.clear();
+        self.selected_controls.clear();
         self.tool = Tool::Images;
         use font_core::workspace::{Dock, Panel, Placement};
         if let Some(Placement::Docked { dock }) =
@@ -149,6 +152,7 @@ impl Model {
                 self.images.selected = id;
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
                 self.tool = Tool::Images;
             }
             Action::Update { image } => {

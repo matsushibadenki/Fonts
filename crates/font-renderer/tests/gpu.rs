@@ -9,6 +9,7 @@ fn gpu_fill_preserves_a_hole() {
     let gpu = pollster::block_on(Gpu::new(&instance, None, format))
         .expect("GPU adapter required for this test");
     let polygon = |pts: &[[f64; 2]]| Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: pts[0],
         segments: pts[1..].iter().map(|&end| Segment::Line { end }).collect(),
@@ -111,6 +112,7 @@ fn thumbnails_show_unencoded_outlines_holes_and_empty_glyphs_without_guides() {
     let gpu =
         pollster::block_on(Gpu::new(&instance, None, wgpu::TextureFormat::Rgba8Unorm)).unwrap();
     let polygon = |pts: &[[f64; 2]]| Contour {
+        identity: Default::default(),
         start: pts[0],
         segments: pts[1..].iter().map(|&end| Segment::Line { end }).collect(),
         closed: true,

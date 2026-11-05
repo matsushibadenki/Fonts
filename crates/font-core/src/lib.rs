@@ -1,16 +1,19 @@
 pub mod specimen;
 // Rust-owned font documents. No WebView or renderer owns editable font data.
 pub mod class_kerning;
+pub mod components;
 pub mod floating_bounds;
 pub mod font_formats;
 pub mod font_io;
 pub mod geometry;
 pub mod hinting;
 pub mod hinting_preview;
+pub mod identity;
 pub mod kerning;
 pub mod path_boolean;
 pub mod path_edit;
 pub mod path_paste;
+pub mod point_transform;
 pub mod proof;
 pub mod reference_images;
 pub mod reference_transform;
@@ -33,6 +36,9 @@ pub enum Error {
     Conflict,
     InvalidDocument,
     InvalidGeometry,
+    CurveBooleanAmbiguous,
+    ComponentLinked,
+    ComponentInUse,
     MissingGlyph,
     EmptyHistory,
     UnsupportedVersion,
@@ -68,6 +74,8 @@ pub enum Segment {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Contour {
+    #[serde(default, skip_serializing_if = "identity::Identities::is_empty")]
+    pub identity: identity::Identities,
     /// Anchor indices with coupled tangent handles; absent in older projects.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub smooth: BTreeSet<usize>,
@@ -153,6 +161,10 @@ pub struct FontMetadata {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FontDocument {
+    #[serde(default, skip_serializing_if = "components::Library::is_empty")]
+    pub components: components::Library,
+    #[serde(default)]
+    pub document_uuid: identity::Uuid,
     #[serde(default, skip_serializing_if = "class_kerning::ClassKerning::is_empty")]
     pub class_kerning: class_kerning::ClassKerning,
     #[serde(default, skip_serializing_if = "kerning::Kerning::is_empty")]
@@ -194,11 +206,13 @@ impl FontDocument {
             glyphs.insert(id, Glyph::new(id, c));
         }
         let document = Self {
+            components: Default::default(),
             class_kerning: Default::default(),
             kerning: Default::default(),
             snippets: Default::default(),
             reference_images: Default::default(),
-            schema_version: 1,
+            document_uuid: identity::Uuid::new_v4(),
+            schema_version: 2,
             family: family.into(),
             units_per_em: 1000,
             ascender: 800.,
@@ -209,8 +223,35 @@ impl FontDocument {
         document.validate()?;
         Ok(document)
     }
+    /// Compare font data across independent imports; project UUIDs and editor-only state are excluded.
+    pub fn same_font_data(&self, other: &Self) -> bool {
+        self.family == other.family
+            && self.metadata == other.metadata
+            && self.units_per_em == other.units_per_em
+            && self.ascender == other.ascender
+            && self.descender == other.descender
+            && self.kerning == other.kerning
+            && self.class_kerning == other.class_kerning
+            && self.glyphs.len() == other.glyphs.len()
+            && self
+                .glyphs
+                .iter()
+                .zip(&other.glyphs)
+                .all(|((ai, a), (bi, b))| {
+                    ai == bi
+                        && a.id == b.id
+                        && a.name == b.name
+                        && a.codepoints == b.codepoints
+                        && a.cid == b.cid
+                        && a.advance == b.advance
+                        && a.contours.len() == b.contours.len()
+                        && a.contours.iter().zip(&b.contours).all(|(a, b)| {
+                            a.start == b.start && a.segments == b.segments && a.closed == b.closed
+                        })
+                })
+    }
     pub fn validate(&self) -> Result<()> {
-        if self.schema_version != 1 {
+        if !matches!(self.schema_version, 1..=3) {
             return Err(Error::UnsupportedVersion);
         }
         if self.family.trim().is_empty()
@@ -247,8 +288,10 @@ impl FontDocument {
         {
             return Err(Error::InvalidDocument);
         }
+        identity::validate_document(self)?;
         self.reference_images.validate(&self.glyphs)?;
         self.snippets.validate()?;
+        self.components.validate(self)?;
         self.kerning.validate(self)?;
         self.class_kerning.validate(self)?;
         let mut cids = BTreeSet::new();
@@ -278,6 +321,10 @@ pub struct FontProperties {
 }
 #[derive(Clone, Default)]
 struct Change {
+    before_schema: Option<u32>,
+    after_schema: Option<u32>,
+    before_components: Option<components::Library>,
+    after_components: Option<components::Library>,
     before_classes: Option<class_kerning::ClassKerning>,
     after_classes: Option<class_kerning::ClassKerning>,
     before_kerning: Option<kerning::Kerning>,
@@ -302,7 +349,11 @@ pub struct Editor {
     history_limit: usize,
 }
 impl Editor {
-    pub fn new(document: FontDocument) -> Result<Self> {
+    pub fn new(mut document: FontDocument) -> Result<Self> {
+        if !matches!(document.schema_version, 1..=3) {
+            return Err(Error::UnsupportedVersion);
+        }
+        identity::upgrade(&mut document)?;
         document.validate()?;
         Ok(Self {
             document,
@@ -331,8 +382,19 @@ impl Editor {
         self.revision.checked_add(1).ok_or(Error::Conflict)
     }
     /// One gesture commits one validated replacement. Failure changes nothing.
-    pub fn replace_glyph(&mut self, expected: u64, glyph: Glyph) -> Result<u64> {
+    pub fn replace_glyph(&mut self, expected: u64, mut glyph: Glyph) -> Result<u64> {
         let revision = self.check_revision(expected)?;
+        for c in &mut glyph.contours {
+            identity::ensure_contour(c)?;
+        }
+        identity::validate_replacement(&self.document, &glyph)?;
+        self.document.components.protect_glyph(
+            self.document
+                .glyphs
+                .get(&glyph.id)
+                .ok_or(Error::MissingGlyph)?,
+            &glyph,
+        )?;
         let before = self
             .document
             .glyphs
@@ -437,7 +499,10 @@ impl Editor {
         let mut before = vec![];
         let mut after = vec![];
         let mut ids = BTreeSet::new();
-        for glyph in glyphs {
+        for mut glyph in glyphs {
+            for c in &mut glyph.contours {
+                identity::ensure_contour(c)?;
+            }
             if !ids.insert(glyph.id) {
                 return Err(Error::InvalidDocument);
             }
@@ -540,6 +605,12 @@ impl Editor {
         if let Some(references) = &change.before_references {
             self.document.reference_images = references.clone();
         }
+        if let Some(v) = change.before_schema {
+            self.document.schema_version = v;
+        }
+        if let Some(c) = &change.before_components {
+            self.document.components = c.clone();
+        }
         if let Some(s) = &change.before_snippets {
             self.document.snippets = s.clone();
         }
@@ -565,6 +636,12 @@ impl Editor {
         }
         if let Some(references) = &change.after_references {
             self.document.reference_images = references.clone();
+        }
+        if let Some(v) = change.after_schema {
+            self.document.schema_version = v;
+        }
+        if let Some(c) = &change.after_components {
+            self.document.components = c.clone();
         }
         if let Some(s) = &change.after_snippets {
             self.document.snippets = s.clone();

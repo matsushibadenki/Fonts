@@ -100,6 +100,7 @@ fn metadata_is_one_transaction_interleaved_with_glyph_changes_and_survives_expor
 fn presets_preserve_existing_outlines_are_atomic_and_enforce_total_capacity() {
     let mut d = FontDocument::new("Presets", "中").unwrap();
     let shape = Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: [0., 0.],
         segments: vec![Segment::Line { end: [100., 100.] }],
@@ -107,6 +108,7 @@ fn presets_preserve_existing_outlines_are_atomic_and_enforce_total_capacity() {
     };
     d.glyphs.get_mut(&1).unwrap().contours = vec![shape.clone()];
     let mut e = Editor::new(d).unwrap();
+    let shape = e.document().glyphs[&1].contours[0].clone();
     assert_eq!(unicode::preset("ascii").unwrap().len(), 95);
     assert_eq!(unicode::preset("cjk").unwrap().len(), 20992);
     assert!(unicode::preset("cjk_ext_b").unwrap().contains(&'𠀀'));

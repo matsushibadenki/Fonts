@@ -171,6 +171,7 @@ impl OutlineBuilder for Outline {
             return;
         }
         self.contours.push(Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [x.into(), y.into()],
             segments: vec![],

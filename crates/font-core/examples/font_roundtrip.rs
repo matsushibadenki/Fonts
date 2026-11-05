@@ -15,6 +15,7 @@ fn main() -> Result<(), String> {
         let mut doc =
             FontDocument::new("Fonts Interchange Test", "A😀𠀀").map_err(|e| e.to_string())?;
         doc.glyphs.get_mut(&1).unwrap().contours = vec![Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             segments: vec![

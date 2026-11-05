@@ -202,7 +202,7 @@ pub fn export(bytes: &[u8], index: u32, remove: bool) -> Result<Vec<u8>> {
         let wrapped = crate::color_fonts::assemble(tables, true)?;
         let removed = font_hinting_native::dehint_cff(&wrapped, 0)?;
         let actual = crate::font_formats::legacy_import(&removed, 0)?;
-        if doc != actual {
+        if !doc.same_font_data(&actual) {
             return Err("hinting_invalid".into());
         }
         return Ok(removed);
@@ -324,7 +324,7 @@ fn autohint_cff(bytes: &[u8], index: u32) -> Result<Vec<u8>> {
             )?),
         )?;
         let actual = crate::font_formats::legacy_import(&generated, 0)?;
-        if doc != actual {
+        if !doc.same_font_data(&actual) {
             return Err("cff_hint_geometry".into());
         }
         return Ok(generated);
@@ -469,6 +469,7 @@ mod tests {
     fn source() -> Vec<u8> {
         let mut doc = FontDocument::new("Hint Test", "AB").unwrap();
         doc.glyphs.get_mut(&1).unwrap().contours.push(Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             closed: true,
@@ -559,7 +560,7 @@ mod tests {
         assert!(metadata.tables.is_empty());
         let a = crate::font_io::import(&bytes, 0).unwrap();
         let b = crate::font_io::import(&out, 0).unwrap();
-        assert_eq!(a, b);
+        assert!(a.same_font_data(&b));
         let t = tables(&out);
         for (tag, data) in tables(&bytes) {
             if !DROP.contains(&tag) && ![b"head", b"maxp", b"glyf", b"loca"].contains(&&tag) {
@@ -651,10 +652,9 @@ mod tests {
         assert_eq!(info(&ttc, 0).unwrap().instructed_glyphs, 3);
         let out = export(&ttc, 0, true).unwrap();
         assert_eq!(info(&out, 0).unwrap().instructed_glyphs, 0);
-        assert_eq!(
-            crate::font_io::import(&ttc, 0).unwrap(),
-            crate::font_io::import(&out, 0).unwrap()
-        );
+        assert!(crate::font_io::import(&ttc, 0)
+            .unwrap()
+            .same_font_data(&crate::font_io::import(&out, 0).unwrap()));
         let preserved = export(&ttc, 0, false).unwrap();
         assert_eq!(info(&preserved, 0).unwrap().instructed_glyphs, 3);
     }
@@ -722,10 +722,11 @@ mod tests {
             if tag == *b"CFF2" {
                 for weight in [100., 400., 900.] {
                     let coords = [("wght".into(), weight)].into();
-                    assert_eq!(
-                        crate::variations::instantiate(bytes, 0, &coords).unwrap(),
-                        crate::variations::instantiate(&removed, 0, &coords).unwrap()
-                    );
+                    assert!(crate::variations::instantiate(bytes, 0, &coords)
+                        .unwrap()
+                        .same_font_data(
+                            &crate::variations::instantiate(&removed, 0, &coords).unwrap()
+                        ));
                 }
             }
             let lib = freetype::Library::init().unwrap();
@@ -801,10 +802,9 @@ mod tests {
             let raw = table(&Face::parse(bytes, 0).unwrap(), b"CFF ").unwrap();
             let generated_raw = autohint(raw, 0).unwrap();
             assert_ne!(raw, generated_raw);
-            assert_eq!(
-                crate::font_formats::legacy_import(raw, 0).unwrap(),
-                crate::font_formats::legacy_import(&generated_raw, 0).unwrap()
-            );
+            assert!(crate::font_formats::legacy_import(raw, 0)
+                .unwrap()
+                .same_font_data(&crate::font_formats::legacy_import(&generated_raw, 0).unwrap()));
         }
         let variable = include_bytes!("../tests/data/hinting/cff2-hints.otf");
         assert!(!info(variable, 0).unwrap().can_autohint);

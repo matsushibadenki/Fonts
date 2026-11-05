@@ -151,6 +151,7 @@ extern "C" fn moveto(p: *const ffi::FT_Vector, user: *mut c_void) -> i32 {
         return 1;
     }
     b.contours.push(Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: point(p),
         segments: vec![],

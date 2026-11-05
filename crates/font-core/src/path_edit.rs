@@ -12,7 +12,21 @@ pub fn reverse(c: &mut Contour) -> Result<()> {
     geometry::validate(c)?;
     let mut next = c.clone();
     if next.closed && next.segments.last().is_some_and(|s| end(s) != next.start) {
-        next.segments.push(Segment::Line { end: next.start });
+        crate::identity::append_closure(&mut next);
+    }
+    if !next.identity.is_empty() {
+        let n = next.segments.len();
+        if next.closed {
+            next.identity.anchors[1..n].reverse();
+        } else {
+            next.identity.anchors.reverse();
+        }
+        for (s, ids) in next.segments.iter().zip(&mut next.identity.controls) {
+            if matches!(s, Segment::Cubic { .. }) {
+                ids.swap(0, 1);
+            }
+        }
+        next.identity.controls.reverse();
     }
     let mut at = next.start;
     let mut reversed = Vec::with_capacity(next.segments.len());
@@ -48,6 +62,7 @@ pub fn reverse(c: &mut Contour) -> Result<()> {
 pub fn set_closed(c: &mut Contour, closed: bool) -> Result<()> {
     let mut next = c.clone();
     next.closed = closed;
+    crate::identity::closure(&mut next);
     next.smooth = next
         .smooth
         .iter()
@@ -66,6 +81,9 @@ pub fn straighten(c: &mut Contour, segment: usize) -> Result<()> {
         .get_mut(segment)
         .ok_or(crate::Error::InvalidGeometry)?;
     *s = Segment::Line { end: end(s) };
+    if !next.identity.is_empty() {
+        next.identity.controls[segment] = [None; 2];
+    }
     let a = geometry::canonical_anchor(&next, segment);
     let b = geometry::canonical_anchor(&next, segment + 1);
     next.smooth.remove(&a);
@@ -95,8 +113,34 @@ pub fn join(
     if second_end {
         reverse(&mut b)?;
     }
+    let identified = !a.identity.is_empty() || !b.identity.is_empty();
+    if identified {
+        crate::identity::layout(&mut a);
+        crate::identity::layout(&mut b);
+    }
     if end(a.segments.last().unwrap()) != b.start {
         a.segments.push(Segment::Line { end: b.start });
+        if identified {
+            a.identity.anchors.push(b.identity.anchors[0].clone());
+            a.identity.controls.push([None; 2]);
+        }
+    } else if identified {
+        a.identity
+            .anchors
+            .last_mut()
+            .unwrap()
+            .extend(b.identity.anchors[0].iter().copied());
+    }
+    if identified {
+        a.identity
+            .contours
+            .extend(b.identity.contours.iter().copied());
+        a.identity
+            .anchors
+            .extend(b.identity.anchors[1..].iter().cloned());
+        a.identity
+            .controls
+            .extend(b.identity.controls.iter().copied());
     }
     let offset = a.segments.len();
     a.smooth.extend(b.smooth.iter().map(|i| i + offset));
@@ -134,7 +178,7 @@ pub fn split(c: &Contour, anchor: usize) -> Result<Vec<Contour>> {
     if c.closed {
         let mut next = c.clone();
         if end(next.segments.last().unwrap()) != next.start {
-            next.segments.push(Segment::Line { end: next.start });
+            crate::identity::append_closure(&mut next);
         }
         let n = next.segments.len();
         next.start = if anchor == 0 {
@@ -142,6 +186,12 @@ pub fn split(c: &Contour, anchor: usize) -> Result<Vec<Contour>> {
         } else {
             end(&c.segments[anchor - 1])
         };
+        if !next.identity.is_empty() {
+            next.identity.anchors.truncate(n);
+            next.identity.anchors.rotate_left(anchor);
+            next.identity.anchors.push(Vec::new());
+            next.identity.controls.rotate_left(anchor);
+        }
         next.segments.rotate_left(anchor);
         next.closed = false;
         next.smooth = c
@@ -158,10 +208,20 @@ pub fn split(c: &Contour, anchor: usize) -> Result<Vec<Contour>> {
         }
         let mut left = c.clone();
         left.segments.truncate(anchor);
+        if !left.identity.is_empty() {
+            left.identity.anchors.truncate(anchor + 1);
+            left.identity.controls.truncate(anchor);
+        }
         left.smooth.retain(|&i| i < anchor);
         let mut right = c.clone();
         right.start = end(&c.segments[anchor - 1]);
         right.segments = c.segments[anchor..].to_vec();
+        if !right.identity.is_empty() {
+            right.identity.contours = vec![crate::identity::Uuid::new_v4()];
+            right.identity.anchors = c.identity.anchors[anchor..].to_vec();
+            right.identity.anchors[0] = Vec::new();
+            right.identity.controls = c.identity.controls[anchor..].to_vec();
+        }
         right.smooth = c
             .smooth
             .iter()
@@ -244,6 +304,7 @@ mod tests {
     use super::*;
     fn mixed(closed: bool) -> Contour {
         Contour {
+            identity: Default::default(),
             start: [0., 0.],
             segments: vec![
                 Segment::Line { end: [100., 0.] },
@@ -423,6 +484,7 @@ mod tests {
         assert!(move_anchors(&mut all, &[(9, 0)].into_iter().collect(), [1., 0.]).is_err());
         assert_eq!(all, before);
         let mut q = vec![Contour {
+            identity: Default::default(),
             start: [0., 0.],
             segments: vec![Segment::Quadratic {
                 control: [50., 100.],

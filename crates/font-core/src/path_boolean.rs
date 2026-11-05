@@ -1,94 +1,12 @@
-//! Bounded filled-area operations. Curves are explicitly flattened at 0.01 font units.
+//! Bounded nonzero filled-area operations with original Bézier boundary reconstruction.
+mod curves;
 use crate::{geometry, Contour, Error, Result, Segment};
 use i_overlay::{
     core::{fill_rule::FillRule, overlay_rule::OverlayRule},
-    float::single::SingleFloatOverlay,
+    float::overlay::{FloatOverlay, OverlayOptions},
 };
 type Point = [f64; 2];
 const LIMIT: usize = 8192;
-fn flatten(c: [Point; 4], depth: usize, out: &mut Vec<Point>, work: &mut usize) -> Result<()> {
-    let a = c[0];
-    let b = c[3];
-    let d = [b[0] - a[0], b[1] - a[1]];
-    let len = d[0] * d[0] + d[1] * d[1];
-    let flat = c[1..3].iter().all(|p| {
-        let t = if len == 0. {
-            0.
-        } else {
-            ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / len
-        }
-        .clamp(0., 1.);
-        (p[0] - a[0] - t * d[0]).hypot(p[1] - a[1] - t * d[1]) <= 0.01
-    });
-    if flat {
-        *work += 1;
-        if *work > LIMIT {
-            return Err(Error::TooLarge);
-        }
-        out.push(b);
-        return Ok(());
-    }
-    if depth >= 24 {
-        return Err(Error::TooLarge);
-    }
-    let mid = |a: Point, b: Point| [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.];
-    let p = mid(c[0], c[1]);
-    let q = mid(c[1], c[2]);
-    let r = mid(c[2], c[3]);
-    let s = mid(p, q);
-    let t = mid(q, r);
-    let u = mid(s, t);
-    flatten([c[0], p, s, u], depth + 1, out, work)?;
-    flatten([u, t, r, c[3]], depth + 1, out, work)
-}
-fn polygons(contours: &[Contour], work: &mut usize) -> Result<Vec<Vec<Point>>> {
-    let mut result = Vec::new();
-    for c in contours {
-        geometry::validate(c)?;
-        if !c.closed || c.segments.is_empty() {
-            return Err(Error::InvalidGeometry);
-        }
-        *work += 1;
-        if *work > LIMIT {
-            return Err(Error::TooLarge);
-        }
-        let mut points = vec![c.start];
-        let mut at = c.start;
-        for s in &c.segments {
-            let (a, b, end) = match *s {
-                Segment::Line { end } => {
-                    *work += 1;
-                    if *work > LIMIT {
-                        return Err(Error::TooLarge);
-                    }
-                    points.push(end);
-                    at = end;
-                    continue;
-                }
-                Segment::Quadratic { control, end } => {
-                    let blend =
-                        |p: Point| std::array::from_fn(|i| p[i] + (control[i] - p[i]) * 2. / 3.);
-                    (blend(at), blend(end), end)
-                }
-                Segment::Cubic {
-                    control1,
-                    control2,
-                    end,
-                } => (control1, control2, end),
-            };
-            flatten([at, a, b, end], 0, &mut points, work)?;
-            at = end;
-        }
-        if points.last() == points.first() {
-            points.pop();
-        }
-        if points.len() < 3 {
-            return Err(Error::InvalidGeometry);
-        }
-        result.push(points);
-    }
-    Ok(result)
-}
 pub fn combine(left: &[Contour], right: &[Contour], operation: &str) -> Result<Vec<Contour>> {
     if left.is_empty() || right.is_empty() {
         return Err(Error::InvalidGeometry);
@@ -100,9 +18,8 @@ pub fn combine(left: &[Contour], right: &[Contour], operation: &str) -> Result<V
         "xor" => OverlayRule::Xor,
         _ => return Err(Error::InvalidGeometry),
     };
-    let mut work = 0;
-    let a = polygons(left, &mut work)?;
-    let b = polygons(right, &mut work)?;
+    let mut sources = curves::Sources::new();
+    let (a, b) = sources.polygons(left, right)?;
     // Bound potential intersection growth before the overlay library allocates its graph.
     let mut bounds = Vec::new();
     for polygon in a.iter().chain(&b) {
@@ -139,30 +56,14 @@ pub fn combine(left: &[Contour], right: &[Contour], operation: &str) -> Result<V
             }
         }
     }
-    let shapes = a.overlay_as::<i64>(&b, rule, FillRule::NonZero);
-    let mut result = Vec::new();
-    let mut count = 0;
-    for points in shapes.into_iter().flatten() {
-        count += points.len();
-        if count > 32768 {
-            return Err(Error::TooLarge);
-        }
-        if points.len() < 3 {
-            continue;
-        }
-        let c = Contour {
-            start: points[0],
-            segments: points[1..]
-                .iter()
-                .map(|&end| Segment::Line { end })
-                .collect(),
-            closed: true,
-            smooth: Default::default(),
-        };
-        geometry::validate(&c)?;
-        result.push(c);
-    }
-    Ok(result)
+    let mut options = OverlayOptions::<f64, i64>::default();
+    options.preserve_input_collinear = true;
+    options.preserve_output_collinear = true;
+    options.clean_result = false;
+    let shapes =
+        FloatOverlay::<Point, i64>::from_subj_and_clip_custom(&a, &b, options, Default::default())
+            .overlay(rule, FillRule::NonZero);
+    sources.restore(shapes)
 }
 
 #[cfg(test)]
@@ -170,6 +71,7 @@ mod tests {
     use super::*;
     fn rect(x: f64, y: f64, w: f64, h: f64) -> Contour {
         Contour {
+            identity: Default::default(),
             start: [x, y],
             segments: vec![
                 Segment::Line { end: [x + w, y] },
@@ -245,7 +147,10 @@ mod tests {
             "union",
         )
         .unwrap();
-        assert!(out.iter().any(|c| c.segments.len() > 10));
+        assert!(out.iter().any(|c| c
+            .segments
+            .iter()
+            .any(|s| matches!(s, Segment::Cubic { .. }))));
         let mut open = c.clone();
         open.closed = false;
         assert!(combine(&[open], std::slice::from_ref(&c), "union").is_err());

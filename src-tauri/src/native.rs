@@ -193,6 +193,8 @@ fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
             fill: model.fill,
         },
         font_renderer::EditorOverlay {
+            marquee: model.marquee_bounds(),
+            controls: &model.selected_controls,
             nodes: &model.selected_nodes,
             node: model.selected,
             images: &images,

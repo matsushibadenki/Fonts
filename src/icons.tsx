@@ -1,4 +1,7 @@
 const paths = {
+  selectControls:'M3 17 9 5l12 12M1 15h4v4H1zM19 15h4v4h-4zM11 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0',
+  transformPoints:'M4 12V4h8M4 4l7 7M13 3a9 9 0 0 1 8 9m0-5v5h-5M6 15h6v6H6z',
+  assignB:'M3 4h6v6H3zM3 14h6v6H3zM12 12h9m-4-4 4 4-4 4',
   selectAll:'M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5M8 8h8v8H8z',
   movePoints:'M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3',
   cutPath:'M4 5l16 14M4 19 20 5M7 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M7 19a3 3 0 1 1-6 0 3 3 0 0 1 6 0',

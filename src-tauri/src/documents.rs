@@ -66,6 +66,18 @@ impl Model {
         self.parked.insert(target.document_id, target);
         Ok(())
     }
+    pub(crate) fn open_loaded_document(
+        &mut self,
+        doc: font_core::FontDocument,
+        path: Option<std::path::PathBuf>,
+        migrated: bool,
+    ) -> Result<(), String> {
+        self.open_document(doc, path)?;
+        if migrated {
+            self.saved_revision = None;
+        }
+        Ok(())
+    }
     pub fn open_document(
         &mut self,
         doc: font_core::FontDocument,

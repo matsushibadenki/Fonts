@@ -14,19 +14,22 @@ export interface SnippetEntry {key:string;builtin:boolean;info:SnippetInfo;conto
 export interface KerningClass {id:number;name:string;glyphs:number[]}
 export interface ClassKerning {next_id:number;left:KerningClass[];right:KerningClass[];pairs:{left:number;right:number;value:number}[]}
 export interface Snapshot {
+  components:{active:boolean;selected:string|null;definitions:{id:string;info:SnippetInfo;uses:number;source:boolean;thumbnail:number}[];instances:{id:string;definition:string;glyph:number;name:string}[]};
+  document_uuid:string;
   document_id:number;documents:{id:number;family:string;path:string|null;dirty:boolean}[];
   class_kerning:ClassKerning;
   kerning:{left:number;right:number;value:number}[];kerning_total:number;
-  snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null};
+  snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null;reference:boolean};
   images:ReferenceImage[];image_selected:number|null;image_editing:boolean;
-  selected_nodes:[number,number][];
+  selected_controls:[number,{control1:number}|{control2:number}][];
+  selected_nodes:[number,number][];boolean_right:number[];
   pen_points:number;pen_continuing:boolean;
-  selection:{contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
+  selection:{node_id:string|null;contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
   properties:FontProperties;presets:[string,number][];
   proof:{color:boolean;source:string|null;active:boolean;settings:ProofSettings;missing:number[];empty:number;comparison:boolean;height:number};
   family:string;epoch:number;revision:number;glyph:number;character:string;codepoints:number[];name:string;cid:number|null;advance:number;ascender:number;descender:number;upm:number;unencoded:number;cid_system:{registry:string;ordering:string;supplement:number}|null;
   glyphs:{id:number;character:string;codepoints:number[];name:string;cid:number|null;reviewed:boolean;has_outline:boolean}[];
-  contours:{nodes:number;closed:boolean;start:[number,number];segments:{end:[number,number];deletable:boolean;closure:boolean}[]}[];
+  contours:{linked:boolean;uuid:string|null;start_id:string|null;nodes:number;closed:boolean;start:[number,number];segments:{node_id:string|null;end:[number,number];deletable:boolean;closure:boolean}[]}[];
   workspace:{trees:Partial<Record<Dock,DockNode>>;schema_version:number;revision:number;locale:Locale;panels:Record<Panel,Placement>;active:Partial<Record<Dock,Panel>>;left_width:number;right_width:number;bottom_height:number};
   tool:Tool;zoom:number;nodes:boolean;fill:boolean;can_undo:boolean;can_redo:boolean;dirty:boolean;reviewed:boolean;
 }

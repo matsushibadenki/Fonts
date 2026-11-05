@@ -9,6 +9,9 @@ const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 pub fn load(path: &Path) -> Result<FontDocument> {
+    load_with_migration(path).map(|(doc, _)| doc)
+}
+pub fn load_with_migration(path: &Path) -> Result<(FontDocument, bool)> {
     let file = fs::File::open(path).map_err(|_| Error::Io)?;
     let mut bytes = Vec::new();
     file.take(MAX_FILE_BYTES + 1)
@@ -17,16 +20,20 @@ pub fn load(path: &Path) -> Result<FontDocument> {
     if bytes.len() as u64 > MAX_FILE_BYTES {
         return Err(Error::TooLarge);
     }
-    let doc: FontDocument = serde_json::from_slice(&bytes).map_err(|_| Error::InvalidFile)?;
+    let mut doc: FontDocument = serde_json::from_slice(&bytes).map_err(|_| Error::InvalidFile)?;
     doc.validate()?;
-    Ok(doc)
+    let migrated = crate::identity::upgrade(&mut doc)?;
+    doc.validate()?;
+    Ok((doc, migrated))
 }
 
 /// Same-directory temporary file + sync + atomic rename. On error the previous
 /// document remains intact. Parent directory fsync/power-loss durability is not promised.
 pub fn save(path: &Path, document: &FontDocument) -> Result<()> {
-    document.validate()?;
-    let bytes = serde_json::to_vec(document).map_err(|_| Error::InvalidFile)?;
+    let mut normalized = document.clone();
+    crate::identity::upgrade(&mut normalized)?;
+    normalized.validate()?;
+    let bytes = serde_json::to_vec(&normalized).map_err(|_| Error::InvalidFile)?;
     if bytes.len() as u64 > MAX_FILE_BYTES {
         return Err(Error::TooLarge);
     }

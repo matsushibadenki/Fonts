@@ -3,6 +3,7 @@ fn source() -> FontDocument {
     let mut doc = FontDocument::new("試作 中文 Test", "A😀𠀀\u{301}").unwrap();
     doc.glyphs.get_mut(&1).unwrap().contours = vec![
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [10., 0.],
             segments: vec![
@@ -15,6 +16,7 @@ fn source() -> FontDocument {
             closed: true,
         },
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [200., 100.],
             segments: vec![

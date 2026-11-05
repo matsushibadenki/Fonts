@@ -6,6 +6,8 @@ use font_core::{
 use std::collections::{BTreeMap, BTreeSet};
 
 pub struct EditorOverlay<'a> {
+    pub marquee: Option<[Point; 2]>,
+    pub controls: &'a font_core::point_transform::Selection,
     pub nodes: &'a BTreeSet<(usize, usize)>,
     pub node: Option<(usize, geometry::EditPoint)>,
     pub images: &'a [ReferenceImage],

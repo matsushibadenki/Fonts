@@ -2,6 +2,7 @@
 use crate::{Contour, Error, Point, Result, Segment};
 
 pub fn validate(contour: &Contour) -> Result<()> {
+    crate::identity::validate_layout(contour)?;
     fn point(p: Point) -> bool {
         p.iter().all(|v| v.is_finite() && v.abs() <= 1_000_000.)
     }
@@ -70,8 +71,9 @@ pub fn display_path(contours: &[Contour]) -> Result<String> {
 }
 
 /// A point address is valid for the duration of a revision-guarded drag.
-/// Persistent node IDs remain a separate future document-format change.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Persistent references use identity::NodeRef.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EditPoint {
     Anchor(usize),
     Control1(usize),
@@ -190,6 +192,9 @@ pub fn move_point(c: &mut Contour, target: EditPoint, position: Point) -> Result
         couple_handle(&mut next, target);
     }
     validate(&next)?;
+    if !next.identity.is_empty() {
+        crate::identity::ensure_contour(&mut next)?;
+    }
     *c = next;
     Ok(())
 }
@@ -260,7 +265,20 @@ pub fn split_segment(c: &mut Contour, index: usize) -> Result<()> {
     if matches!(left, Segment::Cubic { .. }) {
         c.smooth.insert(index + 1);
     }
+    if !c.identity.is_empty() {
+        c.identity.anchors.insert(index + 1, Vec::new());
+        let ids = c.identity.controls[index];
+        let pair = match &left {
+            Segment::Line { .. } => [[None; 2]; 2],
+            Segment::Quadratic { .. } => [[ids[0], None], [None, None]],
+            Segment::Cubic { .. } => [[ids[0], None], [None, ids[1]]],
+        };
+        c.identity.controls.splice(index..=index, pair);
+    }
     c.segments.splice(index..=index, [left, right]);
+    if !c.identity.is_empty() {
+        crate::identity::ensure_contour(c)?;
+    }
     Ok(())
 }
 
@@ -279,6 +297,10 @@ pub fn delete_segment_end(c: &mut Contour, index: usize) -> Result<()> {
         .map(|&i| if i > index { i - 1 } else { i })
         .collect();
     c.segments.remove(index);
+    if !c.identity.is_empty() {
+        c.identity.anchors.remove(index + 1);
+        c.identity.controls.remove(index);
+    }
     Ok(())
 }
 
@@ -334,6 +356,7 @@ mod topology_tests {
             },
         ] {
             let mut c = Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [10., 20.],
                 segments: vec![segment.clone()],
@@ -356,6 +379,7 @@ mod topology_tests {
     #[test]
     fn deletion_keeps_following_handles_and_protects_closure_and_minimum() {
         let mut c = Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             segments: vec![
@@ -463,7 +487,7 @@ pub fn set_smooth(c: &mut Contour, anchor: usize, smooth: bool) -> Result<()> {
         if next.segments.len() >= 65536 {
             return Err(Error::InvalidGeometry);
         }
-        next.segments.push(Segment::Line { end: next.start });
+        crate::identity::append_closure(&mut next);
     }
     let (a, b, p) = neighbors(&next, anchor).ok_or(Error::InvalidGeometry)?;
     cubic(&mut next, a);
@@ -494,6 +518,9 @@ pub fn set_smooth(c: &mut Contour, anchor: usize, smooth: bool) -> Result<()> {
     }
     next.smooth.insert(anchor);
     validate(&next)?;
+    if !next.identity.is_empty() {
+        crate::identity::ensure_contour(&mut next)?;
+    }
     *c = next;
     Ok(())
 }
@@ -537,6 +564,7 @@ mod smooth_tests {
     use super::*;
     fn shape() -> Contour {
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [0., 0.],
             segments: vec![

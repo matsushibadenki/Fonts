@@ -4,6 +4,7 @@ use font_core::{
 };
 fn contour() -> Contour {
     Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: [0., 0.],
         segments: vec![
@@ -73,6 +74,7 @@ fn cubic_handles_are_independent_and_joined_anchor_translates_attached_handles()
 #[test]
 fn quadratic_handles_and_invalid_moves_preserve_other_points() {
     let mut c = Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: [0., 0.],
         segments: vec![Segment::Quadratic {

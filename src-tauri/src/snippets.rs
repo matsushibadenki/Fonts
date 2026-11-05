@@ -12,11 +12,24 @@ use std::collections::BTreeSet;
 use tauri::{Manager, WebviewWindow};
 #[derive(Default)]
 pub struct State {
+    pub component_mode: bool,
+    pub component: Option<font_core::identity::Uuid>,
     pub contours: BTreeSet<usize>,
     pub selected: Option<String>,
     pub draft: Option<Draft>,
 }
+impl State {
+    pub fn clear_transient(&mut self) {
+        let mode = self.component_mode;
+        let component = self.component;
+        *self = Self::default();
+        self.component_mode = mode;
+        self.component = component;
+    }
+}
 pub struct Draft {
+    pub reference_initial: Option<ReferenceImage>,
+    pub reference: Option<(font_core::identity::Uuid, Option<font_core::identity::Uuid>)>,
     pub source: Snippet,
     pub placement: ReferenceImage,
     pub owner: String,
@@ -37,6 +50,7 @@ pub struct Entry {
 }
 #[derive(Serialize)]
 pub struct Summary {
+    pub reference: bool,
     pub entries: Vec<Entry>,
     pub selected: Option<String>,
     pub contours: BTreeSet<usize>,
@@ -59,6 +73,57 @@ pub enum Action {
     Open,
 }
 impl Model {
+    pub fn begin_component(
+        &mut self,
+        definition: font_core::identity::Uuid,
+        instance: Option<font_core::identity::Uuid>,
+        owner: &str,
+    ) -> Result<(), String> {
+        if self.has_draft() || self.proof.active {
+            return Err("edit_in_progress".into());
+        }
+        let doc = self.editor.document();
+        let d = doc
+            .components
+            .definitions
+            .get(&definition)
+            .ok_or("InvalidDocument")?;
+        let source = d.snippet();
+        let placement = if let Some(id) = instance {
+            let i = doc.components.instances.get(&id).ok_or("InvalidDocument")?;
+            let [a, b, c, e, _, _] = i.matrix;
+            if a * e - b * c <= 0.
+                || (a * c + b * e).abs() > 1e-8 * (a.hypot(b) * c.hypot(e)).max(1.)
+            {
+                return Err("InvalidGeometry".into());
+            }
+            if i.glyph != self.glyph || i.definition != definition {
+                return Err("Conflict".into());
+            }
+            font_core::components::placement(d, i)
+        } else {
+            source.placement(
+                doc.units_per_em,
+                [
+                    doc.glyphs[&self.glyph].advance / 2.,
+                    (doc.ascender + doc.descender) / 2.,
+                ],
+            )
+        }
+        .map_err(|e| e.to_string())?;
+        self.snippets.component_mode = true;
+        self.snippets.component = Some(definition);
+        self.snippets.draft = Some(Draft {
+            reference_initial: instance.map(|_| placement.clone()),
+            source,
+            placement,
+            owner: owner.into(),
+            drag: None,
+            reference: Some((definition, instance)),
+        });
+        self.tool = Tool::Snippets;
+        Ok(())
+    }
     pub fn snippet(&self, key: &str) -> Result<Snippet, String> {
         let (kind, id) = key.split_once(':').ok_or("InvalidDocument")?;
         let id = id.parse::<u64>().map_err(|_| "InvalidDocument")?;
@@ -78,6 +143,11 @@ impl Model {
             contours: s.contours.len(),
         };
         Summary {
+            reference: self
+                .snippets
+                .draft
+                .as_ref()
+                .is_some_and(|d| d.reference.is_some()),
             entries: snippets::builtins()
                 .iter()
                 .map(|e| entry(e, true))
@@ -101,6 +171,7 @@ impl Model {
     }
     pub fn snippet_action(&mut self, action: Action, owner: &str) -> Result<(), String> {
         if self.proof.active
+            || self.marquee.is_some()
             || self.drag.is_some()
             || self.images.drag.is_some()
             || !self.pen.is_empty()
@@ -231,6 +302,8 @@ impl Model {
                 source.transformed(&placement).map_err(|e| e.to_string())?;
                 self.snippets.selected = Some(key);
                 self.snippets.draft = Some(Draft {
+                    reference_initial: None,
+                    reference: None,
                     source,
                     placement,
                     owner: owner.into(),
@@ -239,6 +312,7 @@ impl Model {
                 self.images = Default::default();
                 self.selected = None;
                 self.selected_nodes.clear();
+                self.selected_controls.clear();
                 self.tool = Tool::Snippets;
             }
             Action::Transform { placement } => {
@@ -257,9 +331,32 @@ impl Model {
                     return Err("edit_in_progress".into());
                 }
                 let first = self.editor.document().glyphs[&self.glyph].contours.len();
-                self.editor
-                    .insert_snippet(revision, self.glyph, &d.source, &d.placement)
-                    .map_err(|e| e.to_string())?;
+                if let Some((definition, instance)) = d.reference {
+                    let source = self
+                        .editor
+                        .document()
+                        .components
+                        .definitions
+                        .get(&definition)
+                        .ok_or("InvalidDocument")?;
+                    let matrix = font_core::components::matrix(source, &d.placement)
+                        .map_err(|e| e.to_string())?;
+                    if let Some(id) = instance {
+                        if d.reference_initial.as_ref() != Some(&d.placement) {
+                            self.editor
+                                .transform_component(revision, id, matrix)
+                                .map_err(|e| e.to_string())?;
+                        }
+                    } else {
+                        self.editor
+                            .place_component(revision, definition, self.glyph, matrix)
+                            .map_err(|e| e.to_string())?;
+                    }
+                } else {
+                    self.editor
+                        .insert_snippet(revision, self.glyph, &d.source, &d.placement)
+                        .map_err(|e| e.to_string())?;
+                }
                 self.snippets.contours =
                     (first..self.editor.document().glyphs[&self.glyph].contours.len()).collect();
                 self.snippets.draft = None;

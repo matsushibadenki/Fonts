@@ -26,6 +26,7 @@ pub fn map(m: Matrix, p: Point) -> Point {
 }
 pub fn transform(c: &Contour, m: Matrix) -> Result<Contour> {
     let c = Contour {
+        identity: Default::default(),
         start: map(m, c.start),
         segments: c
             .segments
@@ -150,6 +151,7 @@ impl Path {
     pub fn move_to(&mut self, p: Point) -> Result<()> {
         self.finish()?;
         self.current = Some(Contour {
+            identity: Default::default(),
             start: p,
             segments: vec![],
             closed: false,

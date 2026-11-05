@@ -265,6 +265,78 @@ pub fn anchors(c: &Contour) -> Vec<Point> {
         .collect()
 }
 
+fn editor_mesh(
+    glyph: &Glyph,
+    v: Viewport,
+    options: DrawOptions,
+    overlay: EditorOverlay<'_>,
+) -> Result<Mesh, String> {
+    let mut m = mesh(&glyph.contours, v, options.nodes, options.fill)?;
+    if options.nodes {
+        for (ci, point) in overlay
+            .nodes
+            .iter()
+            .map(|&(ci, i)| (ci, geometry::EditPoint::Anchor(i)))
+            .chain(overlay.controls.iter().copied())
+            .chain(overlay.node)
+        {
+            if let Some(c) = glyph.contours.get(ci) {
+                if let Some(p) = geometry::point_position(c, point) {
+                    let p = v.screen(p);
+                    let color = [0.12, 0.42, 0.85, 1.];
+                    if !matches!(point, geometry::EditPoint::Anchor(_)) {
+                        for i in 0..24 {
+                            let a = i as f64 * std::f64::consts::TAU / 24.;
+                            let b = (i + 1) as f64 * std::f64::consts::TAU / 24.;
+                            line(
+                                &mut m.decoration,
+                                v,
+                                [p[0] + 6. * a.cos(), p[1] + 6. * a.sin()],
+                                [p[0] + 6. * b.cos(), p[1] + 6. * b.sin()],
+                                1.5,
+                                color,
+                            );
+                        }
+                        continue;
+                    }
+                    for (a, b) in [
+                        ([-6., -6.], [6., -6.]),
+                        ([6., -6.], [6., 6.]),
+                        ([6., 6.], [-6., 6.]),
+                        ([-6., 6.], [-6., -6.]),
+                    ] {
+                        line(
+                            &mut m.decoration,
+                            v,
+                            [p[0] + a[0], p[1] + a[1]],
+                            [p[0] + b[0], p[1] + b[1]],
+                            1.5,
+                            color,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    if let Some([start, end]) = overlay.marquee {
+        let a = v.screen(start);
+        let b = v.screen(end);
+        let corners = [a, [b[0], a[1]], b, [a[0], b[1]]];
+        for i in 0..4 {
+            line(
+                &mut m.decoration,
+                v,
+                corners[i],
+                corners[(i + 1) % 4],
+                1.,
+                [0.12, 0.42, 0.85, 1.],
+            );
+        }
+    }
+    reference::add_images(&mut m, v, &overlay);
+    Ok(m)
+}
+
 #[derive(Clone, Copy)]
 pub struct DrawOptions {
     pub nodes: bool,
@@ -575,38 +647,7 @@ impl Renderer {
         options: DrawOptions,
         overlay: EditorOverlay<'_>,
     ) -> Result<(), String> {
-        let mut m = mesh(&glyph.contours, v, options.nodes, options.fill)?;
-        if options.nodes {
-            for (ci, point) in overlay
-                .nodes
-                .iter()
-                .map(|&(ci, i)| (ci, geometry::EditPoint::Anchor(i)))
-                .chain(overlay.node)
-            {
-                if let Some(c) = glyph.contours.get(ci) {
-                    if let Some(p) = geometry::point_position(c, point) {
-                        let p = v.screen(p);
-                        let color = [0.12, 0.42, 0.85, 1.];
-                        for (a, b) in [
-                            ([-6., -6.], [6., -6.]),
-                            ([6., -6.], [6., 6.]),
-                            ([6., 6.], [-6., 6.]),
-                            ([-6., 6.], [-6., -6.]),
-                        ] {
-                            line(
-                                &mut m.decoration,
-                                v,
-                                [p[0] + a[0], p[1] + a[1]],
-                                [p[0] + b[0], p[1] + b[1]],
-                                1.5,
-                                color,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        reference::add_images(&mut m, v, &overlay);
+        let m = editor_mesh(glyph, v, options, overlay)?;
         self.draw_meshes(size, vec![m])
     }
     pub fn draw_color(
@@ -763,6 +804,12 @@ mod tests {
 #[cfg(test)]
 mod proof_gpu;
 
+#[cfg(test)]
+mod components_gpu;
+#[cfg(test)]
+mod control_gpu;
+#[cfg(test)]
+mod curve_boolean_gpu;
 #[cfg(test)]
 mod reference_gpu;
 

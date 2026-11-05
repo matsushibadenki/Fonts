@@ -597,6 +597,7 @@ mod tests {
         let mut doc = FontDocument::new("Cubic Hints", "H").unwrap();
         doc.glyphs.get_mut(&1).unwrap().contours = vec![
             crate::Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [0.125, 0.25],
                 segments: vec![
@@ -615,6 +616,7 @@ mod tests {
                 closed: true,
             },
             crate::Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [100.125, 100.25],
                 segments: vec![
@@ -657,6 +659,7 @@ mod tests {
             .unwrap()
             .contours
             .push(crate::Contour {
+                identity: Default::default(),
                 smooth: Default::default(),
                 start: [0., 0.],
                 segments: vec![crate::Segment::Line { end: [100., 700.] }],

@@ -89,6 +89,7 @@ impl Snippet {
             .contours
             .iter()
             .map(|c| Contour {
+                identity: Default::default(),
                 start: point(c.start),
                 smooth: c.smooth.clone(),
                 closed: c.closed,
@@ -188,7 +189,16 @@ impl Editor {
             .ok_or(Error::MissingGlyph)?;
         let contours = indices
             .iter()
-            .map(|i| g.contours.get(*i).cloned().ok_or(Error::InvalidGeometry))
+            .map(|i| {
+                g.contours
+                    .get(*i)
+                    .cloned()
+                    .map(|mut c| {
+                        c.identity = Default::default();
+                        c
+                    })
+                    .ok_or(Error::InvalidGeometry)
+            })
             .collect::<Result<Vec<_>>>()?;
         self.add_snippet(
             expected,
@@ -278,6 +288,7 @@ impl Editor {
 }
 fn polygon(p: &[Point]) -> Contour {
     Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: p[0],
         segments: p[1..].iter().map(|&end| Segment::Line { end }).collect(),
@@ -294,6 +305,7 @@ pub fn builtins() -> &'static BTreeMap<u64, Snippet> {
         let r = 250.;
         let c = [300., 300.];
         let ellipse = Contour {
+            identity: Default::default(),
             smooth: [0, 1, 2, 3].into(),
             start: [c[0] + r, c[1]],
             closed: true,

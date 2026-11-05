@@ -2,6 +2,8 @@ import {convertFileSrc} from '@tauri-apps/api/core';
 import {useDeferredValue,useMemo,useState} from 'react';
 import {IconButton} from './Panel';
 import {Icon} from './icons';
+import {Components} from './Components';
+import {componentLabels,componentCommand,componentError} from './component-i18n';
 import {snippetCommand,snippetError,snippetLabels,snippetName} from './snippet-i18n';
 import {referenceLabels} from './reference-i18n';
 import type {Snapshot,SnippetEntry,SnippetInfo} from './types';
@@ -10,7 +12,7 @@ function Thumbnail({entry,state}:{entry:SnippetEntry;state:Snapshot}){
   const [kind,id]=entry.key.split(':');
   return failed?<Icon name="contour"/>:<img src={convertFileSrc(`snippet-${kind==='builtin'?'b':'u'}-${state.epoch}-${state.revision}-${id}.png`,'thumbnail')} loading="lazy" decoding="async" alt="" onError={()=>setFailed(true)} draggable={false}/>;
 }
-export function Snippets({state}:{state:Snapshot}){
+function SnippetLibrary({state}:{state:Snapshot}){
   const t=snippetLabels[state.workspace.locale];const rt=referenceLabels[state.workspace.locale];
   const [search,setSearch]=useState('');const deferred=useDeferredValue(search);
   const [filter,setFilter]=useState('all');const [category,setCategory]=useState('all');
@@ -33,4 +35,11 @@ export function Snippets({state}:{state:Snapshot}){
     {!placement&&<details className="snippet-contours"><summary>{t.selection} · {state.snippets.contours.length}/{state.contours.length}</summary><div className="snippet-actions"><IconButton icon="check" label={t.selectAll} disabled={blocked||!state.contours.length} onClick={()=>void run({type:'all',selected:true})}/><IconButton icon="close" label={t.clear} disabled={blocked} onClick={()=>void run({type:'all',selected:false})}/><IconButton icon="plus" label={t.capture} disabled={blocked||!state.snippets.contours.length} onClick={newForm}/></div>{state.contours.map((c,i)=><label key={i}><input type="checkbox" aria-label={`${t.selectContour} #${i+1}`} checked={state.snippets.contours.includes(i)} disabled={blocked} onChange={e=>void run({type:'contour',index:i,selected:e.target.checked})}/><span>#{i+1} · {c.nodes}</span></label>)}{!state.contours.length&&<small>{t.empty}</small>}</details>}
     {error&&<div className="reference-error" role="alert">{error}</div>}
   </div>;
+}
+
+export function Snippets({state}:{state:Snapshot}){
+ const t=componentLabels[state.workspace.locale],active=state.components?.active??false;
+ const [error,setError]=useState('');
+ const mode=(value:boolean)=>void componentCommand(state,{type:'mode',active:value}).then(()=>setError('')).catch(e=>setError(componentError(state.workspace.locale,e)));
+ return <><div className="component-tabs"><button aria-pressed={!active} disabled={!!state.snippets.placement} onClick={()=>mode(false)}><Icon name="snippets"/>{t.snippets}</button><button aria-pressed={active} disabled={!!state.snippets.placement} onClick={()=>mode(true)}><Icon name="joinPath"/>{t.title}</button></div>{active?<Components state={state}/>:<SnippetLibrary state={state}/>} {error&&<div className="reference-error" role="alert">{error}</div>}</>;
 }

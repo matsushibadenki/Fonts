@@ -1,5 +1,8 @@
 mod clipboard;
 mod color_fonts;
+mod components;
+#[cfg(test)]
+mod control_points;
 mod documents;
 mod files;
 mod floating;
@@ -18,6 +21,7 @@ mod menu_actions;
 mod model;
 #[cfg(target_os = "macos")]
 mod native;
+mod node_marquee;
 mod path_boolean;
 mod pen;
 mod proof;
@@ -26,6 +30,8 @@ mod recovery_store;
 mod reference_images;
 mod snippets;
 mod specimen;
+#[cfg(test)]
+mod stable_refs;
 mod thumbnails;
 mod updates;
 mod variations;
@@ -629,6 +635,7 @@ fn main() {
             reference_images::reference_import,
             reference_images::reference_action,
             snippets::snippet_action,
+            components::component_action,
             snapshot,
             edit,
             pointer,

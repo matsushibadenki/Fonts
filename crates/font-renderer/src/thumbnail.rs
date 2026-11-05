@@ -142,6 +142,7 @@ mod tests {
     #[test]
     fn negative_bearings_and_tall_marks_fit_inside_padding() {
         let contours = vec![Contour {
+            identity: Default::default(),
             start: [-800., -400.],
             segments: vec![font_core::Segment::Quadratic {
                 control: [1200., 2400.],
@@ -158,6 +159,7 @@ mod tests {
     #[test]
     fn invalid_geometry_is_rejected_before_gpu_work() {
         let contours = vec![Contour {
+            identity: Default::default(),
             start: [f64::NAN, 0.],
             segments: vec![],
             closed: false,

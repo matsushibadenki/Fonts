@@ -1,3 +1,4 @@
+import {componentLabels} from './component-i18n';
 import {useEffect,useRef,useState} from 'react';
 import {pathLabels,processingLabels} from './path-i18n';
 import {Icon} from './icons';
@@ -19,37 +20,42 @@ export function ContourEditor({state,index,edit}:{state:Snapshot;index:number;ed
   const anchor=active?state.selection!.anchor:Math.min(1,c.segments.length);
   const segment=Math.max(0,anchor-1);
   const endpoint=!c.closed&&c.segments.length>0&&(anchor===0||anchor===c.segments.length);
-  const targets=!active||!endpoint?[]:state.contours.flatMap((other,i)=>other.closed||!other.segments.length?[]:[false,true].filter(end=>i!==index||end!==(anchor!==0)).map(end=>({value:`${i}:${end?'end':'start'}`,label:`#${i+1} · ${end?paths.end:paths.start}`}))).sort((a,b)=>Number(a.value.startsWith(`${index}:`))-Number(b.value.startsWith(`${index}:`)));
+  const targets=!active||!endpoint?[]:state.contours.flatMap((other,i)=>other.closed||!other.segments.length?[]:[false,true].filter(end=>i!==index||end!==(anchor!==0)).map(end=>({value:`${other.uuid??i}:${end?'end':'start'}`,index:i,label:`#${i+1} · ${end?paths.end:paths.start}`}))).sort((a,b)=>Number(a.index===index)-Number(b.index===index));
   const chosen=targets.some(t=>t.value===target)?target:targets[0]?.value??'';
 
   useEffect(()=>{if(active)ref.current?.scrollIntoView({block:'nearest',inline:'nearest'});},[active,anchor]);
+  const select=async(value:number)=>{
+    const node=value===0?c.start_id:c.segments[value-1]?.node_id;
+    if(node&&state.document_uuid){await edit({type:'select_stable_node',reference:{document:state.document_uuid,node},revision:state.revision});}
+    else {await edit({type:'select_node',id:state.glyph,contour:index,anchor:value,revision:state.revision});}
+  };
   const apply=async(type:string,extra:Record<string,unknown>={})=>{
     if(pending)return;
     setPending(true);
     try{await edit({type,id:state.glyph,contour:index,anchor,segment,revision:state.revision,...extra});}finally{setPending(false);}
   };
-  return <div ref={ref} className={`contour-edit ${active?'active-node':''}`}>
-    <label title={t.point}><select aria-label={`${t.point} #${index+1}`} value={anchor} onFocus={()=>{if(!active)void edit({type:'select_node',id:state.glyph,contour:index,anchor,revision:state.revision});}} onChange={e=>void apply('select_node',{anchor:Number(e.target.value)})} disabled={pending}>
+  return <div ref={ref} title={c.linked?componentLabels[state.workspace.locale].ComponentLinked:undefined} className={`contour-edit ${active?'active-node':''}`}>
+    <label title={t.point}><select aria-label={`${t.point} #${index+1}`} value={anchor} onFocus={()=>{if(!active)void select(anchor);}} onChange={e=>void select(Number(e.target.value))} disabled={pending||!!c.linked}>
       <option value={0}>{t.start} · {c.start.map(v=>Math.round(v*100)/100).join(', ')}</option>
-      {c.segments.map((s,i)=>s.closure?null:<option key={i} value={i+1}>#{i+1} · {s.end.map(v=>Math.round(v*100)/100).join(', ')}</option>)}
+      {c.segments.map((s,i)=>s.closure?null:<option key={s.node_id??i} value={i+1}>#{i+1} · {s.end.map(v=>Math.round(v*100)/100).join(', ')}</option>)}
     </select></label>
-    <button className="icon-button" type="button" title={t.split} aria-label={`${t.split} #${index+1}`} disabled={pending||!c.segments.length||c.segments.length>=65536} onClick={()=>void apply('split_segment')}><Icon name="plus"/></button>
-    <button className="icon-button" type="button" title={t.remove} aria-label={`${t.remove} #${index+1}`} disabled={pending||anchor===0||!c.segments[segment]?.deletable} onClick={()=>void apply('delete_segment_end')}><span aria-hidden="true">−</span></button>
-    <button className={`icon-button ${active&&state.selection?.smooth?'selected':''}`} aria-pressed={active&&state.selection?.smooth===true} aria-label={`${t.smooth} #${index+1}`} title={t.smooth} disabled={pending||!c.segments.length||(!c.closed&&(anchor===0||anchor===c.segments.length))} onClick={()=>void apply('node_mode',{smooth:true})}><span aria-hidden="true">◡</span></button>
-    <button className={`icon-button ${active&&!state.selection?.smooth?'selected':''}`} aria-pressed={active&&state.selection?.smooth===false} aria-label={`${t.corner} #${index+1}`} title={t.corner} disabled={pending} onClick={()=>void apply('node_mode',{smooth:false})}><span aria-hidden="true">⌃</span></button>
+    <button className="icon-button" type="button" title={t.split} aria-label={`${t.split} #${index+1}`} disabled={pending||!!c.linked||!c.segments.length||c.segments.length>=65536} onClick={()=>void apply('split_segment')}><Icon name="plus"/></button>
+    <button className="icon-button" type="button" title={t.remove} aria-label={`${t.remove} #${index+1}`} disabled={pending||!!c.linked||anchor===0||!c.segments[segment]?.deletable} onClick={()=>void apply('delete_segment_end')}><span aria-hidden="true">−</span></button>
+    <button className={`icon-button ${active&&state.selection?.smooth?'selected':''}`} aria-pressed={active&&state.selection?.smooth===true} aria-label={`${t.smooth} #${index+1}`} title={t.smooth} disabled={pending||!!c.linked||!c.segments.length||(!c.closed&&(anchor===0||anchor===c.segments.length))} onClick={()=>void apply('node_mode',{smooth:true})}><span aria-hidden="true">◡</span></button>
+    <button className={`icon-button ${active&&!state.selection?.smooth?'selected':''}`} aria-pressed={active&&state.selection?.smooth===false} aria-label={`${t.corner} #${index+1}`} title={t.corner} disabled={pending||!!c.linked} onClick={()=>void apply('node_mode',{smooth:false})}><span aria-hidden="true">⌃</span></button>
     <span className="panel-help" tabIndex={0} role="img" aria-label={t.help} title={t.help}><Icon name="info"/></span>
     <div className="contour-path-actions">
-    <button className="icon-button" type="button" title={processing.split} aria-label={`${processing.split} #${index+1}`} disabled={pending||!active||!!state.pen_points||!c.segments.length||(!c.closed&&(anchor===0||anchor===c.segments.length))} onClick={()=>void apply('split_path')}><Icon name="cutPath"/></button>
-    <button className="icon-button" type="button" title={paths.reverse} aria-label={`${paths.reverse} #${index+1}`} disabled={pending||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'reverse'})}><Icon name="reversePath"/></button>
-    <button className="icon-button" type="button" title={paths.toggle} aria-label={`${paths.toggle} #${index+1}`} disabled={pending||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'toggle_closed'})}><Icon name={c.closed?'openPath':'closePath'}/></button>
-    <button className="icon-button" type="button" title={paths.straighten} aria-label={`${paths.straighten} #${index+1}`} disabled={pending||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'straighten'})}><Icon name="straightPath"/></button>
+    <button className="icon-button" type="button" title={processing.split} aria-label={`${processing.split} #${index+1}`} disabled={pending||!!c.linked||!active||!!state.pen_points||!c.segments.length||(!c.closed&&(anchor===0||anchor===c.segments.length))} onClick={()=>void apply('split_path')}><Icon name="cutPath"/></button>
+    <button className="icon-button" type="button" title={paths.reverse} aria-label={`${paths.reverse} #${index+1}`} disabled={pending||!!c.linked||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'reverse'})}><Icon name="reversePath"/></button>
+    <button className="icon-button" type="button" title={paths.toggle} aria-label={`${paths.toggle} #${index+1}`} disabled={pending||!!c.linked||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'toggle_closed'})}><Icon name={c.closed?'openPath':'closePath'}/></button>
+    <button className="icon-button" type="button" title={paths.straighten} aria-label={`${paths.straighten} #${index+1}`} disabled={pending||!!c.linked||!c.segments.length} onClick={()=>void apply('path_operation',{operation:'straighten'})}><Icon name="straightPath"/></button>
       <span className="panel-help" tabIndex={0} role="img" aria-label={paths.help} title={paths.help}><Icon name="info"/></span>
     </div>
     <div className="contour-endpoint-actions">
-      <button className="icon-button" type="button" title={paths.continue} aria-label={`${paths.continue} #${index+1}`} disabled={pending||!endpoint||!!state.pen_points} onClick={()=>void apply('continue_path')}><Icon name="continuePath"/></button>
-      <label title={paths.target}><select aria-label={`${paths.target} #${index+1}`} value={chosen} disabled={pending||!active||!endpoint||!!state.pen_points} onChange={e=>setTarget(e.target.value)}>{targets.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
-      <button className="icon-button" type="button" title={paths.join} aria-label={`${paths.join} #${index+1}`} disabled={pending||!endpoint||!chosen||!!state.pen_points} onClick={()=>void apply('join_paths',{target:Number(chosen.split(':')[0]),target_end:chosen.endsWith(':end')})}><Icon name="joinPath"/></button>
-      <button className="icon-button" type="button" title={paths.independent} aria-label={`${paths.independent} #${index+1}`} disabled={pending||!active||!state.selection?.smooth||!!state.pen_points} onClick={()=>void apply('node_mode',{smooth:false})}><Icon name="independent"/></button>
+      <button className="icon-button" type="button" title={paths.continue} aria-label={`${paths.continue} #${index+1}`} disabled={pending||!!c.linked||!endpoint||!!state.pen_points} onClick={()=>void apply('continue_path')}><Icon name="continuePath"/></button>
+      <label title={paths.target}><select aria-label={`${paths.target} #${index+1}`} value={chosen} disabled={pending||!!c.linked||!active||!endpoint||!!state.pen_points} onChange={e=>setTarget(e.target.value)}>{targets.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
+      <button className="icon-button" type="button" title={paths.join} aria-label={`${paths.join} #${index+1}`} disabled={pending||!!c.linked||!endpoint||!chosen||!!state.pen_points} onClick={()=>void apply('join_paths',{target:targets.find(t=>t.value===chosen)?.index,target_end:chosen.endsWith(':end')})}><Icon name="joinPath"/></button>
+      <button className="icon-button" type="button" title={paths.independent} aria-label={`${paths.independent} #${index+1}`} disabled={pending||!!c.linked||!active||!state.selection?.smooth||!!state.pen_points} onClick={()=>void apply('node_mode',{smooth:false})}><Icon name="independent"/></button>
       <span className="panel-help" tabIndex={0} role="img" aria-label={paths.endpointHelp} title={paths.endpointHelp}><Icon name="info"/></span>
     </div>
   </div>;

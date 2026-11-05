@@ -34,6 +34,7 @@ fn source() -> Editor {
             ]
         };
         d.glyphs.get_mut(&id).unwrap().contours = vec![Contour {
+            identity: Default::default(),
             start: pts[0],
             segments: pts[1..]
                 .iter()

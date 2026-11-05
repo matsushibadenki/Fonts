@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut editor = Editor::new(FontDocument::new("My First Font", "A Bあ中")?)?;
     let mut glyph = editor.document().glyphs[&1].clone();
     glyph.contours = vec![Contour {
+        identity: Default::default(),
         smooth: Default::default(),
         start: [50., 0.],
         segments: vec![

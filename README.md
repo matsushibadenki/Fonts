@@ -79,6 +79,12 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 [GitHub Releases](https://github.com/matsushibadenki/Fonts/releases/latest)からmacOS版を配布します。インストール後は「環境設定 → 一般 → ソフトウェアアップデート」から更新できます。[更新・配布手順](docs/software-updates.md)。
 
+## 編集データの安定参照
+
+文書・輪郭・点・制御点のUUIDをプロジェクトv2に保存し、編集・Undo/Redo・復旧後も参照を維持します。旧v1は読み込み時に移行し、保存するまでは元ファイルを変更しません。v2の読み込みには対応版アプリが必要です。[仕様](docs/stable-node-identities.md)。
+
+参照部品の登録・配置・共有更新・参照解除にも対応します。部品定義と配置を含むプロジェクトはv3で保存し、旧v1／v2も読み込めます。v3には対応版アプリが必要です。[部品の仕様](docs/linked-components.md)。
+
 ## ライセンス
 
 2026-10-20確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。

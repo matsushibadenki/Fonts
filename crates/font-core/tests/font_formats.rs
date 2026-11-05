@@ -8,6 +8,7 @@ fn source() -> FontDocument {
     d.metadata.license = "Test license".into();
     d.glyphs.get_mut(&1).unwrap().contours = vec![
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [10., 20.],
             segments: vec![
@@ -21,6 +22,7 @@ fn source() -> FontDocument {
             closed: true,
         },
         Contour {
+            identity: Default::default(),
             smooth: Default::default(),
             start: [200., 150.],
             segments: vec![Segment::Quadratic {

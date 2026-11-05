@@ -67,7 +67,19 @@ impl Thumbnails {
                         if let Some(bytes) = cache.get(id) {
                             return Ok(bytes);
                         }
-                        let contours = if id & (1 << 63) != 0 {
+                        let contours = if id & (1 << 61) != 0 {
+                            model
+                                .editor
+                                .document()
+                                .components
+                                .definitions
+                                .values()
+                                .nth((id & ((1 << 61) - 1)) as usize)
+                                .ok_or(404u16)?
+                                .contours
+                                .as_ref()
+                                .clone()
+                        } else if id & (1 << 63) != 0 {
                             let key = format!(
                                 "{}:{}",
                                 if id & (1 << 62) != 0 {
@@ -148,7 +160,9 @@ impl Thumbnails {
     }
 }
 fn parse_key(path: &str) -> Option<Key> {
-    let (path, kind) = if let Some(p) = path.strip_prefix("/snippet-b-") {
+    let (path, kind) = if let Some(p) = path.strip_prefix("/component-") {
+        (p, 1u64 << 61)
+    } else if let Some(p) = path.strip_prefix("/snippet-b-") {
         (p, 3u64 << 62)
     } else if let Some(p) = path.strip_prefix("/snippet-u-") {
         (p, 1u64 << 63)
@@ -165,7 +179,9 @@ fn parse_key(path: &str) -> Option<Key> {
         return None;
     }
     if key.2
-        > if kind == 0 {
+        > if kind == 1 << 61 {
+            255
+        } else if kind == 0 {
             u64::from(u32::MAX)
         } else {
             9_007_199_254_740_991
@@ -195,6 +211,20 @@ fn respond(responder: tauri::UriSchemeResponder, result: Result<Vec<u8>, u16>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn component_thumbnail_keys_are_revision_scoped_and_do_not_alias_glyphs_or_snippets() {
+        assert_eq!(parse_key("/component-4-9-0.png"), Some((4, 9, 1 << 61)));
+        assert_eq!(
+            parse_key("/component-4-9-255.png"),
+            Some((4, 9, (1 << 61) | 255))
+        );
+        assert_eq!(parse_key("/component-4-9-256.png"), None);
+        assert_ne!(parse_key("/component-4-9-2.png"), parse_key("/4-9-2.png"));
+        assert_ne!(
+            parse_key("/component-4-9-2.png"),
+            parse_key("/snippet-u-4-9-2.png")
+        );
+    }
     #[test]
     fn resource_paths_are_strict_and_cannot_address_files() {
         assert_eq!(parse_key("/4-9-123.png"), Some((4, 9, 123)));

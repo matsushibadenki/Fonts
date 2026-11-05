@@ -65,7 +65,8 @@ fn axes_are_validated_without_clamping_or_silent_defaults() {
         }
         let implicit = variations::instantiate(bytes, 0, &Coordinates::new()).unwrap();
         let explicit = variations::instantiate(bytes, 0, &[("wght".into(), 400.)].into()).unwrap();
-        assert_eq!(implicit, explicit);
+        assert!(implicit.same_font_data(&explicit));
+        assert_ne!(implicit.document_uuid, explicit.document_uuid);
         assert!(variations::axes(bytes, 1).is_err());
     }
     assert!(variations::axes(b"bad", 0).is_err());
