@@ -140,3 +140,56 @@ fn check_color_image(source: &[u8], glyphs: &[&str]) {
         }
     }
 }
+
+#[test]
+#[ignore = "Requires a real GPU adapter"]
+fn project_palette_edits_survive_storage_and_wgpu() {
+    let bytes = include_bytes!("../../font-core/tests/data/color/colrv1-paints.ttf");
+    let doc = font_core::source_font::SourceFont::color_document(bytes, 0).unwrap();
+    let mut editor = font_core::Editor::new(doc).unwrap();
+    editor
+        .edit_source_palette(0, 0, Some(0), Some([20, 40, 60, 128]))
+        .unwrap();
+    let file = std::env::temp_dir().join(format!(
+        "color-gpu-{}.json",
+        editor.document().document_uuid
+    ));
+    font_core::storage::save(&file, editor.document()).unwrap();
+    let doc = font_core::storage::load(&file).unwrap();
+    std::fs::remove_file(file).unwrap();
+    let exported = doc.source_font.unwrap().export().unwrap();
+    check_color_image(&exported, &["A", "B", "F", "G", "I"]);
+}
+
+#[test]
+#[ignore = "Requires a real GPU adapter"]
+fn variable_project_axes_and_palette_reach_wgpu() {
+    use font_core::source_font::{variable::Edit, SourceFont};
+    for bytes in [
+        include_bytes!("../../font-core/tests/data/variations/color-gvar.ttf").as_slice(),
+        include_bytes!("../../font-core/tests/data/variations/color-cff2.otf").as_slice(),
+    ] {
+        let mut editor =
+            font_core::Editor::new(SourceFont::variable_document(bytes, 0, None).unwrap()).unwrap();
+        editor
+            .edit_source_palette(0, 0, Some(0), Some([20, 40, 60, 128]))
+            .unwrap();
+        editor
+            .edit_source_variations(
+                editor.revision(),
+                Edit::Coordinates {
+                    values: [("wght".into(), 650.), ("wdth".into(), 125.)].into(),
+                },
+            )
+            .unwrap();
+        let file = std::env::temp_dir().join(format!(
+            "variable-color-gpu-{}.json",
+            editor.document().document_uuid
+        ));
+        font_core::storage::save(&file, editor.document()).unwrap();
+        let doc = font_core::storage::load(&file).unwrap();
+        std::fs::remove_file(file).unwrap();
+        let out = doc.source_font.unwrap().static_bytes().unwrap();
+        check_color_image(&out, &["A"]);
+    }
+}

@@ -16,18 +16,20 @@ export function FontExport({state,onOpenChange}:{state:Snapshot;onOpenChange:(op
   const [outline,setOutline]=useState('true_type');
   const [quality,setQuality]=useState(9);
   const [auto,setAuto]=useState(false);
-  const canAuto=['ttf','otf','cid_otf','cff','cid_cff','woff2'].includes(format);
+  const [components,setComponents]=useState(false);
+  const canComponents=!state.source_font&&(format==='ttf'||(format==='woff2'&&outline==='true_type'));
+  const canAuto=!state.source_font&&['ttf','otf','cid_otf','cff','cid_cff','woff2'].includes(format);
   const autoCff=format!=='ttf'&&!(format==='woff2'&&outline==='true_type');
   const [report,setReport]=useState<{path:string;bytes:number;verified:boolean}|null>(null);
   const w=woff2Labels[state.workspace.locale];
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const t=libraryMessages[state.workspace.locale];
-  useEffect(()=>{setFamily(state.family);setError('');setReport(null);},[state.epoch,state.family]);
+  useEffect(()=>{setFamily(state.family);setError('');setReport(null);setFormat(state.source_font?.extension??'ttf');setAuto(false);},[state.epoch,state.family]);
   const save=async()=>{
     if(pending.current)return;
     pending.current=true;setBusy(true);setError('');setReport(null);
-    try{const result=await invoke<{path:string;bytes:number;verified:boolean}|null>('font_library_action',{operation:{type:'export',family,format,autohint:auto&&canAuto,woff2:{outline,quality}}});if(result?.verified)setReport(result);else if(result)dialog.current?.close();}
+    try{const result=await invoke<{path:string;bytes:number;verified:boolean}|null>('font_library_action',{operation:{type:'export',family,format,components:components&&canComponents,autohint:auto&&canAuto,woff2:{outline,quality}}});if(result?.verified)setReport(result);else if(result)dialog.current?.close();}
     catch(e){const message=String(e);const key=libraryError(message);setError(message==='woff2_invalid'?w.invalid:message==='woff2_options_invalid'?w.options:key?t[key]:(message.startsWith('autohint_')||message.startsWith('cff_hint_'))?hintingError(message,state.workspace.locale):`${t.failure}: ${message}`);}
     finally{pending.current=false;setBusy(false);}
   };
@@ -36,14 +38,15 @@ export function FontExport({state,onOpenChange}:{state:Snapshot;onOpenChange:(op
     <dialog ref={dialog} className="font-export-dialog" onClose={()=>onOpenChange(false)} onCancel={e=>{if(pending.current)e.preventDefault();}} aria-labelledby="font-export-title">
       <form onSubmit={e=>{e.preventDefault();void save();}}>
         <header><strong id="font-export-title">{t.exportFont}</strong><span className="panel-help" tabIndex={0} role="img" aria-label={t.exportHelp} title={t.exportHelp}><Icon name="info"/></span><IconButton icon="close" label={messages[state.workspace.locale].cancel} disabled={busy} onClick={()=>dialog.current?.close()}/></header>
-        <input aria-label={t.family} value={family} disabled={busy} maxLength={256} onChange={e=>{setFamily(e.target.value);setReport(null);}} autoFocus/>
-        <select aria-label={t.outputFormat} value={format} disabled={busy} onChange={e=>{setFormat(e.target.value);setReport(null);}}>{fontOutputFormats.map(([value,label])=><option key={value} value={value}>{value==='woff2'?w.label:label}</option>)}</select>
+        <input aria-label={t.family} value={family} disabled={busy||!!state.source_font} maxLength={256} onChange={e=>{setFamily(e.target.value);setReport(null);}} autoFocus/>
+        <select aria-label={t.outputFormat} value={format} disabled={busy} onChange={e=>{setFormat(e.target.value);setReport(null);}}>{fontOutputFormats.filter(([v])=>!state.source_font||v===state.source_font.extension||v==='woff2').map(([value,label])=><option key={value} value={value}>{value==='woff2'?w.label:value==='otf'&&state.source_font?'OpenType (.otf)':label}</option>)}</select>
         {format==='woff2'&&<div className="woff2-options">
-          <label>{w.outline}<select aria-label={w.outline} disabled={busy} value={outline} onChange={e=>{setOutline(e.target.value);setReport(null);}}><option value="true_type">TrueType</option><option value="cff">CFF</option></select></label>
+          {!state.source_font&&<label>{w.outline}<select aria-label={w.outline} disabled={busy} value={outline} onChange={e=>{setOutline(e.target.value);setReport(null);}}><option value="true_type">TrueType</option><option value="cff">CFF</option></select></label>}
           <label>{w.compression}<select aria-label={w.compression} disabled={busy} value={quality} onChange={e=>{setQuality(Number(e.target.value));setReport(null);}}>{([[1,w.fast],[5,w.balanced],[9,w.small],[11,w.maximum]] as const).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>
           <span className="panel-help" role="img" tabIndex={0} title={w.help} aria-label={w.help}><Icon name="info"/></span>
         </div>}
-        {format!=='cmap'&&<div className="hinting-policy"><Icon name="hinting"/>{canAuto?<select aria-label={hintingLabels[state.workspace.locale].title} value={auto?'auto':'none'} disabled={busy} onChange={e=>{setAuto(e.target.value==='auto');setReport(null);}}><option value="none">{hintingLabels[state.workspace.locale].project}</option><option value="auto">{autoCff?hintingLabels[state.workspace.locale].autoCff:hintingLabels[state.workspace.locale].auto}</option></select>:<small>{hintingLabels[state.workspace.locale].project}</small>}<span className="panel-help" tabIndex={0} title={hintingLabels[state.workspace.locale].projectHelp} aria-label={hintingLabels[state.workspace.locale].projectHelp}><Icon name="info"/></span></div>}
+        {canComponents&&state.components.definitions.length>0&&<label className="component-export-option" title={t.componentExportHelp}><input type="checkbox" checked={components} disabled={busy} onChange={e=>{setComponents(e.target.checked);setReport(null);}}/>{t.exportComponents}<span className="panel-help" role="img" tabIndex={0} title={t.componentExportHelp} aria-label={t.componentExportHelp}><Icon name="info"/></span></label>}
+        {format!=='cmap'&&!state.source_font&&<div className="hinting-policy"><Icon name="hinting"/>{canAuto?<select aria-label={hintingLabels[state.workspace.locale].title} value={auto?'auto':'none'} disabled={busy} onChange={e=>{setAuto(e.target.value==='auto');setReport(null);}}><option value="none">{hintingLabels[state.workspace.locale].project}</option><option value="auto">{autoCff?hintingLabels[state.workspace.locale].autoCff:hintingLabels[state.workspace.locale].auto}</option></select>:<small>{hintingLabels[state.workspace.locale].project}</small>}<span className="panel-help" tabIndex={0} title={hintingLabels[state.workspace.locale].projectHelp} aria-label={hintingLabels[state.workspace.locale].projectHelp}><Icon name="info"/></span></div>}
         {report&&<div className="woff2-report" role="status"><strong>{format==='woff2'?w.verified:({en:'Font file verified',ja:'フォントファイルの検証が完了しました',zh_cn:'字体文件验证完成'}[state.workspace.locale])}</strong><span title={report.path}>{report.path}</span><small>{report.bytes.toLocaleString()} B</small></div>}
         {error&&<p role="alert">{error}</p>}
         <button type="submit" disabled={busy||!family.trim()}><Icon name="download"/>{busy?t.loading:t.exportFont}</button>

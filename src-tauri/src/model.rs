@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub struct Model {
+    pub component_edit: Option<crate::component_edit::Editing>,
     pub parked: std::collections::BTreeMap<u64, Box<Model>>,
     pub document_id: u64,
     pub next_document_id: u64,
@@ -84,6 +85,8 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    source_font: Option<font_core::source_font::Summary>,
+    imported_layout: font_core::imported_layout::Summary,
     components: crate::components::Summary,
     document_uuid: font_core::identity::Uuid,
     documents: Vec<crate::documents::Summary>,
@@ -133,6 +136,20 @@ pub struct Snapshot {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Action {
+    SourceVariation {
+        revision: u64,
+        operation: font_core::source_font::variable::Edit,
+    },
+    SourcePalette {
+        revision: u64,
+        palette: u16,
+        entry: Option<u16>,
+        color: Option<[u8; 4]>,
+    },
+    ReleaseImportedLayout {
+        revision: u64,
+        positioning_only: bool,
+    },
     ClassKerning {
         operation: font_core::class_kerning::Edit,
         revision: u64,
@@ -305,6 +322,7 @@ impl Model {
             polygon(&[[235., 300.], [405., 300.], [320., 565.]]),
         ];
         Self {
+            component_edit: None,
             parked: Default::default(),
             document_id: 1,
             next_document_id: 2,
@@ -351,6 +369,7 @@ impl Model {
         self.snippets.clear_transient();
         self.images = Default::default();
         self.proof = crate::proof::Proof::default();
+        self.component_edit = None;
         self.editor = editor;
         self.epoch = epoch;
         self.glyph = glyph;
@@ -380,9 +399,15 @@ impl Model {
             height: self.size[1],
             zoom: self.zoom,
             pan: self.pan,
-            advance: doc.glyphs[&self.glyph].advance,
-            ascender: doc.ascender,
-            descender: doc.descender,
+            advance: self.editing_glyph().advance,
+            ascender: self
+                .component_edit
+                .as_ref()
+                .map_or(doc.ascender, |e| e.ascender),
+            descender: self
+                .component_edit
+                .as_ref()
+                .map_or(doc.descender, |e| e.descender),
         }
     }
     pub fn point_selection(&self) -> font_core::point_transform::Selection {
@@ -397,7 +422,7 @@ impl Model {
             .drag
             .as_ref()
             .map(|d| d.draft.clone())
-            .unwrap_or_else(|| self.editor.document().glyphs[&self.glyph].clone());
+            .unwrap_or_else(|| self.editing_glyph().clone());
         if let Some(d) = &self.snippets.draft {
             if let Some((_, Some(id))) = d.reference {
                 if let Some(i) = self.editor.document().components.instances.get(&id) {
@@ -425,7 +450,7 @@ impl Model {
             .drag
             .as_ref()
             .map(|d| &d.draft)
-            .unwrap_or(&self.editor.document().glyphs[&self.glyph]);
+            .unwrap_or(self.editing_glyph());
         let c = g.contours.get(contour)?;
         use font_core::geometry::{canonical_anchor, EditPoint};
         let anchor = canonical_anchor(
@@ -449,9 +474,11 @@ impl Model {
     }
     pub fn snapshot(&self) -> Snapshot {
         let doc = self.editor.document();
-        let g = &doc.glyphs[&self.glyph];
-        let linked = doc.components.linked_contours(self.glyph);
+        let g = self.editing_glyph();
+        let linked = self.locked_contours();
         Snapshot {
+            source_font: doc.source_font.as_ref().map(|s| s.summary()),
+            imported_layout: doc.imported_layout.summary(),
             components: self.component_summary(),
             document_uuid: doc.document_uuid,
             pen_points: self.pen.len(),
@@ -491,11 +518,23 @@ impl Model {
                 .iter()
                 .next()
                 .map(char::to_string)
-                .unwrap_or_else(|| ".notdef".into()),
+                .unwrap_or_else(|| {
+                    if self.editing_id().is_some() {
+                        g.name.clone()
+                    } else {
+                        ".notdef".into()
+                    }
+                }),
             advance: g.advance,
-            ascender: doc.ascender,
-            descender: doc.descender,
-            upm: doc.units_per_em,
+            ascender: self
+                .component_edit
+                .as_ref()
+                .map_or(doc.ascender, |e| e.ascender),
+            descender: self
+                .component_edit
+                .as_ref()
+                .map_or(doc.descender, |e| e.descender),
+            upm: self.editing_upm(),
             unencoded: doc
                 .glyphs
                 .values()
@@ -575,6 +614,25 @@ impl Model {
         }
     }
     pub fn action(&mut self, a: Action) -> Result<(), String> {
+        if self.editor.document().source_font.is_some() && matches!(&a, Action::Tool { .. }) {
+            return Err("SourceFontLocked".into());
+        }
+        if self.component_edit.is_some()
+            && (matches!(
+                &a,
+                Action::Review { .. }
+                    | Action::Advance { .. }
+                    | Action::AssignUnicode { .. }
+                    | Action::AddPreset { .. }
+                    | Action::AddCharacters { .. }
+                    | Action::ClassKerning { .. }
+                    | Action::Kerning { .. }
+                    | Action::KerningException { .. }
+            ) || matches!(&a, Action::Tool { tool: Tool::Images }))
+        {
+            return Err("component_edit_unavailable".into());
+        }
+
         if crate::updates::installing() {
             return Err("update_installing".into());
         }
@@ -636,6 +694,41 @@ impl Model {
             self.images = Default::default();
         }
         match a {
+            Action::SourceVariation {
+                revision,
+                operation,
+            } => {
+                self.editor
+                    .edit_source_variations(revision, operation)
+                    .map_err(|e| {
+                        if e == font_core::Error::InvalidGeometry {
+                            "variation_range".into()
+                        } else {
+                            e.to_string()
+                        }
+                    })?;
+            }
+            Action::SourcePalette {
+                revision,
+                palette,
+                entry,
+                color,
+            } => {
+                self.editor
+                    .edit_source_palette(revision, palette, entry, color)
+                    .map_err(|e| e.to_string())?;
+            }
+            Action::ReleaseImportedLayout {
+                revision,
+                positioning_only,
+            } => {
+                if self.has_draft() {
+                    return Err("edit_in_progress".into());
+                }
+                self.editor
+                    .release_imported_layout(revision, positioning_only)
+                    .map_err(|e| e.to_string())?;
+            }
             Action::ClassKerning {
                 operation,
                 revision,
@@ -683,9 +776,20 @@ impl Model {
                     return Err("Conflict".into());
                 }
                 let doc = self.editor.document();
-                let address = font_core::identity::resolve_in_glyph(doc, self.glyph, reference)
-                    .or_else(|| font_core::identity::resolve(doc, reference))
-                    .ok_or("node_reference_missing")?;
+                let address = if reference.definition.is_some() {
+                    font_core::identity::resolve_definition_reference(doc, self.glyph, reference)
+                } else if self.component_edit.is_some() {
+                    None
+                } else {
+                    font_core::identity::resolve_in_glyph(doc, self.glyph, reference)
+                        .or_else(|| font_core::identity::resolve(doc, reference))
+                }
+                .ok_or("node_reference_missing")?;
+                if let Some(id) = reference.definition {
+                    if self.editing_id() != Some(id) {
+                        self.enter_component_edit(id)?;
+                    }
+                }
                 if address.glyph != self.glyph {
                     self.images = Default::default();
                     self.snippets.clear_transient();
@@ -714,10 +818,8 @@ impl Model {
                 if id != self.glyph || !self.pen.is_empty() {
                     return Err("edit_in_progress".into());
                 }
-                let c = self.editor.document().glyphs[&id]
-                    .contours
-                    .get(contour)
-                    .ok_or("InvalidGeometry")?;
+                let geometry = self.editing_glyph().clone();
+                let c = geometry.contours.get(contour).ok_or("InvalidGeometry")?;
                 if anchor > c.segments.len() {
                     return Err("InvalidGeometry".into());
                 }
@@ -743,14 +845,12 @@ impl Model {
                 if id != self.glyph || !self.pen.is_empty() {
                     return Err("edit_in_progress".into());
                 }
-                let mut g = self.editor.document().glyphs[&id].clone();
+                let mut g = self.editing_glyph().clone();
                 let c = g.contours.get_mut(contour).ok_or("InvalidGeometry")?;
                 font_core::geometry::set_smooth(c, anchor, smooth).map_err(|e| e.to_string())?;
                 let anchor = font_core::geometry::canonical_anchor(c, anchor);
                 g.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, g)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, g)?;
                 self.selected = Some((contour, font_core::geometry::EditPoint::Anchor(anchor)));
             }
 
@@ -770,13 +870,7 @@ impl Model {
                     return Err("edit_in_progress".into());
                 }
                 let split = matches!(a, Action::SplitSegment { .. });
-                let mut g = self
-                    .editor
-                    .document()
-                    .glyphs
-                    .get(&id)
-                    .ok_or("missing_glyph")?
-                    .clone();
+                let mut g = self.editing_glyph().clone();
                 let c = g.contours.get_mut(contour).ok_or("InvalidGeometry")?;
                 if split {
                     font_core::geometry::split_segment(c, segment)
@@ -785,9 +879,7 @@ impl Model {
                 }
                 .map_err(|e| e.to_string())?;
                 g.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, g)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, g)?;
                 self.selected_nodes.clear();
                 self.selected_controls.clear();
                 self.marquee = None;
@@ -869,6 +961,7 @@ impl Model {
                 }
             }
             Action::SelectGlyph { id } => {
+                self.exit_component_edit()?;
                 if !self.editor.document().glyphs.contains_key(&id) {
                     return Err("missing_glyph".into());
                 }
@@ -979,7 +1072,7 @@ impl Model {
                 if selected.is_empty()
                     || selected.len() > 1024
                     || selected.iter().any(|&i| {
-                        self.editor.document().glyphs[&self.glyph]
+                        self.editing_glyph()
                             .contours
                             .get(i)
                             .is_none_or(|c| !c.closed)
@@ -1005,7 +1098,8 @@ impl Model {
                 self.proof.active = false;
                 self.proof.generation += 1;
                 self.selected_controls.clear();
-                self.selected_nodes = self.editor.document().glyphs[&self.glyph]
+                self.selected_nodes = self
+                    .editing_glyph()
                     .contours
                     .iter()
                     .enumerate()
@@ -1039,7 +1133,7 @@ impl Model {
                 if self.has_draft() {
                     return Err("edit_in_progress".into());
                 }
-                let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
+                let mut glyph = self.editing_glyph().clone();
                 font_core::point_transform::transform(
                     &mut glyph.contours,
                     &self.point_selection(),
@@ -1049,9 +1143,7 @@ impl Model {
                 )
                 .map_err(|e| e.to_string())?;
                 glyph.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, glyph)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, glyph)?;
             }
             Action::SelectAllControls => {
                 if self.has_draft() {
@@ -1063,7 +1155,8 @@ impl Model {
                 self.proof.generation += 1;
                 self.selected_nodes.clear();
                 self.selected = None;
-                self.selected_controls = self.editor.document().glyphs[&self.glyph]
+                self.selected_controls = self
+                    .editing_glyph()
                     .contours
                     .iter()
                     .enumerate()
@@ -1091,7 +1184,7 @@ impl Model {
                 if scale == [1., 1.] && angle == 0. {
                     return Ok(());
                 }
-                let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
+                let mut glyph = self.editing_glyph().clone();
                 font_core::point_transform::transform(
                     &mut glyph.contours,
                     &self.point_selection(),
@@ -1101,9 +1194,7 @@ impl Model {
                 )
                 .map_err(|e| e.to_string())?;
                 glyph.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, glyph)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, glyph)?;
             }
             Action::SplitPath {
                 id,
@@ -1114,7 +1205,7 @@ impl Model {
                 if self.has_draft() || id != self.glyph {
                     return Err("edit_in_progress".into());
                 }
-                let mut glyph = self.editor.document().glyphs[&id].clone();
+                let mut glyph = self.editing_glyph().clone();
                 let parts = font_core::path_edit::split(
                     glyph.contours.get(contour).ok_or("InvalidGeometry")?,
                     anchor,
@@ -1122,9 +1213,7 @@ impl Model {
                 .map_err(|e| e.to_string())?;
                 glyph.contours.splice(contour..=contour, parts);
                 glyph.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, glyph)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, glyph)?;
                 self.selected = None;
                 self.selected_nodes.clear();
                 self.selected_controls.clear();
@@ -1151,7 +1240,7 @@ impl Model {
                 if revision != self.editor.revision() {
                     return Err("Conflict".into());
                 }
-                let mut glyph = self.editor.document().glyphs[&id].clone();
+                let mut glyph = self.editing_glyph().clone();
                 let first = glyph.contours.get(contour).ok_or("InvalidGeometry")?;
                 if first.closed
                     || first.segments.is_empty()
@@ -1173,9 +1262,7 @@ impl Model {
                     glyph.contours.remove(target);
                 }
                 glyph.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, glyph)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, glyph)?;
                 self.selected = None;
                 self.selected_nodes.clear();
                 self.selected_controls.clear();
@@ -1205,13 +1292,7 @@ impl Model {
                 if id != self.glyph || !self.pen.is_empty() {
                     return Err("edit_in_progress".into());
                 }
-                let mut g = self
-                    .editor
-                    .document()
-                    .glyphs
-                    .get(&id)
-                    .ok_or("missing_glyph")?
-                    .clone();
+                let mut g = self.editing_glyph().clone();
                 let c = g.contours.get_mut(contour).ok_or("InvalidGeometry")?;
                 match operation.as_str() {
                     "reverse" => font_core::path_edit::reverse(c),
@@ -1221,9 +1302,7 @@ impl Model {
                 }
                 .map_err(|e| e.to_string())?;
                 g.status = GlyphStatus::Draft;
-                self.editor
-                    .replace_glyph(revision, g)
-                    .map_err(|e| e.to_string())?;
+                self.commit_geometry(revision, g)?;
                 self.selected = None;
                 self.selected_nodes.clear();
                 self.selected_controls.clear();
@@ -1237,10 +1316,15 @@ impl Model {
                 self.cancel_marquee();
             }
             Action::ResetView => {
-                self.zoom = 1.;
-                self.pan = [0., 0.];
+                if self.component_edit.is_some() {
+                    self.fit_component_view();
+                } else {
+                    self.zoom = 1.;
+                    self.pan = [0., 0.];
+                }
             }
         }
+        self.refresh_component_edit();
         Ok(())
     }
     pub fn pointer(&mut self, phase: &str, x: f64, y: f64) -> Result<(), String> {
@@ -1269,6 +1353,9 @@ impl Model {
         if !x.is_finite() || !y.is_finite() {
             return Err("invalid_point".into());
         }
+        if self.editor.document().source_font.is_some() {
+            return Ok(());
+        }
         if self.proof.active {
             if self.proof.source.is_some() || self.proof.color.is_some() {
                 return Ok(());
@@ -1286,8 +1373,8 @@ impl Model {
                             .placements
                             .iter()
                             .find(|p| {
-                                x >= p.x
-                                    && x <= p.x + p.width
+                                x >= p.left
+                                    && x <= p.left + p.width
                                     && y + self.proof.settings.scroll >= p.top
                                     && y + self.proof.settings.scroll <= p.bottom
                             })
@@ -1319,7 +1406,7 @@ impl Model {
         match phase {
             "down" if self.tool == Tool::Nodes && self.nodes => {
                 self.drag = None;
-                let g = &self.editor.document().glyphs[&self.glyph];
+                let g = self.editing_glyph().clone();
                 let v = self.viewport();
                 let found = g
                     .contours
@@ -1375,11 +1462,7 @@ impl Model {
                 }
                 self.selected = found.map(|(ci, point, _)| (ci, point));
                 if let Some((contour, anchor, _)) = found {
-                    let locked = self
-                        .editor
-                        .document()
-                        .components
-                        .linked_contours(self.glyph);
+                    let locked = self.locked_contours();
                     if self.point_selection().iter().any(|&(ci, _)| {
                         g.contours[ci]
                             .identity
@@ -1455,9 +1538,7 @@ impl Model {
                 if let Some(mut d) = self.drag.take() {
                     if d.original != d.draft {
                         d.draft.status = GlyphStatus::Draft;
-                        self.editor
-                            .replace_glyph(d.revision, d.draft)
-                            .map_err(|e| e.to_string())?;
+                        self.commit_geometry(d.revision, d.draft)?;
                     }
                 }
             }
@@ -1697,6 +1778,60 @@ mod tests {
             .unwrap();
         assert!(m.proof.font.is_none());
         assert!(m.proof.reference.is_none());
+    }
+    #[test]
+    fn imported_shaping_recovery_and_vertical_ivs_click_keep_source_glyph() {
+        let bytes = include_bytes!("../../crates/font-core/tests/data/layout/shaping.ttf");
+        let mut m = Model::new(Workspace::default());
+        m.replace_document(font_core::font_io::import(bytes, 0).unwrap(), None)
+            .unwrap();
+        let before = m.editor.document().clone();
+        m.editor
+            .release_imported_positioning(m.editor.revision())
+            .unwrap();
+        m.editor.undo(m.editor.revision()).unwrap();
+        assert_eq!(m.editor.document(), &before);
+        let root =
+            std::env::temp_dir().join(format!("fonts-layout-recovery-{}", before.document_uuid));
+        let store = crate::recovery_store::Store::new(root.clone()).unwrap();
+        store
+            .checkpoint(&before, m.epoch, m.editor.revision(), None)
+            .unwrap();
+        drop(store);
+        let store = crate::recovery_store::Store::new(root.clone()).unwrap();
+        let (list, _) = store.candidates().unwrap();
+        let (doc, lease) = store.candidate(&list[0].id).unwrap();
+        assert_eq!(doc, before);
+        m.replace_document(doc, None).unwrap();
+        let settings = font_core::proof::Settings {
+            text: "字\u{e0100}".into(),
+            direction: font_core::proof::Direction::Vertical,
+            ..Default::default()
+        };
+        let font = font_core::proof::prepare(
+            font_core::proof::subset(m.editor.document(), &settings.text).unwrap(),
+            &settings.text,
+        )
+        .unwrap();
+        let layout = font_core::proof::layout(&font, &settings, m.size[0]);
+        let p = &layout.placements[0];
+        let expected = before
+            .glyphs
+            .values()
+            .find(|g| g.name == "ideograph.alt")
+            .unwrap()
+            .id;
+        assert_eq!(p.source, Some(expected));
+        m.proof.font = Some(std::sync::Arc::new(font));
+        m.proof.settings = settings;
+        m.proof.active = true;
+        m.pointer("down", p.left + p.width / 2., (p.top + p.bottom) / 2.)
+            .unwrap();
+        assert_eq!(m.glyph, expected);
+        assert!(!m.proof.active);
+        drop(lease);
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn curve_handle_drag_is_one_transaction_cancel_and_undo_are_lossless() {

@@ -119,6 +119,10 @@ fn sfnt_tables(b: &[u8]) -> Result<Vec<Table>> {
 }
 pub fn export(doc: &FontDocument, options: Options) -> Result<Vec<u8>> {
     options.validate()?;
+    if let Some(source) = &doc.source_font {
+        doc.validate().map_err(|e| e.to_string())?;
+        return encode_sfnt(source.export()?, options.quality);
+    }
     let sfnt = match options.outline {
         Outline::TrueType => crate::font_io::export(doc)?,
         Outline::Cff => super::cff::opentype(doc, false)?,
@@ -134,7 +138,16 @@ pub fn encode_sfnt(mut sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
         return Err("font_too_large".into());
     }
     ttf_parser::Face::parse(&sfnt, 0).map_err(|_| bad())?;
-    sfnt_tables(&sfnt)?;
+    // External serializers may leave gaps or use a different physical table order.
+    // WOFF2 totalSfntSize describes the reconstructed, canonically padded SFNT.
+    let mut canonical = std::collections::BTreeMap::new();
+    for (tag, mut data) in sfnt_tables(&sfnt)? {
+        if &tag == b"head" {
+            data.get_mut(8..12).ok_or_else(bad)?.fill(0);
+        }
+        canonical.insert(tag, data);
+    }
+    sfnt = crate::color_fonts::assemble(canonical, sfnt.starts_with(b"OTTO")).map_err(|_| bad())?;
     // WOFF2 requires the lossless-modification flag even with null transforms.
     for i in 0..u16at(&sfnt, 4)? as usize {
         let record = 12 + 16 * i;

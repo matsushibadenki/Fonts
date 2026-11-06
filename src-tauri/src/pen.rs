@@ -102,16 +102,14 @@ impl Model {
         }
         let contour = self.pen_contour(closed).ok_or("InvalidGeometry")?;
         font_core::geometry::validate(&contour).map_err(|e| e.to_string())?;
-        let mut glyph = self.editor.document().glyphs[&self.glyph].clone();
+        let mut glyph = self.editing_glyph().clone();
         if let Some((index, _)) = &self.pen_edit.source {
             glyph.contours[*index] = contour;
         } else {
             glyph.contours.push(contour);
         }
         glyph.status = GlyphStatus::Draft;
-        self.editor
-            .replace_glyph(self.editor.revision(), glyph)
-            .map_err(|e| e.to_string())?;
+        self.commit_geometry(self.editor.revision(), glyph)?;
         self.pen.clear();
         self.pen_edit = Default::default();
         Ok(())
@@ -129,7 +127,8 @@ impl Model {
         if revision != self.editor.revision() {
             return Err("Conflict".into());
         }
-        let mut source = self.editor.document().glyphs[&id]
+        let mut source = self
+            .editing_glyph()
             .contours
             .get(index)
             .ok_or("InvalidGeometry")?

@@ -64,7 +64,7 @@ pub async fn boolean_paths(window: WebviewWindow, request: Request) -> Result<()
         if m.has_draft() || crate::updates::installing() {
             return Err("edit_in_progress".into());
         }
-        m.editor.document().glyphs[&glyph].clone()
+        m.editing_glyph().clone()
     };
     let output = tauri::async_runtime::spawn_blocking(move || {
         compute_group(source, &indices, &right_indices, &operation)
@@ -158,9 +158,7 @@ fn commit(
     if m.has_draft() || crate::updates::installing() {
         return Err("edit_in_progress".into());
     }
-    m.editor
-        .replace_glyph(revision, output)
-        .map_err(|e| e.to_string())?;
+    m.commit_geometry(revision, output)?;
     m.selected = None;
     m.selected_nodes.clear();
     m.selected_controls.clear();
@@ -543,5 +541,45 @@ mod tests {
             drop(store);
             std::fs::remove_dir_all(root).unwrap();
         }
+    }
+    #[test]
+    fn definition_boolean_uses_mode_epoch_and_atomic_history() {
+        let mut m = model();
+        let id = m
+            .editor
+            .capture_component(
+                m.editor.revision(),
+                m.glyph,
+                &[0, 1].into(),
+                font_core::snippets::Info {
+                    name: "Boolean".into(),
+                    tags: "".into(),
+                    category: "radical".into(),
+                    source: "".into(),
+                    license: "".into(),
+                    favorite: false,
+                },
+            )
+            .unwrap();
+        let glyph = m.glyph;
+        let before = m.editor.document().clone();
+        let stale_epoch = m.epoch;
+        m.enter_component_edit(id).unwrap();
+        let output = compute(m.editing_glyph().clone(), &[0].into(), 1, "union").unwrap();
+        let revision = m.editor.revision();
+        assert_eq!(
+            commit(&mut m, stale_epoch, revision, glyph, output.clone()),
+            Err("Conflict".into())
+        );
+        let epoch = m.epoch;
+        commit(&mut m, epoch, revision, glyph, output).unwrap();
+        assert_eq!(m.editing_glyph().contours.len(), 1);
+        assert_eq!(m.editor.document().glyphs, before.glyphs);
+        m.action(Action::Undo {
+            revision: m.editor.revision(),
+        })
+        .unwrap();
+        assert_eq!(m.editor.document(), &before);
+        assert_eq!(m.editing_glyph().contours.len(), 2);
     }
 }

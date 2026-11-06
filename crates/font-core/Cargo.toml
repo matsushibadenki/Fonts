@@ -28,3 +28,5 @@ flate2 = "=1.1.10"
 i_overlay = "=9.1.0"
 
 uuid = { version = "=1.29.0", features = ["v4", "serde"] }
+
+unicode-bidi = "=0.3.18"

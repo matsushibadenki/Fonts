@@ -83,6 +83,9 @@ impl ClassKerning {
             .unwrap_or(0)
     }
     pub fn validate(&self, doc: &FontDocument) -> Result<()> {
+        self.validate_glyphs(|id| doc.glyphs.contains_key(id))
+    }
+    pub(crate) fn validate_glyphs(&self, contains: impl Fn(&GlyphId) -> bool) -> Result<()> {
         let mut ids = BTreeSet::new();
         for classes in [&self.left, &self.right] {
             if classes.len() > MAX_CLASSES {
@@ -106,7 +109,7 @@ impl ClassKerning {
                 }
                 last = c.id;
                 for id in &c.glyphs {
-                    if *id == 0 || !doc.glyphs.contains_key(id) || !members.insert(*id) {
+                    if *id == 0 || !contains(id) || !members.insert(*id) {
                         return Err(Error::InvalidDocument);
                     }
                 }
@@ -156,6 +159,9 @@ impl FontDocument {
 impl Editor {
     pub fn edit_class_kerning(&mut self, expected: u64, edit: Edit) -> Result<u64> {
         let revision = self.check_revision(expected)?;
+        if self.document.imported_layout.positioning() {
+            return Err(Error::ImportedPositioningLinked);
+        }
         let before = self.document.class_kerning.clone();
         let mut after = before.clone();
         match edit {

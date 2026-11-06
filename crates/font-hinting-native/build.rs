@@ -18,6 +18,8 @@ fn main() {
         .file(hb.join("hb-raster-image.cc"))
         .file(hb.join("hb-raster-paint.cc"))
         .file("color_wrapper.cc")
+        .file("shape_wrapper.cc")
+        .file("variation_wrapper.cc")
         .compile("fonts_harfbuzz");
     let mut build = cc::Build::new();
     build
@@ -62,5 +64,7 @@ fn main() {
     println!("cargo:rerun-if-changed=ps_wrapper.c");
     println!("cargo:rerun-if-changed=wrapper.c");
     println!("cargo:rerun-if-changed=color_wrapper.cc");
+    println!("cargo:rerun-if-changed=shape_wrapper.cc");
+    println!("cargo:rerun-if-changed=variation_wrapper.cc");
     println!("cargo:rerun-if-changed={}", root.display());
 }

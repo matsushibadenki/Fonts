@@ -8,13 +8,15 @@ export interface ReferenceImage {id:number;asset_id:string;center:[number,number
 export type Placement = {kind:'docked';dock:Dock}|{kind:'floating';return_to:Dock};
 export interface FontMetadata {style:string;weight:number;width:number;italic_angle:number;bold:boolean;italic:boolean;copyright:string;license:string;license_url:string;cid_system:{registry:string;ordering:string;supplement:number}|null}
 export interface FontProperties {family:string;metadata:FontMetadata}
-export interface ProofSettings {kerning:boolean;text:string;size:number;tracking:number;leading:number;scroll:number}
+export interface ProofSettings {orientation:'mixed'|'upright';direction:'horizontal'|'vertical';language:string;column_height:number;kerning:boolean;text:string;size:number;tracking:number;leading:number;scroll:number}
 export interface SnippetInfo {name:string;tags:string;category:string;source:string;license:string;favorite:boolean}
 export interface SnippetEntry {key:string;builtin:boolean;info:SnippetInfo;contours:number}
 export interface KerningClass {id:number;name:string;glyphs:number[]}
 export interface ClassKerning {next_id:number;left:KerningClass[];right:KerningClass[];pairs:{left:number;right:number;value:number}[]}
 export interface Snapshot {
-  components:{active:boolean;selected:string|null;definitions:{id:string;info:SnippetInfo;uses:number;source:boolean;thumbnail:number}[];instances:{id:string;definition:string;glyph:number;name:string}[]};
+  source_font?:{kind:"color"|"variable";extension:string;palette:number;palettes:number;colors:[number,number,number,number][];sample:string;variable?:{axes:{tag:string;name:string;min:number;default:number;max:number;hidden:boolean}[];instances:{id:number;name:string;names:Record<string,string>;coordinates:Record<string,number>}[];settings:{ranges:Record<string,{min:number;default:number;max:number}>;coordinates:Record<string,number>}}|null}|null;
+  imported_layout?:{present:boolean;positioning:boolean;substitution:boolean;vertical:boolean;variations:boolean};
+  components:{editing?:{id:string;name:string}|null;children:{parent:string;id:string;definition:string;name:string;placement:ReferenceImage|null;can_remove:boolean}[];active:boolean;selected:string|null;definitions:{id:string;info:SnippetInfo;uses:number;source:boolean;thumbnail:number}[];instances:{affected:boolean;id:string;definition:string;glyph:number;name:string}[]};
   document_uuid:string;
   document_id:number;documents:{id:number;family:string;path:string|null;dirty:boolean}[];
   class_kerning:ClassKerning;
@@ -26,7 +28,7 @@ export interface Snapshot {
   pen_points:number;pen_continuing:boolean;
   selection:{node_id:string|null;contour:number;anchor:number;smooth:boolean;can_smooth:boolean}|null;
   properties:FontProperties;presets:[string,number][];
-  proof:{color:boolean;source:string|null;active:boolean;settings:ProofSettings;missing:number[];empty:number;comparison:boolean;height:number};
+  proof:{color:boolean;source:string|null;active:boolean;settings:ProofSettings;missing_count?:number;missing:number[];empty:number;comparison:boolean;height:number};
   family:string;epoch:number;revision:number;glyph:number;character:string;codepoints:number[];name:string;cid:number|null;advance:number;ascender:number;descender:number;upm:number;unencoded:number;cid_system:{registry:string;ordering:string;supplement:number}|null;
   glyphs:{id:number;character:string;codepoints:number[];name:string;cid:number|null;reviewed:boolean;has_outline:boolean}[];
   contours:{linked:boolean;uuid:string|null;start_id:string|null;nodes:number;closed:boolean;start:[number,number];segments:{node_id:string|null;end:[number,number];deletable:boolean;closure:boolean}[]}[];

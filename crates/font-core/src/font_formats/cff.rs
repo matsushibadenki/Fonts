@@ -285,6 +285,8 @@ pub fn opentype(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
     let cff = encode(doc, cid)?;
     // Seed shared SFNT metadata without converting cubic curves through glyf.
     let metrics = FontDocument {
+        source_font: None,
+        imported_layout: Default::default(),
         components: Default::default(),
         document_uuid: doc.document_uuid,
         class_kerning: doc.class_kerning.clone(),
@@ -371,7 +373,7 @@ pub fn opentype(doc: &FontDocument, cid: bool) -> Result<Vec<u8>> {
     );
     let out = pack(tables, *b"OTTO")?;
     ttf_parser::Face::parse(&out, 0).map_err(|_| "font_invalid_output")?;
-    Ok(out)
+    doc.imported_layout.apply(doc, out, true)
 }
 fn unpack(bytes: &[u8]) -> Result<BTreeMap<[u8; 4], Vec<u8>>> {
     let count = u16::from_be_bytes(bytes[4..6].try_into().unwrap()) as usize;

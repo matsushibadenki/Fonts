@@ -60,7 +60,7 @@ pub fn handle(app: &tauri::AppHandle, id: &str) {
                 let result = match action.as_str() {
                     "new" => crate::files::new(window).await,
                     "open" => crate::files::open(window).await,
-                    "import_font" => crate::font_import::font_import_choose(window).await,
+                    "import_font" => crate::font_import::font_import_choose(window, None).await,
                     _ => crate::files::save(window, action == "save_as").await,
                 };
                 error(&handle, result);

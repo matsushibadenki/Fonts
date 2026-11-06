@@ -31,9 +31,10 @@ pub async fn variation_catalog(
     .await
     .map_err(|e| e.to_string())?
 }
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
+    Edit,
     Preview,
     Import,
     Export,
@@ -62,6 +63,9 @@ pub async fn variation_action(
         if m.epoch != epoch || m.editor.revision() != revision {
             return Err("Conflict".into());
         }
+        if m.editing_id().is_some() {
+            return Err("component_edit_unavailable".into());
+        }
         if m.has_draft() {
             return Err("edit_in_progress".into());
         }
@@ -72,6 +76,13 @@ pub async fn variation_action(
     let source = e.path.clone();
     let doc = tauri::async_runtime::spawn_blocking(move || {
         let bytes = font_core::font_io::read(&e.path)?;
+        if matches!(action, Action::Edit) {
+            return font_core::source_font::SourceFont::variable_document(
+                &bytes,
+                e.index,
+                Some(request.coordinates),
+            );
+        }
         match request.instance {
             Some(id) => variations::instantiate_named(&bytes, e.index, id, &request.coordinates),
             None => variations::instantiate(&bytes, e.index, &request.coordinates),
@@ -80,6 +91,14 @@ pub async fn variation_action(
     .await
     .map_err(|e| e.to_string())??;
     match action {
+        Action::Edit => {
+            crate::files::add_document(&window, doc, None).await?;
+            if let Some(main) = app.get_webview_window("main") {
+                main.show().map_err(|e| e.to_string())?;
+                main.set_focus().map_err(|e| e.to_string())?;
+            }
+            return Ok(None);
+        }
         Action::Preview => {
             let copy = font_core::proof::subset(&doc, &settings.text)?;
             let text = settings.text.clone();

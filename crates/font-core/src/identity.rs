@@ -23,6 +23,8 @@ impl Identities {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeRef {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition: Option<Uuid>,
     pub document: Uuid,
     pub node: Uuid,
 }
@@ -131,7 +133,7 @@ pub fn validate_document(doc: &FontDocument) -> Result<()> {
     Ok(())
 }
 pub fn upgrade(doc: &mut FontDocument) -> Result<bool> {
-    if !matches!(doc.schema_version, 1..=3) {
+    if !matches!(doc.schema_version, 1..=6) {
         return Err(Error::UnsupportedVersion);
     }
     let mut changed = doc.schema_version < 2
@@ -148,7 +150,13 @@ pub fn upgrade(doc: &mut FontDocument) -> Result<bool> {
             changed |= ensure_contour(c)?;
         }
     }
-    let version = if doc.components.is_empty() { 2 } else { 3 };
+    let version = if doc.components.has_nested() {
+        4
+    } else if doc.components.is_empty() {
+        2
+    } else {
+        3
+    };
     changed |= doc.schema_version < version;
     doc.schema_version = doc.schema_version.max(version);
     validate_document(doc)?;
@@ -167,7 +175,10 @@ pub fn node_id(c: &Contour, p: EditPoint) -> Option<Uuid> {
     }
 }
 pub fn resolve(doc: &FontDocument, reference: NodeRef) -> Option<Address> {
-    if reference.document != doc.document_uuid || reference.node.is_nil() {
+    if reference.definition.is_some()
+        || reference.document != doc.document_uuid
+        || reference.node.is_nil()
+    {
         return None;
     }
     for (&glyph, g) in &doc.glyphs {
@@ -266,12 +277,7 @@ pub fn validate_replacement(doc: &FontDocument, glyph: &crate::Glyph) -> Result<
     for c in &glyph.contours {
         validate_contour(c)?;
         for id in ids(c) {
-            if id.is_nil()
-                || *id == doc.document_uuid
-                || doc.components.definitions.contains_key(id)
-                || doc.components.instances.contains_key(id)
-                || !added.insert(*id)
-            {
+            if id.is_nil() || *id == doc.document_uuid || !added.insert(*id) {
                 return Err(Error::InvalidDocument);
             }
         }
@@ -285,6 +291,9 @@ pub fn validate_replacement(doc: &FontDocument, glyph: &crate::Glyph) -> Result<
     }
     if added.is_empty() {
         return Ok(());
+    }
+    if added.iter().any(|id| doc.components.is_header(id)) {
+        return Err(Error::InvalidDocument);
     }
     if doc
         .components
@@ -305,11 +314,25 @@ pub fn validate_replacement(doc: &FontDocument, glyph: &crate::Glyph) -> Result<
 }
 
 pub fn resolve_in_glyph(doc: &FontDocument, glyph: GlyphId, reference: NodeRef) -> Option<Address> {
-    if reference.document != doc.document_uuid || reference.node.is_nil() {
+    if reference.definition.is_some()
+        || reference.document != doc.document_uuid
+        || reference.node.is_nil()
+    {
         return None;
     }
     let g = doc.glyphs.get(&glyph)?;
-    for (contour, c) in g.contours.iter().enumerate() {
+    resolve_in_contours(doc.document_uuid, glyph, &g.contours, reference)
+}
+pub fn resolve_in_contours(
+    document: Uuid,
+    glyph: GlyphId,
+    contours: &[Contour],
+    reference: NodeRef,
+) -> Option<Address> {
+    if reference.definition.is_some() || reference.document != document || reference.node.is_nil() {
+        return None;
+    }
+    for (contour, c) in contours.iter().enumerate() {
         for (i, ids) in c.identity.anchors.iter().enumerate() {
             if ids.contains(&reference.node) {
                 return Some(Address {
@@ -336,4 +359,22 @@ pub fn resolve_in_glyph(doc: &FontDocument, glyph: GlyphId, reference: NodeRef) 
         }
     }
     None
+}
+
+pub fn resolve_definition_reference(
+    doc: &FontDocument,
+    glyph: GlyphId,
+    reference: NodeRef,
+) -> Option<Address> {
+    let id = reference.definition?;
+    let d = doc.components.definitions.get(&id)?;
+    resolve_in_contours(
+        doc.document_uuid,
+        glyph,
+        &d.contours,
+        NodeRef {
+            definition: None,
+            ..reference
+        },
+    )
 }

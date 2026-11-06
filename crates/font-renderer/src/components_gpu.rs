@@ -6,11 +6,24 @@ use font_core::{
 };
 #[test]
 #[ignore = "Requires a real GPU adapter"]
-fn shared_component_update_renders_the_new_outline() {
+fn nested_component_update_renders_the_new_outline() {
+    render_component_edit(false, false);
+}
+#[test]
+#[ignore = "Requires a real GPU adapter"]
+fn dedicated_definition_edit_renders_without_source() {
+    render_component_edit(true, false);
+}
+#[test]
+#[ignore = "Requires a real GPU adapter"]
+fn truetype_import_renders_nested_shared_update() {
+    render_component_edit(true, true);
+}
+fn render_component_edit(direct: bool, roundtrip: bool) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let format = wgpu::TextureFormat::Rgba8Unorm;
     let gpu = pollster::block_on(Gpu::new(&instance, None, format)).unwrap();
-    let mut doc = FontDocument::new("Components", "AB").unwrap();
+    let mut doc = FontDocument::new("Components", "ABC").unwrap();
     doc.glyphs.get_mut(&1).unwrap().contours = vec![Contour {
         identity: Default::default(),
         smooth: Default::default(),
@@ -25,7 +38,7 @@ fn shared_component_update_renders_the_new_outline() {
         closed: true,
     }];
     let mut editor = Editor::new(doc).unwrap();
-    let id = editor
+    let mut id = editor
         .capture_component(
             editor.revision(),
             1,
@@ -43,6 +56,39 @@ fn shared_component_update_renders_the_new_outline() {
     editor
         .place_component(editor.revision(), id, 2, [1., 0., 0., 1., 0., 0.])
         .unwrap();
+    let parent = editor
+        .capture_component(
+            editor.revision(),
+            2,
+            &[0].into(),
+            Info {
+                name: "Parent".into(),
+                tags: "".into(),
+                category: "radical".into(),
+                source: "".into(),
+                license: "".into(),
+                favorite: false,
+            },
+        )
+        .unwrap();
+    editor
+        .place_component(editor.revision(), parent, 3, [1., 0., 0., 1., 0., 0.])
+        .unwrap();
+    if roundtrip {
+        let bytes = font_core::truetype_components::export(editor.document())
+            .unwrap()
+            .bytes;
+        editor = Editor::new(font_core::truetype_components::import(&bytes, 0).unwrap()).unwrap();
+        id = *editor
+            .document()
+            .components
+            .definitions
+            .iter()
+            .find(|(_, d)| d.source_glyph == 1)
+            .unwrap()
+            .0;
+        assert!(editor.document().components.has_nested());
+    }
     let mut source = editor.document().glyphs[&1].clone();
     geometry::move_point(
         &mut source.contours[0],
@@ -50,11 +96,29 @@ fn shared_component_update_renders_the_new_outline() {
         [300., 600.],
     )
     .unwrap();
-    editor.replace_glyph(editor.revision(), source).unwrap();
-    editor
-        .update_component(editor.revision(), id, 1, &[0].into())
-        .unwrap();
-    let glyph = editor.document().glyphs[&2].clone();
+    let mut glyph = editor.document().glyphs[&3].clone();
+    if direct {
+        let contours = source.contours.clone();
+        source.contours.clear();
+        editor.replace_glyph(editor.revision(), source).unwrap();
+        editor
+            .edit_component_contours(editor.revision(), id, contours)
+            .unwrap();
+        glyph.contours = editor.document().components.definitions[&id]
+            .contours
+            .as_ref()
+            .clone();
+        assert_eq!(
+            glyph.contours[0].segments,
+            editor.document().glyphs[&3].contours[0].segments
+        );
+    } else {
+        editor.replace_glyph(editor.revision(), source).unwrap();
+        editor
+            .update_component(editor.revision(), id, 1, &[0].into())
+            .unwrap();
+        glyph = editor.document().glyphs[&3].clone();
+    }
     let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
         label: Some("readback"),
         size: wgpu::Extent3d {

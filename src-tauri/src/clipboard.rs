@@ -60,10 +60,27 @@ pub async fn paste_paths(
         let state = app.state::<AppState>();
         let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
         check(&m, epoch, revision, glyph)?;
-        let inserted = m
-            .editor
-            .paste_paths(revision, glyph, contours)
-            .map_err(str::to_owned)?;
+        let first = m.editing_glyph().contours.len();
+        if m.editing_id().is_none() && glyph == 0 {
+            return Err("clipboard_no_glyph".into());
+        }
+        if first + contours.len() > 4096 {
+            return Err("clipboard_too_large".into());
+        }
+        let count = contours.len();
+        let viewport = m.viewport();
+        let contours = font_core::path_paste::fit_paths(
+            &contours,
+            viewport.advance.max(1.),
+            viewport.ascender,
+            viewport.descender,
+        )
+        .map_err(str::to_string)?;
+        let mut geometry = m.editing_glyph().clone();
+        geometry.contours.extend(contours);
+        geometry.status = font_core::GlyphStatus::Draft;
+        m.commit_geometry(revision, geometry)?;
+        let inserted = first..first + count;
         m.selected = None;
         m.selected_nodes.clear();
         m.selected_controls.clear();

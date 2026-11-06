@@ -302,9 +302,26 @@ pub fn instantiate(
         })
         .collect::<Vec<_>>()
         .join(" ");
-    // Variable positioning requires a shaping engine; never present its default deltas as baked kerning.
     doc.kerning = Default::default();
     doc.class_kerning = Default::default();
+    // Resolve FeatureVariations and variation-index positioning before retaining static layout.
+    let ranges = axes
+        .iter()
+        .map(|a| {
+            let value = coordinates.get(&a.tag).copied().unwrap_or(a.default);
+            Ok(font_hinting_native::variations::AxisRange {
+                tag: u32::from_be_bytes(a.tag.as_bytes().try_into().map_err(|_| "variation_axis")?),
+                minimum: value,
+                maximum: value,
+                default: value,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let frozen = font_hinting_native::variations::subset(bytes, index, &ranges)?;
+    doc.imported_layout = crate::imported_layout::ImportedLayout::import(&doc, &frozen, 0)?;
+    if !doc.imported_layout.is_empty() {
+        doc.schema_version = doc.schema_version.max(5);
+    }
     doc.validate().map_err(|e| e.to_string())?;
     Ok(doc)
 }

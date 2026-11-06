@@ -26,7 +26,7 @@ export function ContourEditor({state,index,edit}:{state:Snapshot;index:number;ed
   useEffect(()=>{if(active)ref.current?.scrollIntoView({block:'nearest',inline:'nearest'});},[active,anchor]);
   const select=async(value:number)=>{
     const node=value===0?c.start_id:c.segments[value-1]?.node_id;
-    if(node&&state.document_uuid){await edit({type:'select_stable_node',reference:{document:state.document_uuid,node},revision:state.revision});}
+    if(node&&state.document_uuid){await edit({type:'select_stable_node',reference:{document:state.document_uuid,node,...(state.components.editing?{definition:state.components.editing.id}:{})},revision:state.revision});}
     else {await edit({type:'select_node',id:state.glyph,contour:index,anchor:value,revision:state.revision});}
   };
   const apply=async(type:string,extra:Record<string,unknown>={})=>{

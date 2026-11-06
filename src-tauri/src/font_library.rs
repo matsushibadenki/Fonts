@@ -47,6 +47,8 @@ pub enum Operation {
     Export {
         family: String,
         #[serde(default)]
+        components: bool,
+        #[serde(default)]
         autohint: bool,
         #[serde(default)]
         woff2: font_core::font_formats::woff2::Options,
@@ -294,6 +296,7 @@ pub async fn font_library_action(
             }
         }
         Operation::Export {
+            components,
             family,
             format,
             woff2,
@@ -301,7 +304,9 @@ pub async fn font_library_action(
         } => {
             let mut doc = document(&app)?;
             doc.family = family;
-            report = save_font_with_hinting(&window, doc, format, woff2, autohint, None).await?;
+            report =
+                save_font_with_hinting(&window, doc, format, woff2, autohint, components, None)
+                    .await?;
         }
         Operation::Convert { id, format } => {
             let e = entry(&app, id)?;
@@ -355,6 +360,9 @@ pub async fn font_library_action(
                     }
                     if m.has_draft() {
                         return Err("edit_in_progress".into());
+                    }
+                    if m.editing_id().is_some() {
+                        return Err("component_edit_unavailable".into());
                     }
                     let glyphs =
                         font_core::font_formats::cmap::apply(m.editor.document(), &mapping)?;
@@ -518,7 +526,7 @@ pub(crate) async fn save_source_font(
     woff2: font_core::font_formats::woff2::Options,
     source: PathBuf,
 ) -> Result<Option<ExportReport>, String> {
-    save_font_with_hinting(window, doc, format, woff2, false, Some(source)).await
+    save_font_with_hinting(window, doc, format, woff2, false, false, Some(source)).await
 }
 async fn save_font_with_hinting(
     window: &WebviewWindow,
@@ -526,6 +534,7 @@ async fn save_font_with_hinting(
     format: Format,
     woff2: font_core::font_formats::woff2::Options,
     autohint: bool,
+    components: bool,
     source: Option<PathBuf>,
 ) -> Result<Option<ExportReport>, String> {
     if autohint
@@ -541,12 +550,36 @@ async fn save_font_with_hinting(
     {
         return Err("autohint_unsupported".into());
     }
+    if doc.source_font.is_some() && (autohint || components) {
+        return Err("SourceFontLocked".into());
+    }
     let parent = window.clone();
     let name = doc.family.clone();
     let verify = autohint || matches!(format, Format::Ttf | Format::Otf | Format::Woff2);
-    let expected = doc.clone();
-    let bytes = tauri::async_runtime::spawn_blocking(move || {
-        if autohint {
+    let (bytes, expected) = tauri::async_runtime::spawn_blocking(move || {
+        if components {
+            if !(format == Format::Ttf
+                || (format == Format::Woff2
+                    && woff2.outline == font_core::font_formats::woff2::Outline::TrueType))
+            {
+                return Err("font_component_format".into());
+            }
+            woff2.validate()?;
+            let output = font_core::truetype_components::export(&doc)?;
+            let bytes = if autohint {
+                font_core::hinting::autohint(&output.bytes, 0)?
+            } else {
+                output.bytes
+            };
+            let bytes = if format == Format::Woff2 {
+                font_core::font_formats::woff2::encode_sfnt(bytes, woff2.quality)?
+            } else {
+                bytes
+            };
+            return Ok((bytes, output.expected));
+        }
+        let expected = doc.clone();
+        let bytes = if autohint {
             woff2.validate()?;
             let base_format = if format == Format::Woff2 {
                 match woff2.outline {
@@ -570,20 +603,32 @@ async fn save_font_with_hinting(
             font_core::font_formats::woff2::export(&doc, woff2)
         } else {
             font_core::font_formats::export(&doc, format)
-        }
+        }?;
+        Ok::<_, String>((bytes, expected))
     })
     .await
     .map_err(|e| e.to_string())??;
-    if verify && !autohint {
-        let decoded;
-        let sfnt = if format == Format::Woff2 {
-            decoded = font_core::font_formats::woff2::decode(&bytes)?;
-            decoded.as_slice()
-        } else {
-            &bytes
-        };
-        font_core::variations::verify(sfnt, &expected)?;
-    }
+    let bytes = if verify && !autohint {
+        tauri::async_runtime::spawn_blocking(move || {
+            if let Some(source) = &expected.source_font {
+                source.verify_output(&bytes, format == Format::Woff2)?;
+            } else {
+                let decoded;
+                let sfnt = if format == Format::Woff2 {
+                    decoded = font_core::font_formats::woff2::decode(&bytes)?;
+                    decoded.as_slice()
+                } else {
+                    &bytes
+                };
+                font_core::variations::verify(sfnt, &expected)?;
+            }
+            Ok::<_, String>(bytes)
+        })
+        .await
+        .map_err(|e| e.to_string())??
+    } else {
+        bytes
+    };
     let filename: String = name
         .chars()
         .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '_' | '-'))

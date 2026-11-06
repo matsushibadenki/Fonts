@@ -1,4 +1,7 @@
+pub mod imported_layout;
+pub mod source_font;
 pub mod specimen;
+pub mod truetype_components;
 // Rust-owned font documents. No WebView or renderer owns editable font data.
 pub mod class_kerning;
 pub mod components;
@@ -39,6 +42,12 @@ pub enum Error {
     CurveBooleanAmbiguous,
     ComponentLinked,
     ComponentInUse,
+    ComponentCycle,
+    ComponentDepth,
+    ComponentPartial,
+    ComponentEmpty,
+    ImportedPositioningLinked,
+    SourceFontLocked,
     MissingGlyph,
     EmptyHistory,
     UnsupportedVersion,
@@ -161,6 +170,13 @@ pub struct FontMetadata {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FontDocument {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_font: Option<source_font::SourceFont>,
+    #[serde(
+        default,
+        skip_serializing_if = "imported_layout::ImportedLayout::is_empty"
+    )]
+    pub imported_layout: imported_layout::ImportedLayout,
     #[serde(default, skip_serializing_if = "components::Library::is_empty")]
     pub components: components::Library,
     #[serde(default)]
@@ -206,6 +222,8 @@ impl FontDocument {
             glyphs.insert(id, Glyph::new(id, c));
         }
         let document = Self {
+            source_font: None,
+            imported_layout: Default::default(),
             components: Default::default(),
             class_kerning: Default::default(),
             kerning: Default::default(),
@@ -251,7 +269,17 @@ impl FontDocument {
                 })
     }
     pub fn validate(&self) -> Result<()> {
-        if !matches!(self.schema_version, 1..=3) {
+        if let Some(source) = &self.source_font {
+            if self.schema_version < 6 {
+                return Err(Error::InvalidDocument);
+            }
+            source.validate(self)?;
+        }
+        self.imported_layout.validate()?;
+        if !self.imported_layout.is_empty() && self.schema_version < 5 {
+            return Err(Error::InvalidDocument);
+        }
+        if !matches!(self.schema_version, 1..=6) {
             return Err(Error::UnsupportedVersion);
         }
         if self.family.trim().is_empty()
@@ -321,6 +349,10 @@ pub struct FontProperties {
 }
 #[derive(Clone, Default)]
 struct Change {
+    before_source: Option<Option<source_font::SourceFont>>,
+    after_source: Option<Option<source_font::SourceFont>>,
+    before_layout: Option<imported_layout::ImportedLayout>,
+    after_layout: Option<imported_layout::ImportedLayout>,
     before_schema: Option<u32>,
     after_schema: Option<u32>,
     before_components: Option<components::Library>,
@@ -350,7 +382,7 @@ pub struct Editor {
 }
 impl Editor {
     pub fn new(mut document: FontDocument) -> Result<Self> {
-        if !matches!(document.schema_version, 1..=3) {
+        if !matches!(document.schema_version, 1..=6) {
             return Err(Error::UnsupportedVersion);
         }
         identity::upgrade(&mut document)?;
@@ -376,6 +408,13 @@ impl Editor {
         self.revision
     }
     fn check_revision(&self, expected: u64) -> Result<u64> {
+        let revision = self.check_revision_unrestricted(expected)?;
+        if self.document.source_font.is_some() {
+            return Err(Error::SourceFontLocked);
+        }
+        Ok(revision)
+    }
+    fn check_revision_unrestricted(&self, expected: u64) -> Result<u64> {
         if expected != self.revision {
             return Err(Error::Conflict);
         }
@@ -590,7 +629,7 @@ impl Editor {
         Ok(revision)
     }
     pub fn undo(&mut self, expected: u64) -> Result<u64> {
-        let revision = self.check_revision(expected)?;
+        let revision = self.check_revision_unrestricted(expected)?;
         let change = self.undo.pop_back().ok_or(Error::EmptyHistory)?;
         for glyph in &change.after {
             self.document.glyphs.remove(&glyph.id);
@@ -607,6 +646,12 @@ impl Editor {
         }
         if let Some(v) = change.before_schema {
             self.document.schema_version = v;
+        }
+        if let Some(source) = &change.before_source {
+            self.document.source_font = source.clone();
+        }
+        if let Some(c) = &change.before_layout {
+            self.document.imported_layout = c.clone();
         }
         if let Some(c) = &change.before_components {
             self.document.components = c.clone();
@@ -625,7 +670,7 @@ impl Editor {
         Ok(revision)
     }
     pub fn redo(&mut self, expected: u64) -> Result<u64> {
-        let revision = self.check_revision(expected)?;
+        let revision = self.check_revision_unrestricted(expected)?;
         let change = self.redo.pop().ok_or(Error::EmptyHistory)?;
         for glyph in &change.after {
             self.document.glyphs.insert(glyph.id, glyph.clone());
@@ -639,6 +684,12 @@ impl Editor {
         }
         if let Some(v) = change.after_schema {
             self.document.schema_version = v;
+        }
+        if let Some(source) = &change.after_source {
+            self.document.source_font = source.clone();
+        }
+        if let Some(c) = &change.after_layout {
+            self.document.imported_layout = c.clone();
         }
         if let Some(c) = &change.after_components {
             self.document.components = c.clone();

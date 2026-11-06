@@ -186,6 +186,7 @@ fn uuid_history_and_real_storage_preserve_batch_results() {
     assert!(identity::resolve(
         &loaded,
         identity::NodeRef {
+            definition: None,
             document: after.document_uuid,
             node: id
         }

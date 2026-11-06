@@ -165,6 +165,23 @@ pub fn verify(output: &[u8], source: &[u8], index: u32) -> Result<(), String> {
     verify_inner(output, source, index, false)
 }
 fn verify_inner(output: &[u8], source: &[u8], index: u32, woff2: bool) -> Result<(), String> {
+    verify_profile(output, source, index, woff2, true)
+}
+pub(crate) fn verify_source(output: &[u8], source: &[u8], woff2: bool) -> Result<(), String> {
+    if woff2 {
+        let decoded = crate::font_formats::woff2::decode(output)?;
+        verify_profile(&decoded, source, 0, true, false)
+    } else {
+        verify_profile(output, source, 0, false, false)
+    }
+}
+fn verify_profile(
+    output: &[u8],
+    source: &[u8],
+    index: u32,
+    woff2: bool,
+    color: bool,
+) -> Result<(), String> {
     if output.len() as u64 > font_io::MAX_FONT_BYTES
         || !output.len().is_multiple_of(4)
         || sum(output) != 0xB1B0AFBA
@@ -173,7 +190,9 @@ fn verify_inner(output: &[u8], source: &[u8], index: u32, woff2: bool) -> Result
     }
     let original = Face::parse(source, index).map_err(|_| "color_invalid")?;
     let face = Face::parse(output, 0).map_err(|_| "color_invalid_output")?;
-    info(output, 0)?;
+    if color {
+        info(output, 0)?;
+    }
     let original_count = original
         .raw_face()
         .table_records

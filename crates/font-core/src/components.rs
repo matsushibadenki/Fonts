@@ -1,11 +1,16 @@
 //! Stable project-local definitions with validated materialized instances.
 //! Materialization is a document invariant: drawing, proof and every exporter see the same outlines.
+mod editing;
+mod interchange;
+pub(crate) use interchange::import_truetype;
+mod nesting;
 use crate::{
     identity::{self, Uuid},
     snippets::{self, Info, Snippet},
     Change, Contour, Editor, Error, FontDocument, Glyph, GlyphId, GlyphStatus, Point, Result,
     Segment,
 };
+pub use nesting::Child;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -14,6 +19,8 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Definition {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub children: BTreeMap<Uuid, Child>,
     pub info: Info,
     pub upm: u16,
     pub contours: Arc<Vec<Contour>>,
@@ -123,6 +130,7 @@ impl Library {
         if self.is_empty() {
             return Ok(());
         }
+        self.order()?;
         if self.definitions.len() > 256
             || self.instances.len() > 4096
             || self
@@ -176,6 +184,7 @@ impl Library {
                 }
             }
         }
+        self.validate_nested(doc)?;
         for &id in self.instances.keys() {
             if id.is_nil() || !ids.insert(id) {
                 return Err(Error::InvalidDocument);
@@ -301,33 +310,15 @@ pub fn placement(d: &Definition, i: &Instance) -> Result<crate::reference_images
     p.width = (max[0] - min[0]) * a.hypot(b);
     p.height = (max[1] - min[1]) * c.hypot(e);
     p.angle = b.atan2(a).to_degrees();
+    p.validate()?;
     Ok(p)
-}
-fn source(doc: &FontDocument, glyph: GlyphId, selection: &BTreeSet<usize>) -> Result<Vec<Contour>> {
-    if selection.is_empty() {
-        return Err(Error::InvalidGeometry);
-    }
-    let g = doc.glyphs.get(&glyph).ok_or(Error::MissingGlyph)?;
-    let linked = doc.components.linked_contours(glyph);
-    selection
-        .iter()
-        .map(|&n| {
-            let c = g.contours.get(n).ok_or(Error::InvalidGeometry)?;
-            if c.identity
-                .contours
-                .first()
-                .is_some_and(|&id| linked.contains(&id))
-            {
-                return Err(Error::ComponentLinked);
-            }
-            Ok(c.clone())
-        })
-        .collect()
 }
 impl Editor {
     fn commit_components(&mut self, expected: u64, mut doc: FontDocument) -> Result<()> {
         let revision = self.check_revision(expected)?;
-        doc.schema_version = 3;
+        doc.schema_version =
+            doc.schema_version
+                .max(if doc.components.has_nested() { 4 } else { 3 });
         doc.validate()?;
         if doc.components == self.document.components && doc.glyphs == self.document.glyphs {
             return Ok(());
@@ -366,12 +357,13 @@ impl Editor {
         info: Info,
     ) -> Result<Uuid> {
         self.check_revision(expected)?;
-        let contours = source(&self.document, glyph, selection)?;
+        let (contours, children) = nesting::from_source(&self.document, glyph, selection, None)?;
         let id = Uuid::new_v4();
         let mut doc = self.document.clone();
         doc.components.definitions.insert(
             id,
             Definition {
+                children,
                 info,
                 upm: doc.units_per_em,
                 contours: Arc::new(contours),
@@ -428,35 +420,26 @@ impl Editor {
         selection: &BTreeSet<usize>,
     ) -> Result<()> {
         self.check_revision(expected)?;
-        let contours = source(&self.document, glyph, selection)?;
-        let mut doc = self.document.clone();
-        let old = doc
+        let old = self
+            .document
             .components
             .definitions
             .get(&id)
-            .ok_or(Error::InvalidDocument)?
-            .clone();
+            .ok_or(Error::InvalidDocument)?;
+        let (contours, children) =
+            nesting::from_source(&self.document, glyph, selection, Some(old))?;
         let next = Definition {
             contours: Arc::new(contours),
+            children,
             source_glyph: glyph,
             ..old.clone()
         };
-        if next == old {
+        if &next == old {
             return Ok(());
         }
-        for instance in doc
-            .components
-            .instances
-            .values_mut()
-            .filter(|i| i.definition == id)
-        {
-            let g = doc
-                .glyphs
-                .get_mut(&instance.glyph)
-                .ok_or(Error::MissingGlyph)?;
-            replace_instance(g, &old, &next, instance)?;
-        }
+        let mut doc = self.document.clone();
         doc.components.definitions.insert(id, next);
+        nesting::propagate(&self.document.components, &mut doc)?;
         self.commit_components(expected, doc)
     }
     pub fn transform_component(&mut self, expected: u64, id: Uuid, matrix: [f64; 6]) -> Result<()> {
@@ -508,6 +491,11 @@ impl Editor {
             .instances
             .values()
             .any(|i| i.definition == id)
+            || doc
+                .components
+                .definitions
+                .values()
+                .any(|d| d.children.values().any(|child| child.definition == id))
         {
             return Err(Error::ComponentInUse);
         }
@@ -520,9 +508,11 @@ impl Editor {
 }
 fn regenerate(d: &Definition, i: &mut Instance) -> Result<Vec<Contour>> {
     for id in d.contours.iter().flat_map(contour_ids) {
-        Arc::make_mut(&mut i.nodes)
-            .entry(*id)
-            .or_insert_with(Uuid::new_v4);
+        if !i.nodes.contains_key(id) {
+            Arc::make_mut(&mut i.nodes)
+                .entry(*id)
+                .or_insert_with(Uuid::new_v4);
+        }
     }
     materialize(d, i)
 }

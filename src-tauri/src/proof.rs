@@ -19,6 +19,7 @@ pub struct Summary {
     pub active: bool,
     pub settings: Settings,
     pub missing: Vec<u32>,
+    pub missing_count: usize,
     pub empty: usize,
     pub comparison: bool,
     pub height: f64,
@@ -35,6 +36,12 @@ impl Proof {
                     .map(|d| format!("{} · {}", d.family, d.metadata.style))
             }),
             settings: self.settings.clone(),
+            missing_count: self
+                .font
+                .as_ref()
+                .map(|f| f.missing.len())
+                .or_else(|| self.color.as_ref().map(|c| c.missing))
+                .unwrap_or(0),
             missing: self
                 .font
                 .as_ref()
@@ -90,6 +97,12 @@ pub async fn proof_action(
         }
         match operation {
             Operation::Prepare { settings } => {
+                if m.editor.document().source_font.is_some() {
+                    return Err("SourceFontLocked".into());
+                }
+                if m.editing_id().is_some() {
+                    return Err("component_edit_unavailable".into());
+                }
                 settings.validate()?;
                 if m.has_draft() {
                     return Err("edit_in_progress".into());
@@ -129,10 +142,14 @@ pub async fn proof_action(
         }
     };
     if let Some((subset, settings, generation)) = prepared {
-        let text = settings.text.clone();
-        let font = tauri::async_runtime::spawn_blocking(move || proof::prepare(subset, &text))
-            .await
-            .map_err(|e| e.to_string())??;
+        let work_settings = settings.clone();
+        let font = tauri::async_runtime::spawn_blocking(move || {
+            let font = proof::prepare(subset, &work_settings.text)?;
+            font.warm_shaping(&work_settings)?;
+            Ok::<_, String>(font)
+        })
+        .await
+        .map_err(|e| e.to_string())??;
         let state = app.state::<AppState>();
         let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
         if m.epoch != epoch || m.editor.revision() != revision || m.proof.generation != generation {

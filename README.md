@@ -83,7 +83,9 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 文書・輪郭・点・制御点のUUIDをプロジェクトv2に保存し、編集・Undo/Redo・復旧後も参照を維持します。旧v1は読み込み時に移行し、保存するまでは元ファイルを変更しません。v2の読み込みには対応版アプリが必要です。[仕様](docs/stable-node-identities.md)。
 
-参照部品の登録・配置・共有更新・参照解除にも対応します。部品定義と配置を含むプロジェクトはv3で保存し、旧v1／v2も読み込めます。v3には対応版アプリが必要です。[部品の仕様](docs/linked-components.md)。
+参照部品の登録・配置・共有更新・参照解除にも対応します。平坦な参照部品はv3、入れ子を含む文書はv4で保存し、旧v1〜v3も読み込めます。各形式には対応版アプリが必要です。[部品の仕様](docs/linked-components.md)・[入れ子と循環参照検査](docs/nested-components.md)。[TrueType合成グリフの取り込み・出力](docs/truetype-components.md)にも対応します。[取り込み済み組版情報・縦組み・IVS](docs/imported-layout.md)はプロジェクトv5で保存し、旧v1〜v4も読み込めます。[部品定義の専用編集](docs/component-definition-editing.md)では、編集元グリフがなくてもペン・点・パスを加工し、共有更新・Undo/Redo・保存・復旧できます。
+
+[カラープロジェクト](docs/color-projects.md)ではCPALの色と透明度を編集し、元フォントとパレット選択をv6へ保存・復旧できます。Undo／Redo、wgpuプレビュー、カラー保持出力に対応します。旧v1〜v5も読み込めます。[可変プロジェクト](docs/variable-projects.md)では軸の範囲・既定値とプレビュー座標を保存し、可変出力・静的コピーに対応します。
 
 ## ライセンス
 
@@ -112,7 +114,8 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | i_overlay 9.1.0／i_float／i_shape／i_tree／i_key_sort | MIT | 🟢 [Done] Rustのパス・ブール演算。上流のMIT本文・著作権告知を第三者告知へ収録。曲線の細分化と入力・作業量の制限はFonts側で実装。 |
 | resvg／usvg 0.48.1、tiny-skia／tiny-skia-path 0.12.0 | MIT／Apache-2.0の選択式からMIT、tiny-skia系はBSD-3-Clause | 🟢 [Done] SVG-in-OpenTypeのRust描画。上流告知を第三者告知へ収録。埋め込みPNG／JPEGは制限付きで有効。テキスト・システムフォントは無効。[対応範囲](docs/svg-preview.md)。 |
 | psautohint 2.4.0 | Apache-2.0 | 🟢 [Done] 静的CFF1／CID-CFF自動ヒンティングの同梱Cエンジン。[実装と検証](docs/autohint-engines.md)。 |
-| ttfautohint 1.8.4／HarfBuzz 15.0.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去・COLRv1プレビューの同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
+| ttfautohint 1.8.4／HarfBuzz 15.0.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去・COLRv1プレビュー・組版・可変軸変換の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
+| Unicode 17.0 Vertical_Orientationデータ | Unicode-3.0 | 🟢 [Done] [公式データ](vendor/unicode/VerticalOrientation-17.0.0.txt)と[ライセンス本文](vendor/unicode/LICENSE.txt)を保持し、配布用の第三者告知へ収録。アプリ本体のMITとは適用範囲を区別する。 |
 | FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |

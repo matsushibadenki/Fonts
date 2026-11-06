@@ -17,6 +17,7 @@ pub struct FaceChoice {
 }
 #[derive(Clone, Serialize)]
 pub struct Choices {
+    error: Option<String>,
     id: u64,
     filename: String,
     faces: Vec<FaceChoice>,
@@ -26,6 +27,7 @@ struct Source {
     owner: String,
     bytes: Arc<Vec<u8>>,
     count: u32,
+    components: bool,
 }
 static SOURCE: Mutex<Option<Source>> = Mutex::new(None);
 static NEXT: AtomicU64 = AtomicU64::new(1);
@@ -58,6 +60,13 @@ fn prepare(path: &Path) -> Result<(Vec<u8>, Vec<FaceChoice>), String> {
     Ok((bytes, faces))
 }
 pub(crate) async fn open_path(window: &WebviewWindow, path: PathBuf) -> Result<(), String> {
+    open_path_mode(window, path, false).await
+}
+async fn open_path_mode(
+    window: &WebviewWindow,
+    path: PathBuf,
+    components: bool,
+) -> Result<(), String> {
     let input = path.clone();
     let (bytes, faces) = tauri::async_runtime::spawn_blocking(move || prepare(&input))
         .await
@@ -66,6 +75,7 @@ pub(crate) async fn open_path(window: &WebviewWindow, path: PathBuf) -> Result<(
         let id = NEXT.fetch_add(1, Ordering::Relaxed);
         let count = faces.len() as u32;
         let choices = Choices {
+            error: None,
             id,
             filename: path
                 .file_name()
@@ -79,15 +89,55 @@ pub(crate) async fn open_path(window: &WebviewWindow, path: PathBuf) -> Result<(
             owner: window.label().into(),
             bytes: Arc::new(bytes),
             count,
+            components,
         });
         window
             .emit_to(window.label(), "font-import-choices", Some(choices))
             .map_err(|e| e.to_string())?;
         return Ok(());
     }
-    let doc = tauri::async_runtime::spawn_blocking(move || font_core::font_io::import(&bytes, 0))
-        .await
-        .map_err(|e| e.to_string())??;
+    let bytes = Arc::new(bytes);
+    let work_bytes = bytes.clone();
+    let doc = tauri::async_runtime::spawn_blocking(move || {
+        import_document(&work_bytes, 0, components, false)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let doc = match doc {
+        Ok(doc) => doc,
+        Err(error) if error.starts_with("layout_") => {
+            let face = ttf_parser::Face::parse(&bytes, 0).map_err(|_| "font_invalid")?;
+            let faces = vec![FaceChoice {
+                index: 0,
+                family: font_core::font_io::name(&face, 1),
+                style: font_core::font_io::name(&face, 2),
+                glyphs: face.number_of_glyphs(),
+            }];
+            let id = NEXT.fetch_add(1, Ordering::Relaxed);
+            *SOURCE.lock().map_err(|_| "state_poisoned")? = Some(Source {
+                id,
+                owner: window.label().into(),
+                bytes: bytes.clone(),
+                count: 1,
+                components,
+            });
+            let choices = Choices {
+                id,
+                filename: path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into(),
+                faces,
+                error: Some(error),
+            };
+            window
+                .emit_to(window.label(), "font-import-choices", Some(choices))
+                .map_err(|e| e.to_string())?;
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    };
     crate::files::add_document(window, doc, None).await?;
     *SOURCE.lock().map_err(|_| "state_poisoned")? = None;
     window
@@ -99,8 +149,31 @@ pub(crate) async fn open_path(window: &WebviewWindow, path: PathBuf) -> Result<(
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+fn import_document(
+    bytes: &[u8],
+    index: u32,
+    components: bool,
+    outlines_only: bool,
+) -> Result<font_core::FontDocument, String> {
+    if components {
+        if outlines_only {
+            font_core::truetype_components::import_outlines(bytes, index)
+        } else {
+            font_core::truetype_components::import(bytes, index)
+        }
+    } else {
+        if outlines_only {
+            font_core::font_io::import_outlines(bytes, index)
+        } else {
+            font_core::font_io::import(bytes, index)
+        }
+    }
+}
 #[tauri::command]
-pub async fn font_import_choose(window: WebviewWindow) -> Result<(), String> {
+pub async fn font_import_choose(
+    window: WebviewWindow,
+    components: Option<bool>,
+) -> Result<(), String> {
     crate::allowed(&window)?;
     let _guard = crate::files::FileGuard::acquire()?;
     let Some(file) = rfd::AsyncFileDialog::new()
@@ -111,13 +184,23 @@ pub async fn font_import_choose(window: WebviewWindow) -> Result<(), String> {
     else {
         return Ok(());
     };
-    open_path(&window, file.path().to_path_buf()).await
+    open_path_mode(
+        &window,
+        file.path().to_path_buf(),
+        components.unwrap_or(false),
+    )
+    .await
 }
 #[tauri::command]
-pub async fn font_import_face(window: WebviewWindow, id: u64, index: u32) -> Result<(), String> {
+pub async fn font_import_face(
+    window: WebviewWindow,
+    id: u64,
+    index: u32,
+    outlines_only: Option<bool>,
+) -> Result<(), String> {
     crate::allowed(&window)?;
     let _guard = crate::files::FileGuard::acquire()?;
-    let bytes = {
+    let (bytes, components) = {
         let guard = SOURCE.lock().map_err(|_| "state_poisoned")?;
         let source = guard
             .as_ref()
@@ -126,12 +209,13 @@ pub async fn font_import_face(window: WebviewWindow, id: u64, index: u32) -> Res
         if index >= source.count {
             return Err("font_invalid".into());
         }
-        source.bytes.clone()
+        (source.bytes.clone(), source.components)
     };
-    let doc =
-        tauri::async_runtime::spawn_blocking(move || font_core::font_io::import(&bytes, index))
-            .await
-            .map_err(|e| e.to_string())??;
+    let doc = tauri::async_runtime::spawn_blocking(move || {
+        import_document(&bytes, index, components, outlines_only.unwrap_or(false))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     crate::files::add_document(&window, doc, None).await?;
     release(&window, id)
 }

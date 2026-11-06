@@ -83,6 +83,14 @@ impl Model {
             return Err("edit_in_progress".into());
         }
         let doc = self.editor.document();
+        if let Some(parent) = self.editing_id() {
+            if instance.is_some() {
+                return Err("component_edit_unavailable".into());
+            }
+            doc.components
+                .check_child_link(parent, definition)
+                .map_err(|e| e.to_string())?;
+        }
         let d = doc
             .components
             .definitions
@@ -103,10 +111,10 @@ impl Model {
             font_core::components::placement(d, i)
         } else {
             source.placement(
-                doc.units_per_em,
+                self.editing_upm(),
                 [
-                    doc.glyphs[&self.glyph].advance / 2.,
-                    (doc.ascender + doc.descender) / 2.,
+                    self.editing_glyph().advance / 2.,
+                    (self.viewport().ascender + self.viewport().descender) / 2.,
                 ],
             )
         }
@@ -122,6 +130,7 @@ impl Model {
             reference: Some((definition, instance)),
         });
         self.tool = Tool::Snippets;
+        self.refresh_component_edit();
         Ok(())
     }
     pub fn snippet(&self, key: &str) -> Result<Snippet, String> {
@@ -193,7 +202,7 @@ impl Model {
                 self.snippets.selected = Some(key);
             }
             Action::Contour { index, selected } => {
-                if index >= self.editor.document().glyphs[&self.glyph].contours.len() {
+                if index >= self.editing_glyph().contours.len() {
                     return Err("InvalidGeometry".into());
                 }
                 if selected {
@@ -204,16 +213,44 @@ impl Model {
             }
             Action::All { selected } => {
                 self.snippets.contours = if selected {
-                    (0..self.editor.document().glyphs[&self.glyph].contours.len()).collect()
+                    (0..self.editing_glyph().contours.len()).collect()
                 } else {
                     BTreeSet::new()
                 };
             }
             Action::Capture { info } => {
-                let id = self
-                    .editor
-                    .capture_snippet(revision, self.glyph, &self.snippets.contours, info)
-                    .map_err(|e| e.to_string())?;
+                let id = if let Some(target) = self.editing_id() {
+                    if self.snippets.contours.is_empty() {
+                        return Err("InvalidGeometry".into());
+                    }
+                    let contours = self
+                        .snippets
+                        .contours
+                        .iter()
+                        .map(|&n| {
+                            let mut c = self
+                                .editing_glyph()
+                                .contours
+                                .get(n)
+                                .cloned()
+                                .ok_or("InvalidGeometry")?;
+                            c.identity = Default::default();
+                            Ok(c)
+                        })
+                        .collect::<Result<Vec<_>, &str>>()?;
+                    self.editor.add_snippet(
+                        revision,
+                        Snippet {
+                            info,
+                            upm: self.editor.document().components.definitions[&target].upm,
+                            contours: std::sync::Arc::new(contours),
+                        },
+                    )
+                } else {
+                    self.editor
+                        .capture_snippet(revision, self.glyph, &self.snippets.contours, info)
+                }
+                .map_err(|e| e.to_string())?;
                 self.snippets.selected = Some(format!("user:{id}"));
             }
             Action::Duplicate { key } => {
@@ -284,18 +321,17 @@ impl Model {
             }
             Action::Begin { key } => {
                 let source = self.snippet(&key)?;
-                let doc = self.editor.document();
-                let advance = doc.glyphs[&self.glyph].advance;
+                let advance = self.editing_glyph().advance;
                 let placement = source
                     .placement(
-                        doc.units_per_em,
+                        self.editing_upm(),
                         [
                             if advance > 0. {
                                 advance / 2.
                             } else {
-                                f64::from(doc.units_per_em) / 2.
+                                f64::from(self.editing_upm()) / 2.
                             },
-                            (doc.ascender + doc.descender) / 2.,
+                            (self.viewport().ascender + self.viewport().descender) / 2.,
                         ],
                     )
                     .map_err(|e| e.to_string())?;
@@ -330,7 +366,7 @@ impl Model {
                 if d.drag.is_some() {
                     return Err("edit_in_progress".into());
                 }
-                let first = self.editor.document().glyphs[&self.glyph].contours.len();
+                let first = self.editing_glyph().contours.len();
                 if let Some((definition, instance)) = d.reference {
                     let source = self
                         .editor
@@ -347,18 +383,30 @@ impl Model {
                                 .transform_component(revision, id, matrix)
                                 .map_err(|e| e.to_string())?;
                         }
+                    } else if let Some(parent) = self.editing_id() {
+                        self.editor
+                            .insert_component_child(revision, parent, definition, matrix)
+                            .map_err(|e| e.to_string())?;
                     } else {
                         self.editor
                             .place_component(revision, definition, self.glyph, matrix)
                             .map_err(|e| e.to_string())?;
                     }
+                } else if self.editing_id().is_some() {
+                    let mut g = self.editing_glyph().clone();
+                    g.contours.extend(
+                        d.source
+                            .transformed(&d.placement)
+                            .map_err(|e| e.to_string())?,
+                    );
+                    self.commit_geometry(revision, g)?;
                 } else {
                     self.editor
                         .insert_snippet(revision, self.glyph, &d.source, &d.placement)
                         .map_err(|e| e.to_string())?;
                 }
-                self.snippets.contours =
-                    (first..self.editor.document().glyphs[&self.glyph].contours.len()).collect();
+                self.refresh_component_edit();
+                self.snippets.contours = (first..self.editing_glyph().contours.len()).collect();
                 self.snippets.draft = None;
                 self.tool = Tool::Nodes;
             }
@@ -376,6 +424,7 @@ impl Model {
                 }
             }
         }
+        self.refresh_component_edit();
         Ok(())
     }
     pub fn snippet_pointer(
@@ -445,6 +494,7 @@ impl Model {
             }
             _ => return Err("invalid_pointer_phase".into()),
         }
+        self.refresh_component_edit();
         Ok(())
     }
 }

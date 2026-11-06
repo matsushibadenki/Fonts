@@ -1,9 +1,9 @@
 {
-  "checked_on": "2026-11-05",
+  "checked_on": "2026-11-06",
   "scope": "All locked Rust and npm packages, including build/test/optional/non-host packages. Not a binary linkage SBOM. Embedded native and system libraries require the separate README review.",
   "policy": "MIT for Fonts-owned code, including owner-authorized LumaPaint copies. Third-party code retains the selected upstream license; AND terms are cumulative. FreeType uses FTL. Built-in snippet geometry remains CC0-1.0.",
   "lockfile_sha256": {
-    "Cargo.lock": "cecd8ed6e11a76796e6e84916cb8dbf0858f22dad9343e1488969fd111455789",
+    "Cargo.lock": "882e63370abbada6d1b949f788c71c98ffabbd26abe29161ee2cb23edbecaece",
     "package-lock.json": "d5e3062b972b1b9cac9a1a2e0d0d669ebbc0bd2054acacd94e248c8da04b9d22"
   },
   "rust": [
@@ -8327,6 +8327,12 @@
       "modified": false
     }
   ],
+  "unicode_data": {
+    "version": "17.0.0",
+    "license": "Unicode-3.0",
+    "path": "vendor/unicode/VerticalOrientation-17.0.0.txt",
+    "sha256": "dcef09c3fb24d356b042569c328ec341efc5b53447700d799f2fb4834c3cd3cd"
+  },
   "native_hinting": {
     "harfbuzz": {
       "version": "15.0.0",

@@ -124,6 +124,7 @@ fn transform_save_recovery_reopen_and_uuid_ref() {
     let original = m.editor.document().clone();
     m.action(Action::SelectAllControls).unwrap();
     let r = NodeRef {
+        definition: None,
         document: original.document_uuid,
         node: identity::node_id(&original.glyphs[&m.glyph].contours[0], Control1(0)).unwrap(),
     };

@@ -163,6 +163,25 @@ fn draw(c: &mut Canvas, model: &Model) -> Result<(), String> {
 }
 
 fn draw_frame(c: &mut Canvas, model: &Model) -> Result<(), String> {
+    if let Some(source) = &model.editor.document().source_font {
+        return match source.kind {
+            font_core::source_font::Kind::Color => {
+                if let Some(color) = model.proof.color.as_ref() {
+                    c.renderer.draw_color(c.size, model.size, &color.image)
+                } else {
+                    c.renderer.clear(c.size)
+                }
+            }
+            font_core::source_font::Kind::Variable => {
+                if let Some(font) = model.proof.font.as_ref() {
+                    c.renderer
+                        .draw_proof(c.size, model.size, font, None, &model.proof.settings)
+                } else {
+                    c.renderer.clear(c.size)
+                }
+            }
+        };
+    }
     if model.proof.active {
         if let Some(color) = model.proof.color.as_ref() {
             return c.renderer.draw_color(c.size, model.size, &color.image);

@@ -650,6 +650,9 @@ impl Renderer {
         let m = editor_mesh(glyph, v, options, overlay)?;
         self.draw_meshes(size, vec![m])
     }
+    pub fn clear(&mut self, size: [u32; 2]) -> Result<(), String> {
+        self.draw_meshes(size, vec![])
+    }
     pub fn draw_color(
         &mut self,
         size: [u32; 2],
@@ -674,75 +677,10 @@ impl Renderer {
         reference: Option<&font_core::proof::Prepared>,
         settings: &font_core::proof::Settings,
     ) -> Result<(), String> {
-        let width = if reference.is_some() {
-            logical[0] / 2.
-        } else {
-            logical[0]
-        };
-        let mut meshes = Vec::new();
-        let mut vertices = 0;
-        for (column, font) in std::iter::once(font).chain(reference).enumerate() {
-            let layout = font_core::proof::layout(font, settings, width);
-            for placement in layout
-                .placements
-                .iter()
-                .filter(|p| p.bottom >= settings.scroll && p.top - settings.scroll < logical[1])
-            {
-                let scale = settings.size / f64::from(font.document.units_per_em);
-                let mut v = Viewport {
-                    width: logical[0],
-                    height: logical[1],
-                    zoom: 1.,
-                    pan: [0., 0.],
-                    advance: 600.,
-                    ascender: 800.,
-                    descender: -200.,
-                };
-                v.zoom = scale / v.scale();
-                v.pan = [
-                    placement.x + column as f64 * width - logical[0] / 2. + 300. * scale,
-                    placement.baseline - settings.scroll - logical[1] / 2. - 300. * scale,
-                ];
-                let mut m = mesh(
-                    &font.document.glyphs[&placement.glyph].contours,
-                    v,
-                    false,
-                    true,
-                )?;
-                m.decoration.clear();
-                if placement.missing {
-                    let a = [
-                        placement.x + column as f64 * width,
-                        placement.baseline - settings.scroll - settings.size * 0.7,
-                    ];
-                    let b = [
-                        a[0] + settings.size * 0.5,
-                        placement.baseline - settings.scroll,
-                    ];
-                    for (p, q) in [
-                        (a, [b[0], a[1]]),
-                        ([b[0], a[1]], b),
-                        (b, [a[0], b[1]]),
-                        ([a[0], b[1]], a),
-                        (a, b),
-                    ] {
-                        line(&mut m.decoration, v, p, q, 1., ACCENT);
-                    }
-                }
-                let pixel_x =
-                    (column as f64 * width / logical[0] * f64::from(size[0])).round() as u32;
-                let end = (((column + 1) as f64 * width / logical[0] * f64::from(size[0])).round()
-                    as u32)
-                    .min(size[0]);
-                m.clip = Some([pixel_x, 0, end - pixel_x, size[1]]);
-                vertices += m.triangles.len();
-                if vertices > 4_000_000 {
-                    return Err("proof_too_complex".into());
-                }
-                meshes.push(m);
-            }
-        }
-        self.draw_meshes(size, meshes)
+        self.draw_meshes(
+            size,
+            proof_meshes(size, logical, font, reference, settings)?,
+        )
     }
     fn draw_meshes(&mut self, size: [u32; 2], meshes: Vec<Mesh>) -> Result<(), String> {
         if size[0] == 0 || size[1] == 0 || size[0] > 16384 || size[1] > 16384 {
@@ -815,3 +753,93 @@ mod reference_gpu;
 
 #[cfg(test)]
 mod color_gpu;
+
+fn proof_meshes(
+    size: [u32; 2],
+    logical: [f64; 2],
+    font: &font_core::proof::Prepared,
+    reference: Option<&font_core::proof::Prepared>,
+    settings: &font_core::proof::Settings,
+) -> Result<Vec<Mesh>, String> {
+    let width = if reference.is_some() {
+        logical[0] / 2.
+    } else {
+        logical[0]
+    };
+    let mut meshes = Vec::new();
+    let mut vertices = 0;
+    for (column, font) in std::iter::once(font).chain(reference).enumerate() {
+        let layout = font_core::proof::layout(font, settings, width);
+        for placement in layout
+            .placements
+            .iter()
+            .filter(|p| p.bottom >= settings.scroll && p.top - settings.scroll < logical[1])
+        {
+            let scale = settings.size / f64::from(font.document.units_per_em);
+            let mut v = Viewport {
+                width: logical[0],
+                height: logical[1],
+                zoom: 1.,
+                pan: [0., 0.],
+                advance: 600.,
+                ascender: 800.,
+                descender: -200.,
+            };
+            v.zoom = scale / v.scale();
+            v.pan = [
+                placement.x + column as f64 * width - logical[0] / 2. + 300. * scale,
+                placement.baseline - settings.scroll - logical[1] / 2. - 300. * scale,
+            ];
+            let mut m = mesh(
+                &font.document.glyphs[&placement.glyph].contours,
+                v,
+                false,
+                true,
+            )?;
+            m.decoration.clear();
+            if placement.rotated {
+                let origin = v.screen([0., 0.]);
+                for vertex in m.triangles.iter_mut() {
+                    let px = (f64::from(vertex.position[0]) + 1.) * logical[0] / 2.;
+                    let py = (1. - f64::from(vertex.position[1])) * logical[1] / 2.;
+                    let x = origin[0] - (py - origin[1]);
+                    let y = origin[1] + (px - origin[0]);
+                    vertex.position = [
+                        (x / logical[0] * 2. - 1.) as f32,
+                        (1. - y / logical[1] * 2.) as f32,
+                    ];
+                }
+            }
+            if placement.missing {
+                let a = [
+                    placement.x + column as f64 * width,
+                    placement.baseline - settings.scroll - settings.size * 0.7,
+                ];
+                let b = [
+                    a[0] + settings.size * 0.5,
+                    placement.baseline - settings.scroll,
+                ];
+                for (p, q) in [
+                    (a, [b[0], a[1]]),
+                    ([b[0], a[1]], b),
+                    (b, [a[0], b[1]]),
+                    ([a[0], b[1]], a),
+                    (a, b),
+                ] {
+                    line(&mut m.decoration, v, p, q, 1., ACCENT);
+                }
+            }
+            let pixel_x = (column as f64 * width / logical[0] * f64::from(size[0])).round() as u32;
+            let end = (((column + 1) as f64 * width / logical[0] * f64::from(size[0])).round()
+                as u32)
+                .min(size[0]);
+            m.clip = Some([pixel_x, 0, end - pixel_x, size[1]]);
+            vertices += m.triangles.len();
+            if vertices > 4_000_000 {
+                return Err("proof_too_complex".into());
+            }
+            meshes.push(m);
+        }
+    }
+    Ok(meshes)
+}

@@ -29,6 +29,12 @@ pub fn name(face: &Face<'_>, id: u16) -> String {
         .unwrap_or_default()
 }
 pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
+    import_mode(bytes, index, true)
+}
+pub fn import_outlines(bytes: &[u8], index: u32) -> Result<FontDocument> {
+    import_mode(bytes, index, false)
+}
+fn import_mode(bytes: &[u8], index: u32, keep_layout: bool) -> Result<FontDocument> {
     if !crate::font_formats::is_sfnt(bytes) {
         return crate::font_formats::legacy_import(bytes, index);
     }
@@ -39,14 +45,36 @@ pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {
     {
         return Err("color_requires_preserve".into());
     }
-    import_face(
-        bytes,
-        index,
-        Face::parse(bytes, index).map_err(|_| "font_invalid")?,
-    )
+    let face = Face::parse(bytes, index).map_err(|_| "font_invalid")?;
+    if keep_layout && face.is_variable() {
+        return crate::variations::instantiate(bytes, index, &Default::default()).map_err(|e| {
+            if e == "variation_unsupported" {
+                "layout_source_unsupported".into()
+            } else {
+                e
+            }
+        });
+    }
+    import_face_mode(bytes, index, face, keep_layout, false)
 }
 pub(crate) fn import_face(bytes: &[u8], index: u32, face: Face<'_>) -> Result<FontDocument> {
-    if face.tables().glyf.is_none() && face.tables().cff.is_none() && face.tables().cff2.is_none() {
+    import_face_mode(bytes, index, face, true, false)
+}
+pub(crate) fn import_source_face(bytes: &[u8], face: Face<'_>) -> Result<FontDocument> {
+    import_face_mode(bytes, 0, face, false, true)
+}
+fn import_face_mode(
+    bytes: &[u8],
+    index: u32,
+    face: Face<'_>,
+    keep_layout: bool,
+    allow_empty: bool,
+) -> Result<FontDocument> {
+    if !allow_empty
+        && face.tables().glyf.is_none()
+        && face.tables().cff.is_none()
+        && face.tables().cff2.is_none()
+    {
         return Err("font_no_outlines".into());
     }
     let mut doc =
@@ -140,6 +168,22 @@ pub(crate) fn import_face(bytes: &[u8], index: u32, face: Face<'_>) -> Result<Fo
             doc.kerning = k;
             doc.class_kerning = c;
         }
+    }
+    if face.tables().glyf.is_some() && !face.is_variable() {
+        let shapes = crate::truetype_components::decode(bytes, index)?;
+        crate::truetype_components::apply_shapes(&mut doc, &shapes, bytes, index)?;
+    }
+    doc.imported_layout = if face.is_variable() || !keep_layout {
+        Default::default()
+    } else {
+        crate::imported_layout::ImportedLayout::import(&doc, bytes, index)?
+    };
+    if !keep_layout {
+        doc.kerning = Default::default();
+        doc.class_kerning = Default::default();
+    }
+    if !doc.imported_layout.is_empty() {
+        doc.schema_version = 5;
     }
     doc.validate().map_err(|e| e.to_string())?;
     Ok(doc)
@@ -265,6 +309,12 @@ fn cubic(points: &mut Vec<([i16; 2], bool)>, p: [[f64; 2]; 4], depth: u8) -> Res
 }
 /// Export a new unhinted static TrueType font. Reject open contours and out-of-range coordinates.
 pub fn export(doc: &FontDocument) -> Result<Vec<u8>> {
+    if let Some(source) = &doc.source_font {
+        return source.export_format(crate::font_formats::Format::Ttf);
+    }
+    doc.imported_layout.apply(doc, export_outlines(doc)?, false)
+}
+pub(crate) fn export_outlines(doc: &FontDocument) -> Result<Vec<u8>> {
     doc.validate().map_err(|e| e.to_string())?;
     let count = doc.glyphs.len() as u16;
     let mut glyf = vec![];

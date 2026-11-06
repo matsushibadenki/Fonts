@@ -31,7 +31,7 @@ CIDはUnicode値として解釈しない。元データにCIDSystemInfoがあれ
 CMap入力は`begincidchar`、`begincidrange`、`beginbfchar`、`beginbfrange`（配列の宛先を含む）を扱う。ToUnicode側のUTF-16サロゲート対から補助平面文字も読み込む。Unicode→CIDのCMapはUTF32形式で書き出し、同一CIDへのUnicode別名も保持する。名前ベースType1／単体CFFへの出力では、Unicode別名に同一の輪郭を持つCharStringを追加し、文字対応が消えないようにする。
 
 - 🟠 [Next] `usecmap`の継承解決とAdobe文字コレクションの標準CMapプリセット。現在は継承を含むCMapを黙って部分適用せずエラーにする。
-- 🔴 [Later] Unicodeの複数文字シーケンス・異体字シーケンスとGSUB/GPOS。現行モデルは単一Unicodeスカラー値の割当で、CMapに複数文字の宛先があればエラーにする。
+- 🟢 [Done] 静的OpenTypeのGSUB／GPOS・異体字シーケンスを保持する。[対応範囲](imported-layout.md)。Unicode／CID CMapファイルの複数文字宛先は引き続きエラーにする。
 - 🔴 [Later] Shift-JIS等の非Unicode CMapの文字コード変換。名前付き非Unicode CMapをUnicodeとして誤解釈せず拒否する。
 
 CMapは最大4 MiB。PS手続き・継承先ファイルを実行・読込しない。存在しないCID、重複・衝突するUnicode対応、不正なUTF-16やサロゲート値は文書を変更せずに拒否する。
@@ -76,7 +76,7 @@ macOSの読込・変換用ダイアログは非同期のネイティブシート
 - 🟢 [Done] macOSローカル書体で、日本語20,339グリフ／中国語29,352グリフを検証。読込→送り幅編集→Undo/Redo→JSON保存・復元→TTF/CID-CFF出力→再読込で全グリフのUnicode対応と送り幅を比較。JSONはそれぞれ88,545,268／166,372,181 bytes。FontToolsでも両出力の全テーブルとBMP対応を確認した。元ファイルは変更せず、検証データは/tmpに保存し、配布物に同梱しない。
 - 🟢 [Done] macOS画面でも166 MBの中国語プロジェクトを開き、一括追加21,060文字の一覧で83ページ目への直接移動を確認。
 - 🟢 [Done] 自動テストでは約2万のCJK文字、順序の異なるグリフID、最大65,535グリフと上限を超える追加の原子性を検証。ローカル実書体で再現する手順は `cargo run -p font-core --example cjk_roundtrip --offline -- INPUT_FONT OUTPUT_DIRECTORY`。
-- 🟠 [Next] 異体字シーケンス（cmap format 14）・縦組み（vhea/vmtx、GSUB/GPOS）の編集と保持。現在の大規模対応も静的な輪郭・基本情報・単一Unicode対応を対象とする。
+- 🟢 [Done] 静的フォントの異体字シーケンス（cmap format 14）・縦組み（vhea／vmtx／VORG、GSUB／GPOS）の保持・出力・試し組み。[対応範囲](imported-layout.md)。元テーブルのルールをGUIで編集する機能は含まない。
 - ⭕️ [Pending] Windows/Linux実機での大規模書体の操作と出力後のOS描画確認。
 
 仕様: [OpenType cmap](https://learn.microsoft.com/typography/opentype/spec/cmap)。

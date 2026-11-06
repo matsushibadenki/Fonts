@@ -32,6 +32,7 @@ fn model() -> Model {
 }
 fn reference(m: &Model, anchor: usize) -> NodeRef {
     NodeRef {
+        definition: None,
         document: m.editor.document().document_uuid,
         node: identity::node_id(
             &m.editor.document().glyphs[&m.glyph].contours[0],
@@ -119,6 +120,7 @@ fn stable_selection_follows_topology_and_deleted_ids_never_select_another_point(
     assert!(m
         .action(Action::SelectStableNode {
             reference: NodeRef {
+                definition: None,
                 document: Uuid::new_v4(),
                 node: r.node
             },

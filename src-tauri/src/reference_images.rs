@@ -45,6 +45,9 @@ impl Model {
             || !self.pen.is_empty()
     }
     pub fn visible_images(&self) -> Vec<ReferenceImage> {
+        if self.editing_id().is_some() {
+            return vec![];
+        }
         self.editor
             .document()
             .reference_images
@@ -71,6 +74,9 @@ impl Model {
             .ok_or_else(|| "InvalidDocument".into())
     }
     pub fn image_context(&self, epoch: u64, revision: u64, glyph: GlyphId) -> Result<(), String> {
+        if self.editing_id().is_some() {
+            return Err("component_edit_unavailable".into());
+        }
         if self.epoch != epoch || self.editor.revision() != revision || self.glyph != glyph {
             return Err("Conflict".into());
         }

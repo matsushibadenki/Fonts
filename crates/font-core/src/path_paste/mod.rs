@@ -101,36 +101,16 @@ impl Editor {
         if first + contours.len() > 4096 {
             return Err("clipboard_too_large");
         }
-        let (min, max) = crate::snippets::bounds(&contours).map_err(|_| "clipboard_invalid")?;
-        let width = max[0] - min[0];
-        let height = max[1] - min[1];
-        let advance = if glyph.advance > 0. {
-            glyph.advance
-        } else {
-            f64::from(doc.units_per_em)
-        };
-        let mut scale = f64::INFINITY;
-        if width > 1e-9 {
-            scale = scale.min(advance * 0.9 / width);
-        }
-        if height > 1e-9 {
-            scale = scale.min((doc.ascender - doc.descender) * 0.9 / height);
-        }
-        if !scale.is_finite() || scale <= 0. {
-            return Err("clipboard_empty");
-        }
-        let m = [
-            scale,
-            0.,
-            0.,
-            scale,
-            advance / 2. - (min[0] + max[0]) * scale / 2.,
-            (doc.ascender + doc.descender) / 2. - (min[1] + max[1]) * scale / 2.,
-        ];
-        let transformed = contours
-            .iter()
-            .map(|c| transform(c, m))
-            .collect::<Result<Vec<_>>>()?;
+        let transformed = fit_paths(
+            &contours,
+            if glyph.advance > 0. {
+                glyph.advance
+            } else {
+                f64::from(doc.units_per_em)
+            },
+            doc.ascender,
+            doc.descender,
+        )?;
         glyph.contours.extend(transformed);
         glyph.status = GlyphStatus::Draft;
         let end = glyph.contours.len();
@@ -352,4 +332,39 @@ fn reverse(c: &mut Contour) {
     c.start = at;
     c.segments = segments;
     c.smooth.clear();
+}
+
+/// Fit clipboard outlines to the current canvas without creating a document or glyph.
+pub fn fit_paths(
+    contours: &[Contour],
+    advance: f64,
+    ascender: f64,
+    descender: f64,
+) -> Result<Vec<Contour>> {
+    validate(contours)?;
+    let (min, max) = crate::snippets::bounds(contours).map_err(|_| "clipboard_invalid")?;
+    let width = max[0] - min[0];
+    let height = max[1] - min[1];
+    let mut scale = f64::INFINITY;
+    if width > 1e-9 {
+        scale = scale.min(advance * 0.9 / width);
+    }
+    if height > 1e-9 {
+        scale = scale.min((ascender - descender) * 0.9 / height);
+    }
+    if !scale.is_finite() || scale <= 0. {
+        return Err("clipboard_empty");
+    }
+    let m = [
+        scale,
+        0.,
+        0.,
+        scale,
+        advance / 2. - (min[0] + max[0]) * scale / 2.,
+        (ascender + descender) / 2. - (min[1] + max[1]) * scale / 2.,
+    ];
+    contours
+        .iter()
+        .map(|c| transform(c, m))
+        .collect::<Result<Vec<_>>>()
 }

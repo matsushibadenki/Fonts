@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-11-05更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-11-06更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -33,11 +33,12 @@
    - 🟢 [Done] 独自作成の長方形・楕円・三角形・ひし形・「口」「工」の幾何形。プロジェクト内ライブラリとして保持し、元グリフや雛形の削除後も配置済み輪郭を保持する。
    - ⭕️ [Pending] Windows/Linux実機、複数モニター・DPIと大規模ライブラリの実機負荷検証。
    - 🟢 [Done] 安定IDに基づく部品の参照配置・共有更新・利用先一覧・参照解除。[仕様](linked-components.md)。
+   - 🟢 [Done] 編集元のない部品定義を直接編集。三言語・wgpu・共有更新・Undo/Redo・保存・復旧。[仕様](component-definition-editing.md)。
 8. 🟢 [Done] Illustrator・LumaPaintからパスを直接ペースト。macOSの専用JSON／SVG／PDF／制限付きAICBをRustで解析し、文字枠へ独立コピー。三言語、1回のUndo/Redo、保存・復旧へ接続。両アプリの実コピーと入力欄の文字貼り付けを確認。[仕様と検証](clipboard-paths.md)。
    - ⭕️ [Pending] Windows/Linuxのクリップボード実装・実機検証。
 9. 🟢 [Done] pair kerningの編集・試し組み・出力。グリフIDの明示ペア、三言語メトリクスUI、Undo/Redo・保存・復旧、試し組みのON/OFF、TTF／OTF GPOSへ接続。[仕様と検証](pair-kerning.md)。
    - 🟢 [Done] class kerningの編集・試し組み・出力。左右クラスの登録・改名・所属編集・削除、明示ペア／0例外の優先、GPOS Format 2、三言語・Undo/Redo・保存・復旧。[仕様と検証](class-kerning.md)。
-   - 🔴 [Later] 縦組み・異体字シーケンスと、外部フォントの組版情報の保持。
+   - 🟢 [Done] 縦組み・IVS、静的外部フォントのGSUB／GPOS等の保持とHarfBuzz試し組み。[仕様](imported-layout.md)。
    - ⭕️ [Pending] Windows/Linuxの実画面と、外部組版アプリごとの表示検証。
 10. 🟢 [Done] フローティングパネルの位置・サイズをRustのワークスペースへ保存し、再起動時に復元。モニター切断・配置・解像度・DPI変更時は作業領域内へ補正し、必要に応じて縮小する。[仕様と検証](floating-panels.md)。
 11. 🟢 [Done] パネルの入れ子split。上下・左右分割、タブ結合、境界リサイズ、三言語、旧設定からの移行、レイアウト保存・復元、フローティングとの相互切り替え。[仕様と検証](nested-splits.md)。
@@ -45,19 +46,21 @@
 13. 🟢 [Done] Webフォント用WOFF2出力。TrueType／CFF・圧縮設定、三言語、保存ダイアログ、保存後の読み戻し検証、ブラウザーでの読み込みを接続。[仕様と検証](woff2.md)。
 14. 🟢 [Done] 可変フォントの軸設定・wgpuプレビュー・静的インスタンスへの変換。三言語、独立文書、TTF／OTF／WOFF2、保存ダイアログと保存後検証。[仕様と検証](variable-fonts.md)。
    - 🟢 [Done] 名前付きインスタンスの選択。全軸値の一括適用、三言語名、手動変更時のカスタム切替、既定への復帰、プレビュー・静的3形式・独立文書のスタイル名保持。
+   - 🟢 [Done] 軸範囲・既定値の編集、可変TTF／OTF／WOFF2出力、軸状態と元フォントの保存・復旧。[仕様](variable-projects.md)。
+   - 🟠 [Next] 可変輪郭・マスター自体の編集。
 15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／COLRv1／SVGベクター／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
    - 🟢 [Done] カラーWOFF2出力。圧縮設定・三言語UI・保存後の復号検証、カラー／組版／可変テーブルの保持、コレクションのフェイス抽出、ブラウザーのカラー描画を検証。
    - 🟢 [Done] COLRv1プレビュー。三言語UI、CPAL切替、線形・放射・円錐グラデーション、透明度・変形・クリップ・合成、Rust保持／wgpu描画。
    - 🟢 [Done] SVG-in-OpenTypeの安全なベクタープレビュー。静的図形・パス・グラデーション・クリップ・透明度、gzip、複数グリフ選択、CPAL、三言語UI、Rust保持／wgpu描画。[対応範囲と上限](svg-preview.md)。
    - 🟢 [Done] SVG内の埋め込みPNG／JPEGのプレビュー。透明度・変形・クリップ、三言語UI、Rust/wgpu経路、外部参照の遮断と画像寸法・総量・参照展開後の上限を実装。
-   - 🔴 [Later] カラー編集・プロジェクト保存。
+   - 🟢 [Done] CPALの色・透明度編集、パレット選択・元フォントのプロジェクト保存・復旧、Undo／Redo、wgpu描画、カラー保持出力。[仕様](color-projects.md)。
 16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
    - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
    - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
    - 🟢 [Done] 小サイズ比較。元のヒント／ヒントなし／自動生成を9・12・16・24ppemで並べ、サンプル入力、1×／2×、未収録文字数、三言語UIを実装。[仕様](hinting-comparison.md)。
    - 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
    - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
-17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、可変フォント自体の編集／出力・軸状態のプロジェクト保存。
+17. 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化。
 
 - ⭕️ [Pending] Windows/Linuxのネイティブ描画と実機検証、複数モニター・DPI、署名・公証。
 
@@ -110,7 +113,7 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 🟢 [Done] Rust所有のプロジェクト内ライブラリ、複数輪郭の登録、管理、独立コピー配置を実装。三言語のドッキング／フローティングパネルとGPUサムネイル、変形プレビューと確定、Undo/Redo、保存・再読込・復旧を接続。元の雛形を削除しても配置済み輪郭を維持する。[詳細と検証](components-snippets.md)。
 
-🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。フローティングパネルの位置・サイズの復元も🟢 [Done]。パネルの入れ子splitも🟢 [Done]。複数文書も🟢 [Done]。WOFF2出力も🟢 [Done]。可変フォントも🟢 [Done]（上記参照）。共有更新を伴う部品参照は🔴 [Later]として、独立コピーと区別する。
+🟢 [Done] pair kerningの編集・試し組み・出力。class kerningも🟢 [Done]。フローティングパネルの位置・サイズの復元も🟢 [Done]。パネルの入れ子splitも🟢 [Done]。複数文書も🟢 [Done]。WOFF2出力も🟢 [Done]。可変フォントも🟢 [Done]（上記参照）。共有更新を伴う部品参照と入れ子も🟢 [Done]。独立コピーとは用途を区別する。
 
 検証: 通常Rustテスト272件、実GPUテスト4件、Clippy（全target、`-D warnings`）、整形検査、TypeScript/Vite・通常版macOSアプリのビルドが成功。復旧データの復元は自動テスト、三言語の登録・管理・配置・保存と再読込はmacOSの独立アプリで確認。
 
@@ -265,5 +268,54 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🟢 [Done] UUIDを持つ部品定義・配置・点の対応表。改名・輪郭の順序変更に依存せず、共有更新で残る点の配置先IDを保持する。位置・拡縮・回転、利用先への移動、編集元への移動、参照解除、使用中定義の削除保護に対応。
 - 🟢 [Done] 三言語の参照部品タブ、wgpuサムネイル・配置プレビュー・本描画、全利用先の1回のUndo/Redo、埋め込み保存・復旧・試し組み・TTF／OTF／WOFF2出力へ接続。プロジェクトv3、旧v1／v2の読み込み、変換済み輪郭の整合性検証。[仕様と検証](linked-components.md)。
 - 🟢 [Done] Rust459件成功（任意実行11件を除く）、新規実GPUテストを別途成功。Clippy全targetと三言語×2幅・狭いパネルのUI検証に成功。
-- 🟠 [Next] 部品の入れ子参照・循環参照検査。
+- 🟢 [Done] 部品の入れ子参照・循環参照検査。[仕様](nested-components.md)。
 - ⭕️ [Pending] 大規模な漢字書体・多数配置の負荷検証、ネイティブ画面全体・ペンタブ・Windows/Linux実機。
+
+## 部品の入れ子・循環参照検査（2026-11-06）
+
+- 🟢 [Done] 参照配置の全輪郭と通常輪郭から親部品を登録。子から親・祖先・配置先への共有更新、繰り返し利用、UUID対応と変形の維持、子の変形・参照解除・削除に対応。
+- 🟢 [Done] 循環・欠落参照・16段の深さ・展開量を検査。失敗時の原子性、三言語UI、間接配置先の表示、wgpu描画、1回のUndo/Redo、保存・復旧・試し組み・TTF／OTF／WOFF2へ接続。プロジェクトv4、旧v1〜v3の読み込み。[仕様と検証](nested-components.md)。
+- 🟢 [Done] Rust467件成功（任意実行11件を除く）、入れ子の実GPUテストを別途成功。Clippy、三言語×2幅・190pxパネルのUI検証に成功。
+- 🟢 [Done] 編集元グリフに依存しない、部品定義の専用編集モード。[仕様](component-definition-editing.md)。
+- ⭕️ [Pending] 大規模書体・多数配置の負荷、ネイティブ画面全体・ペンタブ・Windows/Linux実機。
+
+## 部品定義の専用編集モード（2026-11-06）
+
+- 🟢 [Done] 部品定義を独立したキャンバス対象として編集。編集元の輪郭・グリフがなくても開ける。ペン、点・制御点の複数選択・一括加工、分割・連結、曲線保持ブール演算、パス貼り付け、独立スニペット・子部品の追加へ接続。
+- 🟢 [Done] 全祖先・配置先への共有更新、部品UUIDでスコープを分けた点参照、子輪郭の保護、三言語UI、Rust/wgpu描画、文書単位のUndo/Redo・保存・復旧へ接続。編集用の仮グリフは文書へ挿入しない。[仕様と検証](component-definition-editing.md)。
+- 🟢 [Done] Rust475件、Clippy全target、三言語×2幅のUI、Metal実GPUテスト、macOSアプリのビルド・最新UIの同梱確認に成功。
+- 🟢 [Done] TrueType合成グリフと参照部品の相互変換。[仕様と検証](truetype-components.md)。
+- ⭕️ [Pending] 大規模書体・多数配置の負荷、ネイティブ画面全体・ペンタブ・Windows/Linux実機。
+
+## ROADMAP完遂に向けた残工程（2026-11-06）
+
+- 🟢 [Done] 静的TrueTypeの合成グリフ・点合わせ・メトリクス継承を参照部品へ変換し、専用編集・共有更新・Undo/Redo・保存・復旧へ接続。TTF／TrueType WOFF2の入れ子合成出力、三言語設定・保存後検証、FreeType比較・Metal描画・三言語UIを検証。[仕様](truetype-components.md)。
+- 🟢 [Done] 静的外部フォントの組版情報保持、縦組み・IVS・HarfBuzz試し組み。
+- 🟢 [Done] カラー編集・プロジェクト保存。
+- 🟢 [Done] 可変軸の範囲・既定値編集、可変出力、軸状態の保存・復旧。[仕様](variable-projects.md)。
+- 🟠 [Next] 可変輪郭・マスター自体の編集。
+- 🔴 [Later] 画像トレース、WOFF2圧縮率の最適化、Type 1直接dehint・CFF2用ヒント生成・命令編集。
+- ⭕️ [Pending] 実機・周辺機器・外部アプリが必要な検証は各項目の条件を維持し、未検証のままDoneに変更しない。
+
+
+## 外部組版情報・縦組み・IVS（2026-11-06）
+
+🟢 [Done] 静的OpenTypeのGSUB／GPOS／GDEF／BASE／JSTF／kern、cmap format 14、独自の縦組みメトリクスをプロジェクトv5へ保持する。点参照を座標へ変換し、輪郭加工後も点番号のずれを避ける。位置調整の解除はUndo／Redo可能で、保存・復旧後も保持する。TTF／OTF／WOFF2へ出力する。三言語UIから縦組み・向き・言語・列高を設定し、HarfBuzzの合字・結合文字・双方向文字・IVSをwgpuへ配置する。[仕様](imported-layout.md)。
+
+通常Rustテスト495件成功（実機用14件は通常実行で除外）。縦字形・IVS・回転グリフの実GPU読み戻しを別途実行して成功。Clippy、TypeScript／Vite、自己完結検査、三言語×2幅のUI操作が成功。元の組版ルールのGUI編集、高度な禁則処理、可変フォントの編集はこの項目に含めない。
+
+
+## カラー編集・プロジェクト保存（2026-11-06）
+
+🟢 [Done] 元フォントを文書へ格納し、CPALの色・透明度・パレットを編集／選択する。三言語UI、文書単位のUndo／Redo、保存・自動復旧、Rust worker／wgpuプレビュー、TTF／OTF／WOFF2出力と保存前後の検証へ接続。共有色レコードは別パレットへ変更が漏れないよう独立させる。通常の輪郭編集はロックする。[仕様](color-projects.md)。
+
+通常Rustテスト499件、Clippy、TypeScript／Vite、自己完結検査、三言語×2幅のUI操作が成功。保存後の編集色・透明度の実GPU読み戻しも成功。入力フォントの権利・ライセンス情報はそのまま保持する。
+
+
+## 可変軸の専用編集・保存・出力（2026-11-06）
+
+🟢 [Done] gvar／CFF2の軸範囲・既定値を編集し、可変TTF／OTF／WOFF2へ出力する。座標・元フォントをv6へ格納し、三言語UI、文書ごとのUndo／Redo、保存・復旧、Rust worker／wgpu、静的コピー、出力前後の検証へ接続した。カラー可変フォントではCPAL編集とVarStoreの変動も保持する。[仕様と検証](variable-projects.md)。
+
+Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2幅のUI操作が成功。保存後のgvar／CFF2カラーを実GPUで読み戻して成功。可変カーニング・合字・IVSの静的化も検証した。
+
+🟠 [Next] 可変輪郭・マスターの編集。画像トレース、WOFF2圧縮率の最適化、Type 1直接dehint・CFF2ヒント生成・命令編集も未完了のまま残す。

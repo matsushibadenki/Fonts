@@ -50,11 +50,7 @@ impl Model {
             Default::default()
         };
         if (max[0] - min[0]).hypot(max[1] - min[1]) * self.viewport().scale() >= 3. {
-            for (ci, c) in self.editor.document().glyphs[&self.glyph]
-                .contours
-                .iter()
-                .enumerate()
-            {
+            for (ci, c) in self.editing_glyph().contours.iter().enumerate() {
                 for (point, q) in geometry::edit_points(c) {
                     if q[0] >= min[0] && q[0] <= max[0] && q[1] >= min[1] && q[1] <= max[1] {
                         match point {

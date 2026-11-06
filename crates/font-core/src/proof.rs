@@ -1,9 +1,33 @@
 //! Proof the actual static TrueType output. Font bytes and outlines stay in Rust.
+mod orientation;
+mod shaping;
 use crate::{font_io, FontDocument, GlyphId};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Direction {
+    #[default]
+    Horizontal,
+    Vertical,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    #[default]
+    Mixed,
+    Upright,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default)]
+    pub orientation: Orientation,
+    #[serde(default)]
+    pub direction: Direction,
+    #[serde(default = "default_language")]
+    pub language: String,
+    #[serde(default = "default_column_height")]
+    pub column_height: f64,
     #[serde(default = "kerning_default")]
     pub kerning: bool,
     pub text: String,
@@ -12,12 +36,22 @@ pub struct Settings {
     pub leading: f64,
     pub scroll: f64,
 }
+fn default_language() -> String {
+    "und".into()
+}
+fn default_column_height() -> f64 {
+    600.
+}
 fn kerning_default() -> bool {
     true
 }
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            orientation: Orientation::Mixed,
+            direction: Direction::Horizontal,
+            language: default_language(),
+            column_height: default_column_height(),
             kerning: true,
             text: "ABC あいう 中文\nThe quick brown fox jumps over the lazy dog.\n0123456789"
                 .into(),
@@ -30,7 +64,14 @@ impl Default for Settings {
 }
 impl Settings {
     pub fn validate(&self) -> Result<(), String> {
-        if self.text.len() > 16384
+        if self.language.len() > 64
+            || !self
+                .language
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+            || !self.column_height.is_finite()
+            || !(120. ..=2400.).contains(&self.column_height)
+            || self.text.len() > 16384
             || self.text.chars().count() > 2048
             || !self.size.is_finite()
             || !(12. ..=160.).contains(&self.size)
@@ -48,6 +89,8 @@ impl Settings {
 }
 #[derive(Clone)]
 pub struct Prepared {
+    bytes: std::sync::Arc<Vec<u8>>,
+    shaped: shaping::Cache,
     pub document: FontDocument,
     pub original: BTreeMap<GlyphId, GlyphId>,
     pub mapping: BTreeMap<char, GlyphId>,
@@ -55,8 +98,17 @@ pub struct Prepared {
     pub empty: usize,
 }
 pub fn subset(doc: &FontDocument, text: &str) -> Result<FontDocument, String> {
+    if !doc.imported_layout.is_empty() {
+        let mut copy = doc.clone();
+        copy.components = Default::default();
+        copy.reference_images = Default::default();
+        copy.snippets = Default::default();
+        return Ok(copy);
+    }
     let chars: BTreeSet<char> = text.chars().filter(|c| !c.is_control()).collect();
     let mut copy = FontDocument {
+        source_font: None,
+        imported_layout: Default::default(),
         components: Default::default(),
         document_uuid: doc.document_uuid,
         class_kerning: Default::default(),
@@ -98,7 +150,7 @@ pub fn prepare(subset: FontDocument, text: &str) -> Result<Prepared, String> {
         .collect();
     let missing = text
         .chars()
-        .filter(|c| !c.is_control() && !mapping.contains_key(c))
+        .filter(|c| !c.is_control() && !matches!(*c,'\u{200c}'|'\u{200d}'|'\u{fe00}'..='\u{fe0f}'|'\u{e0100}'..='\u{e01ef}') && !mapping.contains_key(c))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -113,16 +165,26 @@ pub fn prepare(subset: FontDocument, text: &str) -> Result<Prepared, String> {
                     .any(|c| !c.is_whitespace() && text.contains(*c))
         })
         .count();
-    Ok(Prepared {
+    let mut prepared = Prepared {
+        bytes: std::sync::Arc::new(bytes),
+        shaped: Default::default(),
         document,
         original,
         mapping,
         missing,
         empty,
-    })
+    };
+    prepared.missing = prepared.shaped_missing(text)?;
+    prepared.warm_shaping(&Settings {
+        text: text.into(),
+        ..Default::default()
+    })?;
+    Ok(prepared)
 }
 #[derive(Clone, Debug)]
 pub struct Placement {
+    pub left: f64,
+    pub rotated: bool,
     pub glyph: GlyphId,
     pub source: Option<GlyphId>,
     pub missing: bool,
@@ -136,118 +198,9 @@ pub struct Layout {
     pub placements: Vec<Placement>,
     pub height: f64,
 }
-/// Horizontal scalar layout; break Latin words together, CJK per scalar.
-/// No imported GSUB/GPOS survives the current static export pipeline.
+/// HarfBuzz shapes the exported font; all placement and outline data stays in Rust.
 pub fn layout(font: &Prepared, settings: &Settings, width: f64) -> Layout {
-    let scale = settings.size / f64::from(font.document.units_per_em);
-    let left = 24.;
-    let right = (width - 24.).max(left + 1.);
-    let line_height = (font.document.ascender - font.document.descender)
-        .max(f64::from(font.document.units_per_em))
-        * scale
-        * settings.leading;
-    let mut baseline = 24. + font.document.ascender * scale;
-    let mut x = left;
-    let mut placements = Vec::new();
-    let text = settings.text.replace("\r\n", "\n").replace('\r', "\n");
-    let mut tokens: Vec<String> = Vec::new();
-    let mut word = String::new();
-    for c in text.chars() {
-        if c.is_ascii_alphanumeric() || c == '\'' {
-            word.push(c);
-        } else {
-            if !word.is_empty() {
-                tokens.push(std::mem::take(&mut word));
-            }
-            tokens.push(c.to_string());
-        }
-    }
-    if !word.is_empty() {
-        tokens.push(word);
-    }
-    let advance = |c: char| {
-        (if c == '\t' {
-            settings.size * 2.
-        } else {
-            font.mapping
-                .get(&c)
-                .map(|id| font.document.glyphs[id].advance * scale)
-                .unwrap_or(settings.size * 0.6)
-        }) + settings.tracking * settings.size
-    };
-    let mut previous = None;
-    let pair = |left: Option<GlyphId>, c: char| -> f64 {
-        if !settings.kerning || c.is_control() {
-            return 0.;
-        }
-        left.zip(font.mapping.get(&c).copied())
-            .map(|(l, r)| f64::from(font.document.kerning_value(l, r)) * scale)
-            .unwrap_or(0.)
-    };
-    for token in tokens {
-        if token == "\n" {
-            previous = None;
-            x = left;
-            baseline += line_height;
-            continue;
-        }
-        let mut preceding = previous;
-        let token_width: f64 = token
-            .chars()
-            .map(|c| {
-                let w = advance(c).max(0.) + pair(preceding, c);
-                preceding = if c.is_control() {
-                    None
-                } else {
-                    font.mapping.get(&c).copied()
-                };
-                w
-            })
-            .sum();
-        if x > left && x + token_width > right && token_width <= right - left {
-            x = left;
-            previous = None;
-            baseline += line_height;
-        }
-        for c in token.chars() {
-            if c.is_control() && c != '\t' {
-                continue;
-            }
-            let width = advance(c).max(0.);
-            let mut adjustment = pair(previous, c);
-            if x > left && x + adjustment + width > right {
-                x = left;
-                baseline += line_height;
-                adjustment = 0.;
-            }
-            x += adjustment;
-            let glyph = font.mapping.get(&c).copied().unwrap_or(0);
-            placements.push(Placement {
-                glyph,
-                missing: c != '\t' && !font.mapping.contains_key(&c),
-                source: font
-                    .mapping
-                    .get(&c)
-                    .and_then(|id| font.original.get(id))
-                    .copied(),
-                x,
-                baseline,
-                width: width.max(settings.size * 0.15),
-                top: baseline - font.document.ascender * scale,
-                bottom: baseline - font.document.descender * scale,
-            });
-            x += width;
-            previous = if c.is_control() {
-                None
-            } else {
-                font.mapping.get(&c).copied()
-            };
-        }
-    }
-    Layout {
-        placements,
-        height: baseline - font.document.descender * scale + 24.,
-    }
+    shaping::layout(font, settings, width)
 }
 #[cfg(test)]
 mod tests {

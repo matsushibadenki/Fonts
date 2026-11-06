@@ -4,6 +4,14 @@ use font_core::{Contour, Segment};
 #[test]
 #[ignore = "Requires access to a real GPU adapter; run explicitly on a desktop host"]
 fn proof_layers_preserve_holes_and_overlapping_glyphs() {
+    readback(false);
+}
+#[test]
+#[ignore = "Requires access to a real GPU adapter; run explicitly on a desktop host"]
+fn vertical_shaped_proof_renders_rotated_and_substituted_glyphs() {
+    readback(true);
+}
+fn readback(shaped: bool) {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let format = wgpu::TextureFormat::Rgba8Unorm;
     let gpu = pollster::block_on(Gpu::new(&instance, None, format))
@@ -57,11 +65,30 @@ fn proof_layers_preserve_holes_and_overlapping_glyphs() {
     )
     .unwrap();
     b.decoration.clear();
+    let meshes = if shaped {
+        let bytes = include_bytes!("../../font-core/tests/data/layout/shaping.ttf");
+        let doc = font_core::font_io::import(bytes, 0).unwrap();
+        let text = "A字\u{e0100}、fi";
+        let p = font_core::proof::prepare(doc, text).unwrap();
+        let settings = font_core::proof::Settings {
+            text: text.into(),
+            size: 64.,
+            column_height: 200.,
+            direction: font_core::proof::Direction::Vertical,
+            ..Default::default()
+        };
+        let layout = font_core::proof::layout(&p, &settings, 256.);
+        assert_eq!(layout.placements.len(), 4);
+        assert!(layout.placements[0].rotated);
+        super::proof_meshes([256, 256], [256., 256.], &p, None, &settings).unwrap()
+    } else {
+        vec![a, b]
+    };
     gpu.render_meshes(
         &texture.create_view(&Default::default()),
         [256, 256],
         format,
-        vec![a, b],
+        meshes,
     )
     .unwrap();
     let buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -105,6 +132,33 @@ fn proof_layers_preserve_holes_and_overlapping_glyphs() {
         .slice(..)
         .get_mapped_range()
         .expect("readback buffer is mapped");
+    if shaped {
+        let source = include_bytes!("../../font-core/tests/data/layout/shaping.ttf");
+        let doc = font_core::font_io::import(source, 0).unwrap();
+        let p = font_core::proof::prepare(doc, "A字\u{e0100}、fi").unwrap();
+        let settings = font_core::proof::Settings {
+            text: "A字\u{e0100}、fi".into(),
+            size: 64.,
+            column_height: 200.,
+            direction: font_core::proof::Direction::Vertical,
+            ..Default::default()
+        };
+        let layout = font_core::proof::layout(&p, &settings, 256.);
+        for placement in &layout.placements {
+            let mut ink = 0;
+            for y in (placement.top.max(0.) as usize)..(placement.bottom.min(256.) as usize) {
+                for x in (placement.left.max(0.) as usize)
+                    ..((placement.left + placement.width).min(256.) as usize)
+                {
+                    if bytes[(y * 256 + x) * 4] < 100 {
+                        ink += 1;
+                    }
+                }
+            }
+            assert!(ink > 8, "shaped glyph {} must render ink", placement.glyph);
+        }
+        return;
+    }
     let pixel = |p| {
         let s = v.screen(p);
         let index = (s[1].round() as usize * 256 + s[0].round() as usize) * 4;

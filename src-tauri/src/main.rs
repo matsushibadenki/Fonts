@@ -1,5 +1,6 @@
 mod clipboard;
 mod color_fonts;
+mod component_edit;
 mod components;
 #[cfg(test)]
 mod control_points;
@@ -29,6 +30,7 @@ mod recovery;
 mod recovery_store;
 mod reference_images;
 mod snippets;
+mod source_font;
 mod specimen;
 #[cfg(test)]
 mod stable_refs;
@@ -661,6 +663,8 @@ fn main() {
             hinting::font_hinting_export,
             color_fonts::color_font_open,
             color_fonts::color_font_action,
+            source_font::source_font_preview,
+            source_font::source_font_static,
             variations::variation_axes,
             variations::variation_catalog,
             variations::variation_action,

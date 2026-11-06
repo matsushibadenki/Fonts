@@ -1,4 +1,5 @@
 const paths = {
+  verticalText:'M17 3v18m-3-3 3 3 3-3M4 4h6M7 4v6M4 10h6M4 14h6M7 14v6M4 20h6',
   selectControls:'M3 17 9 5l12 12M1 15h4v4H1zM19 15h4v4h-4zM11 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0',
   transformPoints:'M4 12V4h8M4 4l7 7M13 3a9 9 0 0 1 8 9m0-5v5h-5M6 15h6v6H6z',
   assignB:'M3 4h6v6H3zM3 14h6v6H3zM12 12h9m-4-4 4 4-4 4',

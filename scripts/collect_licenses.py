@@ -144,10 +144,11 @@ def main():
         ROOT / 'vendor/freetype-sys/freetype2/src/base/fthash.c',
         ROOT / 'vendor/freetype-sys/freetype2/src/hvf/hvf.c',
         ROOT / 'vendor/freetype-sys/libpng/LICENSE',
+        ROOT / 'vendor/unicode/LICENSE.txt',
     ]
     libz = next(p for p in metadata['packages'] if p['name'] == 'libz-sys')
     native_files.append(Path(libz['manifest_path']).parent / 'src/zlib/LICENSE')
-    sections += ['\n' + '=' * 72, 'Native sources: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib); libpng source license (decoder not compiled)']
+    sections += ['\n' + '=' * 72, 'Native sources and data: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib); libpng source license (decoder not compiled); Unicode data (Unicode-3.0)']
     for file in native_files:
         text = file.read_text(errors='replace')
         # C/H headers contain license blocks; do not turn the notice into a code dump.
@@ -157,6 +158,7 @@ def main():
                 raise ValueError(f'Native notice header not found: {file}')
             text = comments.group(0)
         sections += ['\n--- ' + ('zlib/LICENSE' if file not in native_files[:-1] else str(file.relative_to(ROOT))) + ' ---', text]
+    report['unicode_data'] = {'version': '17.0.0', 'license': 'Unicode-3.0', 'path': 'vendor/unicode/VerticalOrientation-17.0.0.txt', 'sha256': digest(ROOT / 'vendor/unicode/VerticalOrientation-17.0.0.txt')}
     native_root = ROOT / 'vendor/font-hinting'
     sections += ['\n' + '=' * 72, 'Fonts is based in part on the work of the FreeType Team and the ttfautohint library. ttfautohint uses FTL (including its generated-bytecode exception); HarfBuzz uses Old MIT and file-level licenses; Adobe psautohint uses Apache-2.0.']
     report['native_hinting'] = json.loads((native_root / 'manifest.json').read_text())

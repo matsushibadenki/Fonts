@@ -31,6 +31,9 @@ impl Kerning {
             .unwrap_or(0)
     }
     pub fn validate(&self, doc: &FontDocument) -> Result<()> {
+        self.validate_glyphs(|id| doc.glyphs.contains_key(id))
+    }
+    pub(crate) fn validate_glyphs(&self, contains: impl Fn(&GlyphId) -> bool) -> Result<()> {
         if self.0.len() > MAX_PAIRS {
             return Err(Error::TooLarge);
         }
@@ -39,8 +42,8 @@ impl Kerning {
             let key = (p.left, p.right);
             if p.left == 0
                 || p.right == 0
-                || !doc.glyphs.contains_key(&p.left)
-                || !doc.glyphs.contains_key(&p.right)
+                || !contains(&p.left)
+                || !contains(&p.right)
                 || previous.is_some_and(|v| v >= key)
             {
                 return Err(Error::InvalidDocument);
@@ -90,6 +93,9 @@ impl Editor {
         value: Option<i16>,
     ) -> Result<u64> {
         let revision = self.check_revision(expected)?;
+        if self.document.imported_layout.positioning() {
+            return Err(Error::ImportedPositioningLinked);
+        }
         if left == 0
             || right == 0
             || !self.document.glyphs.contains_key(&left)

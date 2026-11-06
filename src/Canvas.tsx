@@ -1,4 +1,5 @@
-import {componentLabels} from './component-i18n';
+import {SourceFontEditor,sourceFontHelp} from './SourceFontEditor';
+import {componentCommand,componentError,componentLabels} from './component-i18n';
 import {pathLabels,pathError,processingLabels} from './path-i18n';
 import {snippetCommand,snippetLabels} from './snippet-i18n';
 import {placeReference} from './ReferenceImages';
@@ -46,10 +47,11 @@ export function Canvas({state,t,edit,dragging,onError}:{state:Snapshot;t:(k:Key)
     window.addEventListener('resize',sync);void sync();
     return()=>{disposed=true;observer.disconnect();window.removeEventListener('resize',sync);};
   },[dragging,state.workspace.revision]);
-  useEffect(()=>{if(state.proof.active&&!state.proof.color)void proofCommand(state,{type:'prepare',settings:state.proof.settings}).catch(e=>{if(String(e)!=='Conflict')onError(proofError(state,String(e)));});},[state.epoch,state.revision]);
+  useEffect(()=>{if(state.proof.active&&!state.proof.color&&!state.source_font)void proofCommand(state,{type:'prepare',settings:state.proof.settings}).catch(e=>{if(String(e)!=='Conflict')onError(proofError(state,String(e)));});},[state.epoch,state.revision]);
   useEffect(()=>()=>cancelAnimationFrame(frame.current),[]);
   return <section className="editor-center">
-    {state.proof.active?(state.proof.color?<div className="canvas-tools"><span className="color-preview-label">{state.proof.source}</span><span className="tool-spacer"/><IconButton icon="close" label={state.workspace.locale==='ja'?'プレビューを閉じる':state.workspace.locale==='zh_cn'?'关闭预览':'Close preview'} onClick={()=>void proofCommand(state,{type:'close'})}/></div>:<ProofControls state={state} onError={onError}/>):<div className="canvas-tools">
+    {state.components.editing&&<div className="component-edit-bar"><Icon name="snippets"/><small>{componentLabels[state.workspace.locale].editing}</small><strong title={state.components.editing.name}>{state.components.editing.name}</strong><span className="panel-help" tabIndex={0} role="img" title={componentLabels[state.workspace.locale].editingHelp} aria-label={componentLabels[state.workspace.locale].editingHelp}><Icon name="info"/></span><IconButton icon="check" label={componentLabels[state.workspace.locale].exitEdit} disabled={state.image_editing||!!state.snippets.placement||state.pen_points>0} onClick={()=>void componentCommand(state,{type:'exit_edit'}).catch(e=>onError(componentError(state.workspace.locale,e)))}/></div>}
+    {state.source_font?<SourceFontEditor state={state} onError={onError}/>:state.proof.active?(state.proof.color?<div className="canvas-tools"><span className="color-preview-label">{state.proof.source}</span><span className="tool-spacer"/><IconButton icon="close" label={state.workspace.locale==='ja'?'プレビューを閉じる':state.workspace.locale==='zh_cn'?'关闭预览':'Close preview'} onClick={()=>void proofCommand(state,{type:'close'})}/></div>:<ProofControls state={state} onError={onError}/>):<div className="canvas-tools">
       {(['nodes','pen','pan'] as const).map(tool=><IconButton key={tool} icon={tool} label={t(tool)} active={state.tool===tool} onClick={()=>void edit({type:'tool',tool})}/>)}
       {state.tool==='pen'&&<>
         <span className="tool-divider"/>
@@ -61,8 +63,8 @@ export function Canvas({state,t,edit,dragging,onError}:{state:Snapshot;t:(k:Key)
       <IconButton icon="fill" label={t('fill')} active={state.fill} onClick={()=>void edit({type:'fill'})}/>
       <IconButton icon="nodes" label={t('showNodes')} active={state.nodes} onClick={()=>void edit({type:'nodes'})}/>
       <span className="tool-divider"/>
-      <IconButton icon="imageAdd" label={imageText.place} disabled={importing||state.image_editing} onClick={()=>{setImporting(true);void placeReference(state).catch(e=>onError(referenceError(state.workspace.locale,e))).finally(()=>setImporting(false));}}/>
-      <IconButton icon="images" label={imageText.select} active={state.tool==='images'} onClick={()=>void edit({type:'tool',tool:'images'})}/>
+      <IconButton icon="imageAdd" label={imageText.place} disabled={!!state.components.editing||importing||state.image_editing} onClick={()=>{setImporting(true);void placeReference(state).catch(e=>onError(referenceError(state.workspace.locale,e))).finally(()=>setImporting(false));}}/>
+      <IconButton icon="images" label={imageText.select} disabled={!!state.components.editing} active={state.tool==='images'} onClick={()=>void edit({type:'tool',tool:'images'})}/>
       <IconButton icon="snippets" label={snippetLabels[state.workspace.locale].title} active={!!state.snippets.placement} onClick={()=>void snippetCommand(state,{type:'open'}).catch(e=>onError(String(e)))}/>
       <span className="tool-spacer"/>
       <IconButton icon="minus" label="−" onClick={()=>void edit({type:'zoom',value:Math.max(.2,state.zoom/1.2)})}/>
@@ -85,6 +87,6 @@ export function Canvas({state,t,edit,dragging,onError}:{state:Snapshot;t:(k:Key)
 
     >{!gpu&&<span className="canvas-starting">{t('native')}</span>}</div>
     {state.proof.active&&!state.proof.color&&<input className="proof-scroll" aria-label={proofLabels[state.workspace.locale].scroll} type="range" min={0} max={Math.max(0,state.proof.height-(ref.current?.clientHeight||0))} step={20} value={state.proof.settings.scroll} onChange={e=>void proofCommand(state,{type:'scroll',value:Number(e.target.value)}).catch(e=>onError(String(e)))}/>}
-    <div className="canvas-caption"><span className="canvas-info" tabIndex={0} role="img" aria-label={state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:(state.tool==='pen'?pathText.help:processingLabels[state.workspace.locale].help)} title={state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:(state.tool==='pen'?pathText.help:processingLabels[state.workspace.locale].help)}><Icon name="info"/></span><span title={gpu}>{gpu?t('ready'):t('gpuError')}</span></div>
+    <div className="canvas-caption"><span className="canvas-info" tabIndex={0} role="img" aria-label={state.source_font?sourceFontHelp(state):state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:(state.tool==='pen'?pathText.help:processingLabels[state.workspace.locale].help)} title={state.source_font?sourceFontHelp(state):state.tool==='snippets'?snippetLabels[state.workspace.locale].help:state.tool==='images'?imageText.help:(state.tool==='pen'?pathText.help:processingLabels[state.workspace.locale].help)}><Icon name="info"/></span><span title={gpu}>{gpu?t('ready'):t('gpuError')}</span></div>
   </section>;
 }

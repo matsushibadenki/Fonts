@@ -64,6 +64,7 @@ fn shared_update_keeps_instance_transforms_and_surviving_uuid_references() {
         .place_component(e.revision(), d, 2, [-1., 0., 0., 1., 700., 0.])
         .unwrap();
     let ref_node = NodeRef {
+        definition: None,
         document: e.document().document_uuid,
         node: identity::node_id(instance(&e, b), EditPoint::Anchor(1)).unwrap(),
     };
@@ -85,7 +86,7 @@ fn shared_update_keeps_instance_transforms_and_surviving_uuid_references() {
     assert_eq!(e.document().components.instances[&b].nodes, ids);
 }
 #[test]
-fn linked_edits_and_nested_components_are_blocked_detach_is_independent() {
+fn linked_edits_and_cycles_are_blocked_detach_is_independent() {
     let mut e = editor();
     let d = capture(&mut e);
     let id = e
@@ -99,12 +100,8 @@ fn linked_edits_and_nested_components_are_blocked_detach_is_independent() {
         Err(Error::ComponentLinked)
     );
     assert_eq!(
-        e.capture_component(e.revision(), 2, &[0].into(), info("Nested")),
-        Err(Error::ComponentLinked)
-    );
-    assert_eq!(
         e.update_component(e.revision(), d, 2, &[0].into()),
-        Err(Error::ComponentLinked)
+        Err(Error::ComponentCycle)
     );
     assert_eq!(
         e.remove_component(e.revision(), d),
@@ -278,6 +275,7 @@ fn joining_and_splitting_definition_contours_keep_instance_point_aliases() {
     let references: Vec<_> = old
         .iter()
         .map(|c| NodeRef {
+            definition: None,
             document: e.document().document_uuid,
             node: identity::node_id(c, EditPoint::Anchor(1)).unwrap(),
         })

@@ -50,8 +50,8 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
     {arranging&&<PanelArrangement id={id} state={state} t={t} layout={layout}/>}
     {floating && <div className="float-docks" title={t('floatHelp')}>{(['left','right','bottom'] as const).map(d=><IconButton key={d} icon={d} label={t(d)} onClick={()=>void layout({type:'dock',panel:id,dock:d})}/>)}</div>}
     {id==='glyphs'&&<div className="glyph-controls">
-        <div className="glyph-search"><label className="search"><Icon name="search"/><input placeholder={t('search')} aria-label={t('search')} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label><IconButton icon="plus" label={t('addCharacters')} active={adding} onClick={()=>setAdding(!adding)}/></div>
-        {adding&&<form className="unicode-add" onSubmit={e=>{e.preventDefault();void edit({type:'add_characters',input,codepoints,revision:state.revision});}}>
+        <div className="glyph-search"><label className="search"><Icon name="search"/><input placeholder={t('search')} aria-label={t('search')} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label><IconButton icon="plus" label={t('addCharacters')} disabled={!!state.source_font} active={adding} onClick={()=>setAdding(!adding)}/></div>
+        {adding&&!state.source_font&&<form className="unicode-add" onSubmit={e=>{e.preventDefault();void edit({type:'add_characters',input,codepoints,revision:state.revision});}}>
           <div className="preset-row"><select aria-label={ft.presets} value={preset} onChange={e=>setPreset(e.target.value)}>{state.presets.map(([id,count])=><option key={id} value={id}>{ft[id as FontEditKey]} ({count})</option>)}</select><IconButton icon="plus" label={ft.addPreset} onClick={()=>void edit({type:'add_preset',preset,revision:state.revision})}/><span className="panel-help" role="img" tabIndex={0} aria-label={ft.presetHelp} title={ft.presetHelp}><Icon name="info"/></span></div>
           <div className="unicode-mode"><select aria-label={t('inputMode')} value={codepoints?'codes':'text'} onChange={e=>setCodepoints(e.target.value==='codes')}><option value="text">{t('characters')}</option><option value="codes">{t('codepoints')}</option></select><span className="panel-help" tabIndex={0} title={t('unicodeHelp')} aria-label={t('unicodeHelp')}><Icon name="info"/></span></div>
           <input aria-label={t('addCharacters')} placeholder={codepoints?'U+3041-U+3096, U+1F600':'あいう 中文 😀'} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&e.nativeEvent.isComposing)e.preventDefault();}} maxLength={262136}/>
@@ -68,20 +68,20 @@ export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId
 
 
       </>}
-      {id==='snippets'&&<Snippets state={state}/>}
-      {id==='metrics' && <div className="metrics-form">
+      {id==='snippets'&&<fieldset className="source-readonly" disabled={!!state.source_font}><Snippets state={state}/></fieldset>}
+      {id==='metrics' && <fieldset className="metrics-form" disabled={!!state.components.editing||!!state.source_font}>
         <label className="metric"><span>{t('advance')}</span><input key={`${state.glyph}-${state.advance}`} type="number" min="0" max="65535" step="1" aria-label={t('advance')} defaultValue={state.advance} onBlur={e=>{if(e.target.value!==''&&Number(e.target.value)!==state.advance)void edit({type:'advance',value:Number(e.target.value),revision:state.revision,id:state.glyph});}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
         <Kerning key={`kern-${state.epoch}-${state.glyph}`} state={state} edit={async action=>{await invoke('edit',{epoch:state.epoch,action});}}/>
         <UnicodeAssignment key={`${state.epoch}-${state.glyph}`} state={state}/>
         <div className="metric-divider"/>
         {(['ascender','descender','upm'] as const).map(k=><label className="metric" key={k}><span>{t(k)}</span><input readOnly aria-label={t(k)} value={state[k]}/></label>)}
         <button className={`review-button ${state.reviewed?'is-reviewed':''}`} onClick={()=>void edit({type:'review',id:state.glyph,revision:state.revision})}><Icon name="check"/>{t(state.reviewed?'reviewed':'review')}</button>
-      </div>}
-      {id==='outline' && <div className="outline-sections"><ReferenceImages key={`${state.epoch}-${state.glyph}`} state={state}/><div>
+      </fieldset>}
+      {id==='outline' && <fieldset className="outline-sections source-readonly" disabled={!!state.source_font}>{!state.components.editing&&<ReferenceImages key={`${state.epoch}-${state.glyph}`} state={state}/>}<div>
         <PathOperations state={state} edit={edit}/>
         <div className="panel-count">{state.contours.length} {t('contours')}</div>
         {state.contours.length===0?<p className="empty">{t('empty')}</p>:<div className="contour-list">{state.contours.map((c,i)=><div className="contour-item" key={c.uuid??i}><div className="contour-row"><input type="checkbox" aria-label={`${snippetLabels[state.workspace.locale].selectContour} #${i+1}`} checked={state.snippets.contours.includes(i)} disabled={!!state.snippets.placement} onChange={e=>void snippetCommand(state,{type:'contour',index:i,selected:e.target.checked}).then(()=>setSnippetFailure('')).catch(e=>setSnippetFailure(snippetError(state.workspace.locale,e)))}/><Icon name="contour"/><span>#{i+1}</span><span>{c.nodes} {t('points')}</span><span className="contour-state" title={t(c.closed?'closed':'open')}>{c.closed?'○':'⌒'}</span></div><ContourEditor key={`${state.epoch}-${state.glyph}-${c.uuid??i}`} state={state} index={i} edit={edit}/></div>)}</div>}
-      </div></div>}
+      </div></fieldset>}
     </div>
     {id==='glyphs'&&<footer className="panel-footer glyph-footer">{pages>1&&<div className="glyph-pages"><button disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} aria-label={t('previousPage')}>‹</button><input className="glyph-page-input" type="number" min={1} max={pages} aria-label={t('pageNumber')} value={currentPage+1} onChange={e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=pages)setPage(n-1);}}/><span>/ {pages}</span><button disabled={currentPage===pages-1} onClick={()=>setPage(currentPage+1)} aria-label={t('nextPage')}>›</button></div>}<span>{state.glyphs.filter(g=>g.reviewed).length} / {state.glyphs.length}</span><span>{t('reviewed')}</span></footer>}
   </section>;

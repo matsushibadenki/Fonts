@@ -32,6 +32,7 @@ fn editor() -> Editor {
 }
 fn reference(e: &Editor, ci: usize, p: EditPoint) -> NodeRef {
     NodeRef {
+        definition: None,
         document: e.document().document_uuid,
         node: identity::node_id(&e.document().glyphs[&1].contours[ci], p).unwrap(),
     }
@@ -174,6 +175,7 @@ fn closed_cut_closure_conversion_and_independent_copy_have_distinct_ids() {
     assert!(identity::resolve(
         e.document(),
         NodeRef {
+            definition: None,
             document: Uuid::new_v4(),
             node: old.node
         }

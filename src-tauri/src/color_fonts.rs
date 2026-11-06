@@ -42,6 +42,7 @@ pub async fn color_font_open(window: WebviewWindow, id: u64) -> Result<Info, Str
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
+    Edit,
     Preview,
     Export,
     Release,
@@ -115,12 +116,28 @@ pub async fn color_font_action(
         .cloned()
         .ok_or("color_expired")?;
     match action {
+        Action::Edit => {
+            let doc = tauri::async_runtime::spawn_blocking(move || {
+                font_core::source_font::SourceFont::color_document(&source.bytes, source.index)
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+            crate::files::add_document(&window, doc, None).await?;
+            if let Some(main) = app.get_webview_window("main") {
+                main.show().map_err(|e| e.to_string())?;
+                main.set_focus().map_err(|e| e.to_string())?;
+            }
+            Ok(None)
+        }
         Action::Preview => {
             let (generation, dimensions) = {
                 let state = app.state::<AppState>();
                 let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
                 if m.epoch != epoch || m.editor.revision() != revision {
                     return Err("Conflict".into());
+                }
+                if m.editing_id().is_some() {
+                    return Err("component_edit_unavailable".into());
                 }
                 if m.has_draft() {
                     return Err("edit_in_progress".into());
