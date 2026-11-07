@@ -1759,7 +1759,9 @@
                                      value->outerIndex,
                                      value->innerIndex );
 
-      if ( p && delta )
+      /* Fonts: restore the original value when the current variation delta is */
+      /* zero; otherwise moving an axis back to default leaves stale metrics. */
+      if ( p )
       {
         FT_TRACE5(( "value %c%c%c%c (%d unit%s) adjusted by %d unit%s (MVAR)\n",
                     (FT_Char)( value->tag >> 24 ),

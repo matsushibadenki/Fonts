@@ -10,6 +10,12 @@ pub struct Support {
 }
 impl Support {
     pub fn weight(&self, location: &Location) -> Result<f64> {
+        if location
+            .values()
+            .any(|v| !v.is_finite() || !(-1. ..=1.).contains(v))
+        {
+            return Err(Error::InvalidGeometry);
+        }
         let mut weight = 1.;
         for (tag, &[start, peak, end]) in &self.axes {
             if tag.len() != 4
@@ -257,30 +263,7 @@ impl Masters {
             }
             matrix[j][n] = master.support.weight(location)?;
         }
-        for column in 0..n {
-            let pivot = (column..n)
-                .max_by(|&a, &b| matrix[a][column].abs().total_cmp(&matrix[b][column].abs()))
-                .ok_or(Error::InvalidGeometry)?;
-            if matrix[pivot][column].abs() < 1e-10 {
-                return Err(Error::InvalidGeometry);
-            }
-            matrix.swap(column, pivot);
-            let scale = matrix[column][column];
-            for value in &mut matrix[column][column..] {
-                *value /= scale;
-            }
-            let row = matrix[column].clone();
-            for (i, target) in matrix.iter_mut().enumerate() {
-                if i == column {
-                    continue;
-                }
-                let factor = target[column];
-                for j in column..=n {
-                    target[j] -= factor * row[j];
-                }
-            }
-        }
-        let weights: Vec<_> = matrix.into_iter().map(|r| r[n]).collect();
+        let weights: Vec<_> = solve(matrix, n)?.into_iter().map(|r| r[0]).collect();
         if weights
             .iter()
             .any(|v| !v.is_finite() || v.abs() > 1_000_000.)
@@ -288,6 +271,39 @@ impl Masters {
             return Err(Error::InvalidGeometry);
         }
         Ok(weights)
+    }
+    /// Convert absolute residuals at masters to coefficients of the registered support regions.
+    /// Rows follow master order; columns are caller-defined scalar coordinates or metrics.
+    pub fn coefficients(&self, residuals: &[Vec<f64>]) -> Result<Vec<Vec<f64>>> {
+        self.validate_structure()?;
+        let n = self.entries.len();
+        if residuals.len() != n {
+            return Err(Error::InvalidGeometry);
+        }
+        if n == 0 {
+            return Ok(vec![]);
+        }
+        let width = residuals[0].len();
+        if width.checked_mul(n).is_none_or(|v| v > 2_000_000) {
+            return Err(Error::TooLarge);
+        }
+        if residuals
+            .iter()
+            .any(|r| r.len() != width || r.iter().any(|v| !v.is_finite() || v.abs() > 2_000_000.))
+        {
+            return Err(Error::InvalidGeometry);
+        }
+        let mut matrix = Vec::with_capacity(n);
+        for (sample, residual) in self.entries.iter().zip(residuals) {
+            let mut row = self
+                .entries
+                .iter()
+                .map(|master| master.support.weight(&sample.location))
+                .collect::<Result<Vec<_>>>()?;
+            row.extend(residual);
+            matrix.push(row);
+        }
+        solve(matrix, n)
     }
     /// Source samples must use this registry's master order and the current source topology.
     pub fn interpolate(
@@ -321,4 +337,41 @@ impl Masters {
         }
         current.with_values(&out)
     }
+}
+
+/// Gaussian elimination with partial pivoting and multiple right-hand sides.
+fn solve(mut matrix: Vec<Vec<f64>>, n: usize) -> Result<Vec<Vec<f64>>> {
+    let width = matrix.first().map_or(0, Vec::len);
+    for column in 0..n {
+        let pivot = (column..n)
+            .max_by(|&a, &b| matrix[a][column].abs().total_cmp(&matrix[b][column].abs()))
+            .ok_or(Error::InvalidGeometry)?;
+        if matrix[pivot][column].abs() < 1e-10 {
+            return Err(Error::InvalidGeometry);
+        }
+        matrix.swap(column, pivot);
+        let scale = matrix[column][column];
+        for value in &mut matrix[column][column..] {
+            *value /= scale;
+        }
+        let row = matrix[column].clone();
+        for (i, target) in matrix.iter_mut().enumerate() {
+            if i == column {
+                continue;
+            }
+            let factor = target[column];
+            for j in column..width {
+                target[j] -= factor * row[j];
+            }
+        }
+    }
+    let out: Vec<Vec<f64>> = matrix.into_iter().map(|r| r[n..].to_vec()).collect();
+    if out
+        .iter()
+        .flatten()
+        .any(|v| !v.is_finite() || v.abs() > 1_000_000_000.)
+    {
+        return Err(Error::TooLarge);
+    }
+    Ok(out)
 }

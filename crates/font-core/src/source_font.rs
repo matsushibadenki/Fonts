@@ -1,5 +1,14 @@
 //! Project-owned source fonts. Specialized editing preserves tables ordinary outline editing cannot.
+pub mod master_correction;
+pub mod master_glyf;
+pub mod master_gvar;
+pub mod master_metric_variations;
+pub mod master_points;
+pub mod master_quantize;
+pub mod master_rebase;
 pub mod master_sample;
+pub mod master_store;
+pub mod master_tables;
 pub mod master_tuple;
 pub mod masters;
 mod names;

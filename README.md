@@ -116,7 +116,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | psautohint 2.4.0 | Apache-2.0 | 🟢 [Done] 静的CFF1／CID-CFF自動ヒンティングの同梱Cエンジン。[実装と検証](docs/autohint-engines.md)。 |
 | ttfautohint 1.8.4／HarfBuzz 15.0.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去・COLRv1プレビュー・組版・可変軸変換の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
 | Unicode 17.0 Vertical_Orientationデータ | Unicode-3.0 | 🟢 [Done] [公式データ](vendor/unicode/VerticalOrientation-17.0.0.txt)と[ライセンス本文](vendor/unicode/LICENSE.txt)を保持し、配布用の第三者告知へ収録。アプリ本体のMITとは適用範囲を区別する。 |
-| FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
+| FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。MVARのゼロ差分復元の修正は[変更記録](docs/vendor-font-engine.json)へ明記。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |
 | vendor内のlibpng 1.6.59ソース | PNG Reference Library License version 2等の原条件 | 🟢 [Done] 原文を保持。現在の同梱FreeTypeビルドではPNGデコーダーを有効化・コンパイルしていない。アタリ画像のPNG処理はRust側のimage／pngを使用する。 |

@@ -133,10 +133,16 @@ impl Sampler {
         self.face
             .load_glyph(glyph, flags | LoadFlag::NO_SCALE)
             .map_err(|_| Error::InvalidGeometry)?;
+        let point_count = self.face.glyph().raw().outline.n_points;
+        if point_count < 0 {
+            return Err(Error::InvalidGeometry);
+        }
         let max = self
             .face
             .glyph()
             .outline()
+            // Empty outlines can have a null points buffer; freetype-rs points() requires non-null.
+            .filter(|_| point_count > 0)
             .map(|o| {
                 o.points()
                     .iter()

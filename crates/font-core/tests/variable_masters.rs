@@ -183,6 +183,7 @@ fn worker_sampler_preserves_gvar_cff2_topology_and_applies_avar_only_once() {
         include_bytes!("data/variations/cff2.otf").as_slice(),
     ] {
         let mut sampler = Sampler::new(Arc::new(bytes.to_vec()), 0).unwrap();
+        assert!(sampler.sample_design(0, &Location::new()).is_ok());
         let base = sampler.sample_design(1, &Location::new()).unwrap();
         assert!((base.shape.advance - 500.).abs() < 0.02);
         let heavy = sampler
@@ -211,4 +212,55 @@ fn worker_sampler_preserves_gvar_cff2_topology_and_applies_avar_only_once() {
         assert!(empty.shape.contours.is_empty());
         assert!((empty.shape.advance - 500.).abs() < 0.02);
     }
+}
+
+#[test]
+fn export_coefficients_match_cardinal_preview_with_overlapping_regions_and_multiple_columns() {
+    let masters = Masters {
+        entries: vec![
+            master(0., None, None),
+            master(0.5, Some([0., 0.5, 1.]), None),
+            master(1., Some([0., 1., 1.]), None),
+        ],
+    };
+    let residuals = vec![
+        vec![10., 20., -3.],
+        vec![37., 74., 6.],
+        vec![50., 100., -9.],
+    ];
+    let coefficients = masters.coefficients(&residuals).unwrap();
+    assert_eq!(coefficients[0], residuals[0]);
+    assert_eq!(coefficients[1], [7., 14., 12.]);
+    assert_eq!(coefficients[2], [40., 80., -6.]);
+    for coordinate in [0., 0.125, 0.5, 0.75, 1.] {
+        let location = loc(coordinate);
+        let weights = masters.weights(&location).unwrap();
+        for column in 0..3 {
+            let preview: f64 = weights
+                .iter()
+                .zip(&residuals)
+                .map(|(w, r)| w * r[column])
+                .sum();
+            let output: f64 = masters
+                .entries
+                .iter()
+                .zip(&coefficients)
+                .map(|(m, c)| m.support.weight(&location).unwrap() * c[column])
+                .sum();
+            assert!((preview - output).abs() < 1e-10);
+        }
+    }
+    assert!(masters.coefficients(&[vec![0.], vec![0.]]).is_err());
+    assert!(masters.coefficients(&[vec![0.], vec![], vec![0.]]).is_err());
+    assert!(masters
+        .coefficients(&[vec![f64::NAN], vec![f64::NAN], vec![f64::NAN]])
+        .is_err());
+    let singular = Masters {
+        entries: vec![
+            master(1., Some([0., 1., 1.]), None),
+            master(1., Some([0., 1., 1.]), None),
+        ],
+    };
+    assert!(singular.coefficients(&[vec![0.], vec![0.]]).is_err());
+    assert!(Masters::default().coefficients(&[]).unwrap().is_empty());
 }

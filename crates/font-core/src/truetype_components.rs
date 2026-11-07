@@ -100,6 +100,20 @@ impl<'a> Reader<'a> {
     }
 }
 pub(crate) fn decode(bytes: &[u8], index: u32) -> Result<BTreeMap<u16, Shape>> {
+    decode_selection(bytes, index, None)
+}
+pub(crate) fn decode_selected(
+    bytes: &[u8],
+    index: u32,
+    selected: &BTreeSet<u16>,
+) -> Result<BTreeMap<u16, Shape>> {
+    decode_selection(bytes, index, Some(selected))
+}
+fn decode_selection(
+    bytes: &[u8],
+    index: u32,
+    selected: Option<&BTreeSet<u16>>,
+) -> Result<BTreeMap<u16, Shape>> {
     let raw = ttf_parser::RawFace::parse(bytes, index).map_err(|_| bad())?;
     let table = |tag: &[u8; 4]| raw.table(ttf_parser::Tag::from_bytes(tag)).ok_or_else(bad);
     let head = table(b"head")?;
@@ -133,7 +147,12 @@ pub(crate) fn decode(bytes: &[u8], index: u32) -> Result<BTreeMap<u16, Shape>> {
     let mut out = BTreeMap::new();
     let mut active = BTreeSet::new();
     let mut total = 0;
-    for id in 0..count {
+    let ids: Vec<_> =
+        selected.map_or_else(|| (0..count).collect(), |ids| ids.iter().copied().collect());
+    for id in ids {
+        if id >= count {
+            return Err(bad());
+        }
         visit(id, &offsets, glyf, &mut out, &mut active, &mut total)?;
     }
     Ok(out)
@@ -362,6 +381,20 @@ fn simple(r: &mut Reader<'_>, count: usize) -> Result<Shape> {
         rings,
         parts: vec![],
     })
+}
+/// Selected-glyph access for variable editing: retain physical points, without decomposing composites.
+pub(crate) fn decode_simple(bytes: &[u8]) -> Result<Option<Shape>> {
+    if bytes.is_empty() {
+        return Ok(Some(Shape::default()));
+    }
+    let mut reader = Reader { b: bytes, p: 0 };
+    let count = reader.i16()?;
+    reader.take(8)?;
+    match count {
+        -1 => Ok(None),
+        0.. => simple(&mut reader, count as usize).map(Some),
+        _ => Err(bad()),
+    }
 }
 /// Explicit structure-preserving import. Failure leaves callers' current document untouched.
 pub fn import(bytes: &[u8], index: u32) -> Result<FontDocument> {

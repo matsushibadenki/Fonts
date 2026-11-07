@@ -12,6 +12,7 @@ fn add_sources(build: &mut cc::Build, root: &str, files: &[&str]) {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=freetype2");
     if !cfg!(feature = "bundled") {
         let target = env::var("TARGET").unwrap();
         if !target.contains("android") && !target.contains("ohos") {
