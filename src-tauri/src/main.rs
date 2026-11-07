@@ -17,6 +17,7 @@ mod font_output;
 mod font_paths;
 mod font_store;
 mod hinting;
+mod image_trace;
 mod masters;
 mod menu;
 mod menu_actions;
@@ -560,6 +561,11 @@ fn main() {
                         }
                     }
                     m.text_focus.remove(window.label());
+                    if window.label() == "main" || window.label() == "panel-outline" {
+                        m.images.trace = None;
+                        m.images.trace_request = None;
+                    }
+
                     if m.snippets
                         .draft
                         .as_ref()
@@ -639,6 +645,7 @@ fn main() {
             recovery::recovery_action,
             reference_images::reference_import,
             reference_images::reference_action,
+            image_trace::reference_trace,
             snippets::snippet_action,
             components::component_action,
             snapshot,

@@ -45,23 +45,30 @@
 12. 🟢 [Done] 複数文書のタブ切り替えと文書単位の保存・復旧。三言語、文書別Undo/Redo・表示状態、未保存確認、非表示文書の自動保存と個別復旧、重複保存先の保護。[仕様と検証](multiple-documents.md)。
 13. 🟢 [Done] Webフォント用WOFF2出力。TrueType／CFF・圧縮設定、三言語、保存ダイアログ、保存後の読み戻し検証、ブラウザーでの読み込みを接続。[仕様と検証](woff2.md)。
 14. 🟢 [Done] 可変フォントの軸設定・wgpuプレビュー・静的インスタンスへの変換。三言語、独立文書、TTF／OTF／WOFF2、保存ダイアログと保存後検証。[仕様と検証](variable-fonts.md)。
-   - 🟢 [Done] 名前付きインスタンスの選択。全軸値の一括適用、三言語名、手動変更時のカスタム切替、既定への復帰、プレビュー・静的3形式・独立文書のスタイル名保持。
-   - 🟢 [Done] 軸範囲・既定値の編集、可変TTF／OTF／WOFF2出力、軸状態と元フォントの保存・復旧。[仕様](variable-projects.md)。
-   - 🟢 [Done] TrueType／CFF2・合成グリフのマスター編集、全マスターの点構成変更、原点保持・出力検証。[操作と保護条件](variable-masters.md)。
-15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／COLRv1／SVGベクター／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
-   - 🟢 [Done] カラーWOFF2出力。圧縮設定・三言語UI・保存後の復号検証、カラー／組版／可変テーブルの保持、コレクションのフェイス抽出、ブラウザーのカラー描画を検証。
-   - 🟢 [Done] COLRv1プレビュー。三言語UI、CPAL切替、線形・放射・円錐グラデーション、透明度・変形・クリップ・合成、Rust保持／wgpu描画。
-   - 🟢 [Done] SVG-in-OpenTypeの安全なベクタープレビュー。静的図形・パス・グラデーション・クリップ・透明度、gzip、複数グリフ選択、CPAL、三言語UI、Rust保持／wgpu描画。[対応範囲と上限](svg-preview.md)。
-   - 🟢 [Done] SVG内の埋め込みPNG／JPEGのプレビュー。透明度・変形・クリップ、三言語UI、Rust/wgpu経路、外部参照の遮断と画像寸法・総量・参照展開後の上限を実装。
-   - 🟢 [Done] CPALの色・透明度編集、パレット選択・元フォントのプロジェクト保存・復旧、Undo／Redo、wgpu描画、カラー保持出力。[仕様](color-projects.md)。
-16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
-   - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
-   - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
-   - 🟢 [Done] 小サイズ比較。元のヒント／ヒントなし／自動生成を9・12・16・24ppemで並べ、サンプル入力、1×／2×、未収録文字数、三言語UIを実装。[仕様](hinting-comparison.md)。
-   - 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
-   - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
-17. 🟠 [Next] 画像トレース。🔴 [Later] WOFF2圧縮率の最適化。
 
+- 🟢 [Done] 名前付きインスタンスの選択。全軸値の一括適用、三言語名、手動変更時のカスタム切替、既定への復帰、プレビュー・静的3形式・独立文書のスタイル名保持。
+- 🟢 [Done] 軸範囲・既定値の編集、可変TTF／OTF／WOFF2出力、軸状態と元フォントの保存・復旧。[仕様](variable-projects.md)。
+- 🟢 [Done] TrueType／CFF2・合成グリフのマスター編集、全マスターの点構成変更、原点保持・出力検証。[操作と保護条件](variable-masters.md)。
+
+15. 🟢 [Done] カラーフォントの読み込み・形式表示、COLRv0／COLRv1／SVGベクター／sbix／CBDTのwgpuプレビュー、COLRv1／SVGを含むカラー保持出力。三言語、保存ダイアログ、全テーブルと保存後検証。[仕様と対応範囲](color-fonts.md)。
+
+- 🟢 [Done] カラーWOFF2出力。圧縮設定・三言語UI・保存後の復号検証、カラー／組版／可変テーブルの保持、コレクションのフェイス抽出、ブラウザーのカラー描画を検証。
+- 🟢 [Done] COLRv1プレビュー。三言語UI、CPAL切替、線形・放射・円錐グラデーション、透明度・変形・クリップ・合成、Rust保持／wgpu描画。
+- 🟢 [Done] SVG-in-OpenTypeの安全なベクタープレビュー。静的図形・パス・グラデーション・クリップ・透明度、gzip、複数グリフ選択、CPAL、三言語UI、Rust保持／wgpu描画。[対応範囲と上限](svg-preview.md)。
+- 🟢 [Done] SVG内の埋め込みPNG／JPEGのプレビュー。透明度・変形・クリップ、三言語UI、Rust/wgpu経路、外部参照の遮断と画像寸法・総量・参照展開後の上限を実装。
+- 🟢 [Done] CPALの色・透明度編集、パレット選択・元フォントのプロジェクト保存・復旧、Undo／Redo、wgpu描画、カラー保持出力。[仕様](color-projects.md)。
+
+16. 🟢 [Done] hintingの取り扱い。TrueTypeの検査・ヒント保持／除去、コレクションからの単体出力、三言語UIと保存後検証。編集・変換では古い命令を再利用せずヒントなしで出力する。[仕様と検証](hinting.md)。
+
+- 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
+- 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
+- 🟢 [Done] 小サイズ比較。元のヒント／ヒントなし／自動生成を9・12・16・24ppemで並べ、サンプル入力、1×／2×、未収録文字数、三言語UIを実装。[仕様](hinting-comparison.md)。
+- 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
+- ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
+
+17. 🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。
+
+- 🟠 [Next] WOFF2圧縮率の最適化。
 - ⭕️ [Pending] Windows/Linuxのネイティブ描画と実機検証、複数モニター・DPI、署名・公証。
 
 FontForgeは仕様・挙動の調査元として使用し、現行の変換エンジンはプロジェクト内のRust実装と同梱FreeTypeで動作する。FontForge backendの導入を、実装済みの入出力を使うための必須工程にはしない。
@@ -85,17 +92,14 @@ FontForgeは仕様・挙動の調査元として使用し、現行の変換エ�
 
 通常Rustテスト226件、Clippy `-D warnings`、TypeScript/Vite、通常版macOSアプリのビルドが成功。独立検証アプリで双方向の選択連動、ハンドル連動ドラッグ、滑らか／角切替を確認し、保存JSONでも接線整列と角切替時の座標保持を検証した。
 
-
 ## 外部ライブラリの保守
 
 - 🟢 [Done] 最新stableへの依存更新と互換性調整。Tauri 2.12.5 / React 19.3.1 / wgpu 30.0.1、FreeType 2.15.0 / HarfBuzz 15.0.0ほかを適用。毎週月曜09:00（日本時間）の自動確認・更新を設定。[最新の更新・検証記録](dependency-update-2026-10-26.md)。
 - ⭕️ [Pending] 更新後のWindows/Linux実機検証、OS由来のsurface喪失・再構成イベント、GUI目視確認。
 
-
 ## 実輪郭サムネイルの検証（2026-10-17）
 
 通常Rustテスト232件、実GPUテスト3件、Clippy `-D warnings`、TypeScript/Vite成功。独立したmacOSアプリでUnicodeなしCID字形、空白、300グリフのページ操作・検索、編集とUndo/Redoによる画像更新、ドッキング／フローティングを確認。[詳細と制約](glyph-thumbnails.md)。この時点での次工程はアタリ画像の配置（下記で実装済み）。
-
 
 ## アタリ画像の保存・復旧基盤（2026-10-17）
 
@@ -131,13 +135,11 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 操作: フォントライブラリの「フォント見本帳」ボタン → 対象・文章・サイズを指定 → 見本帳を開く → ブラウザーの「印刷 / PDF保存」。A4・倍率100%・ブラウザーのヘッダー／フッターなしを使用する。プリンター側の余白設定による変更には注意。TTF/OTF/TTC/OTCを対象とし、Type 1等は対象外として件数表示。1回256 face・フォントデータ256MiBまで。上限時は部分作成を明示する。各文章200文字、最大8件。生成した印刷用HTMLとフォントはアプリのキャッシュ内に保持し、フォントファイルはWebViewのIPCへ転送しない。
 
-
 ## カラーWebフォント出力（2026-11-03）
 
 🟢 [Done] Web公開への効果と既存エンジンの再利用性を優先し、カラーWOFF2を実装。カラー専用画面で元形式／WOFF2と圧縮を選択。Rust workerで元テーブルを保持して圧縮し、保存後に復号・全テーブル照合・チェックサム検証を行う。WOFF2仕様上のheadフラグとチェックサム調整以外の変更は拒否。既存文書とUndo履歴は変更しない。
 
 カラー関連8テスト、Clippy、TypeScript/Vite成功。COLRv0/v1・SVG・sbix・CBDT・CFF・TTCの2フェイスを圧縮1/5/11で往復検証し、プレビュー対応形式はピクセル一致を確認。Chromiumで実WOFF2の読み込みとカラー画素を確認。三言語UIの形式／圧縮／出力要求はIPCを模擬して検証。ネイティブ保存ダイアログの新形式での実操作、Windows/Linux実機、Safari/Firefox固有のカラー形式対応は⭕️ [Pending]。
-
 
 ## COLRv1プレビュー（2026-11-03）
 
@@ -148,7 +150,6 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 🟢 [Done] Rustワークスペース376テスト成功（任意検証6件は通常実行でignore、そのうちCOLRv1実GPUテスト1件は明示実行して成功）。全targetのClippy `-D warnings`、TypeScript／Vite、整形・差分検査も成功。macOSデバッグ版Fonts.appのバンドルビルドも成功（113.67 MiB）。
 
 ⭕️ [Pending] Windows/Linux実機、今回のCOLRv1によるネイティブ画面全体の手動操作、広範な実フォント・外部組版エンジンとの比較。可変カラーの軸は既定値、高度な組版・絵文字シーケンスの合成は引き続き対象外。
-
 
 ## SVG-in-OpenTypeプレビュー（2026-11-03）
 
@@ -294,9 +295,9 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🟢 [Done] カラー編集・プロジェクト保存。
 - 🟢 [Done] 可変軸の範囲・既定値編集、可変出力、軸状態の保存・復旧。[仕様](variable-projects.md)。
 - 🟢 [Done] TrueType／CFF2・合成グリフのマスター編集、全マスターの点構成変更、原点保持・出力検証。[操作と保護条件](variable-masters.md)。
-- 🟠 [Next] 画像トレース。🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2用ヒント生成・命令編集。
+- 🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。
+- 🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2用ヒント生成・命令編集。
 - ⭕️ [Pending] 実機・周辺機器・外部アプリが必要な検証は各項目の条件を維持し、未検証のままDoneに変更しない。
-
 
 ## 外部組版情報・縦組み・IVS（2026-11-06）
 
@@ -304,13 +305,11 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 通常Rustテスト495件成功（実機用14件は通常実行で除外）。縦字形・IVS・回転グリフの実GPU読み戻しを別途実行して成功。Clippy、TypeScript／Vite、自己完結検査、三言語×2幅のUI操作が成功。元の組版ルールのGUI編集、高度な禁則処理、可変フォントの編集はこの項目に含めない。
 
-
 ## カラー編集・プロジェクト保存（2026-11-06）
 
 🟢 [Done] 元フォントを文書へ格納し、CPALの色・透明度・パレットを編集／選択する。三言語UI、文書単位のUndo／Redo、保存・自動復旧、Rust worker／wgpuプレビュー、TTF／OTF／WOFF2出力と保存前後の検証へ接続。共有色レコードは別パレットへ変更が漏れないよう独立させる。通常の輪郭編集はロックする。[仕様](color-projects.md)。
 
 通常Rustテスト499件、Clippy、TypeScript／Vite、自己完結検査、三言語×2幅のUI操作が成功。保存後の編集色・透明度の実GPU読み戻しも成功。入力フォントの権利・ライセンス情報はそのまま保持する。
-
 
 ## 可変軸の専用編集・保存・出力（2026-11-06）
 
@@ -318,7 +317,7 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2幅のUI操作が成功。保存後のgvar／CFF2カラーを実GPUで読み戻して成功。可変カーニング・合字・IVSの静的化も検証した。
 
-🟢 [Done] 可変輪郭・マスター編集（後続のv8工程まで実装）。🟠 [Next] 画像トレース。🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2ヒント生成・命令編集。
+🟢 [Done] 可変輪郭・マスター編集（後続のv8工程まで実装）。🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2ヒント生成・命令編集。
 
 ## マスター編集の実装履歴
 
@@ -348,7 +347,6 @@ Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2
 
 2026-11-07の作業区切り：🟢 [Done] 原点が変動するTrueTypeの送り補正を元gvarへ追加する基盤を実装し、横方向をFreeTypeで検証。🟠 [Next] この経路の縦方向・継承の追加検証、マスター補正の一括計画、編集画面・三言語UI・履歴・保存復旧・出力への接続。マスター編集全体は未完了。
 
-
 ## 可変マスター編集のアプリ接続（v7段階の実装履歴、2026-11-07）
 
 - 🟢 [Done] 単純TrueTypeの互換マスターを現在の軸位置で登録、改名・削除。グリフの物理点・暗黙点の対応と永続UUIDを保存し、点のドラッグ・座標入力・送り幅編集・元グリフへの復帰を三言語UIへ接続。
@@ -356,7 +354,6 @@ Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2
 - 🟢 [Done] 出力を2段階で再構築した場合のSFNTチェックサム不整合を修正。マスター編集、保存・復旧、出力・静的化、Undo/Redoのテストと三言語×2幅のUI操作を確認。実GPUで編集輪郭と静的出力の最大チャンネル差1/255以内、Undo後の画素一致を確認。
 - 🟠 [Next] 合成グリフとCFF2のマスター輪郭編集、マスター間の点構成変更、原点変動を含む編集座標系と出力全体の誤差検証の拡充。現在のマスターUIは単純TrueTypeに限定し、可変マスター編集の全項目をDoneとは扱わない。
 - ⭕️ [Pending] Windows/Linux実機、ペンタブ、広範な実書体・多数マスターの負荷検証。
-
 
 ## CFF2・合成グリフ・点構成・原点の接続（2026-11-07）
 
@@ -368,3 +365,11 @@ Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2
 - ⭕️ [Pending] Windows/Linux実機、ペンタブ、大規模な実書体・多数マスターの負荷検証。保護条件・形式の制限は[仕様](variable-masters.md)に明記。
 
 最終検証：Rustワークスペース567件成功・失敗0件（除外17件）、別途実GPU比較成功。Clippy全target・TypeScript／Vite・整形・自己完結検査、macOSデバッグ版Fonts.appの生成も成功。詳細は[マスター編集](variable-masters.md)。
+
+## 画像トレース（2026-11-07）
+
+🟢 [Done] Rust workerでPNG/JPEGの白黒輪郭を抽出し、画像配置の変形を反映したwgpuプレビュー、1回のUndo/Redo、永続UUID、保存・自動復旧へ接続。三言語の設定UIと情報アイコン、複雑な画像の処理量制限、遅れて完了した処理結果の拒否を実装。[対応範囲と検証](image-tracing.md)。
+
+⭕️ [Pending] Windows/Linux実機と幅広い実画像による追加確認。
+
+画像トレースの最終検証：Rust571件成功・失敗0件（除外18件）、別途Metal GPUの輪郭・穴の描画成功。三言語×2幅UI 6ケース、Clippy全target、TypeScript／Vite、整形・自己完結検査、macOSデバッグ版アプリ生成が成功。

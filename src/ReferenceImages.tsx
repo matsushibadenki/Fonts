@@ -1,9 +1,10 @@
 import {invoke} from '@tauri-apps/api/core';
-import {useEffect,useRef,useState} from 'react';
+import {lazy,Suspense,useEffect,useRef,useState} from 'react';
 import {IconButton} from './Panel';
 import {Icon} from './icons';
 import {referenceLabels,referenceError} from './reference-i18n';
 import type {ReferenceImage,Snapshot} from './types';
+const ImageTrace=lazy(()=>import('./ImageTrace').then(m=>({default:m.ImageTrace})));
 export function referenceCommand(state:Snapshot,action:Record<string,unknown>){return invoke<void>('reference_action',{epoch:state.epoch,revision:state.revision,glyph:state.glyph,action});}
 export function placeReference(state:Snapshot){return invoke<void>('reference_import',{epoch:state.epoch,revision:state.revision,glyph:state.glyph});}
 export function ReferenceImages({state}:{state:Snapshot}){
@@ -39,6 +40,7 @@ export function ReferenceImages({state}:{state:Snapshot}){
         return <label key={field}><span>{t[field]}</span><input key={`${state.epoch}-${selected.id}-${value}`} aria-label={`${t.images} ${t[field]}`} type="number" step={field==='opacity'?1:'any'} min={field==='width'||field==='height'?.001:field==='opacity'?0:field==='angle'?-360:-1000000} max={field==='opacity'?100:field==='angle'?360:1000000} disabled={state.image_editing||(selected.locked&&field!=='opacity')} defaultValue={Number(value.toFixed(3))} onBlur={e=>{const n=Number(e.target.value);if(!e.target.value||!Number.isFinite(n)||!e.target.validity.valid){e.target.value=String(Number(value.toFixed(3)));setError(t.InvalidGeometry);return;}if(Math.abs(n-value)<.0005)return;e.target.value=String(Number(value.toFixed(3)));const image={...selected};if(field==='x'||field==='y')image.center=field==='x'?[n,selected.center[1]]:[selected.center[0],n];else if(field==='opacity')image.opacity=n/100;else image[field]=n;update(image);}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(value);e.currentTarget.blur();}}}/></label>;
       })}</div>
       <input ref={range} className="reference-opacity" type="range" min={0} max={100} step={1} defaultValue={selected.opacity*100} aria-label={t.opacity} disabled={state.image_editing&&!gesture.current} onPointerDown={e=>{if(e.button!==0)return;e.preventDefault();e.currentTarget.focus();const token=crypto.randomUUID();gesture.current={token,state:latest.current};e.currentTarget.setPointerCapture(e.pointerId);run({type:'opacity_begin',id:selected.id,token});moveOpacity(e.currentTarget,e.clientX);}} onPointerMove={e=>moveOpacity(e.currentTarget,e.clientX)} onChange={e=>{const g=gesture.current;if(g)run({type:'opacity_move',token:g.token,value:Number(e.target.value)/100},g.state);else update({...selected,opacity:Number(e.target.value)/100});}} onPointerUp={e=>{moveOpacity(e.currentTarget,e.clientX);end();}} onPointerCancel={()=>end(true)} onLostPointerCapture={()=>end(true)} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();end(true);}}}/>
+      <Suspense fallback={null}><ImageTrace key={`${state.epoch}-${state.glyph}-${selected.id}`} state={state} id={selected.id}/></Suspense>
       </>}
     </>:<span className="reference-empty">{t.empty}</span>}
     {error&&<div className="reference-error" role="alert">{error}</div>}

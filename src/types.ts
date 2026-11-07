@@ -23,7 +23,7 @@ export interface Snapshot {
   class_kerning:ClassKerning;
   kerning:{left:number;right:number;value:number}[];kerning_total:number;
   snippets:{entries:SnippetEntry[];selected:string|null;contours:number[];placement:ReferenceImage|null;reference:boolean};
-  images:ReferenceImage[];image_selected:number|null;image_editing:boolean;
+  images:ReferenceImage[];image_selected:number|null;image_editing:boolean;image_trace:boolean;
   selected_controls:[number,{control1:number}|{control2:number}][];
   selected_nodes:[number,number][];boolean_right:number[];
   pen_points:number;pen_continuing:boolean;

@@ -178,3 +178,4 @@ fieldset.metrics-form{min-width:0;margin:0;border:0}fieldset.metrics-form:disabl
 .source-master-panel select{max-width:180px;min-width:80px}
 .master-point-tools label{display:flex;align-items:center;gap:4px}
 .master-point-tools input{width:76px}
+.image-trace{border-top:1px solid var(--border);margin-top:6px;padding-top:5px;min-width:0}.image-trace summary{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px}.image-trace .reference-fields{margin-top:6px}.image-trace .reference-actions label{display:flex;align-items:center;gap:4px;font-size:11px}

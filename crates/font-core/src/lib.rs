@@ -1,3 +1,4 @@
+pub mod image_trace;
 pub mod imported_layout;
 pub mod source_font;
 pub mod specimen;
@@ -128,7 +129,7 @@ impl Glyph {
             status: GlyphStatus::Draft,
         }
     }
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if self.name.trim().is_empty()
             || self.name.len() > 256
             || !self.advance.is_finite()

@@ -101,6 +101,7 @@ pub struct Snapshot {
     images: Vec<font_core::reference_images::ReferenceImage>,
     image_selected: Option<u64>,
     image_editing: bool,
+    image_trace: bool,
     selection: Option<SelectionSummary>,
     pen_points: usize,
     pen_continuing: bool,
@@ -425,6 +426,9 @@ impl Model {
             .collect()
     }
     pub fn visible_glyph(&self) -> Glyph {
+        if let Some(draft) = &self.images.trace {
+            return draft.glyph.clone();
+        }
         let mut g = self
             .drag
             .as_ref()
@@ -508,7 +512,8 @@ impl Model {
             snippets: self.snippet_summary(),
             images: self.visible_images(),
             image_selected: self.images.selected,
-            image_editing: self.images.drag.is_some(),
+            image_editing: self.images.drag.is_some() || self.images.trace.is_some(),
+            image_trace: self.images.trace.is_some(),
             selection: self.selection_summary(),
             proof: self.proof.summary(self.size[0]),
             properties: self.editor.properties(),
@@ -686,7 +691,7 @@ impl Model {
         if (self.drag.is_some() || self.marquee.is_some()) && !matches!(a, Action::Cancel) {
             return Err("edit_in_progress".into());
         }
-        if self.images.drag.is_some()
+        if (self.images.drag.is_some() || self.images.trace.is_some())
             && !matches!(
                 a,
                 Action::Cancel

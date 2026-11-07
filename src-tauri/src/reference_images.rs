@@ -12,6 +12,8 @@ use tauri::{Manager, WebviewWindow};
 #[derive(Default)]
 pub struct Images {
     pub selected: Option<u64>,
+    pub trace: Option<crate::image_trace::Draft>,
+    pub trace_request: Option<font_core::identity::Uuid>,
     pub drag: Option<Drag>,
 }
 pub struct Drag {
@@ -38,7 +40,8 @@ pub enum Action {
 }
 impl Model {
     pub fn has_draft(&self) -> bool {
-        self.marquee.is_some()
+        self.images.trace.is_some()
+            || self.marquee.is_some()
             || self.drag.is_some()
             || self.images.drag.is_some()
             || self.snippets.draft.is_some()
@@ -141,6 +144,9 @@ impl Model {
         Ok(())
     }
     pub fn image_action(&mut self, action: Action, owner: &str) -> Result<(), String> {
+        if self.images.trace.is_some() {
+            return Err("edit_in_progress".into());
+        }
         if self.images.drag.is_some()
             && !matches!(
                 action,
@@ -226,6 +232,9 @@ impl Model {
         shift: bool,
         token: &str,
     ) -> Result<(), String> {
+        if self.images.trace.is_some() {
+            return Err("edit_in_progress".into());
+        }
         if self.tool != Tool::Images || token.is_empty() || token.len() > 100 {
             return Err("Conflict".into());
         }

@@ -253,3 +253,45 @@ fn variable_master_edit_and_static_export_render_identically() {
         );
     }
 }
+
+#[test]
+#[ignore = "Requires access to a real GPU adapter; run explicitly on a desktop host"]
+fn traced_image_paths_render_body_and_hole_in_wgpu() {
+    use font_core::{
+        image_trace::{trace, Settings},
+        reference_images::{ImageAsset, ReferenceImage},
+    };
+    let asset = ImageAsset::from_bytes(
+        include_bytes!("../../font-core/tests/data/trace-ring.png").to_vec(),
+    )
+    .unwrap();
+    let placement = ReferenceImage {
+        id: 1,
+        asset_id: asset.id().into(),
+        center: [300., 300.],
+        width: 600.,
+        height: 600.,
+        angle: 0.,
+        opacity: 0.1,
+        visible: true,
+        locked: false,
+    };
+    let contours = trace(
+        &asset,
+        &placement,
+        Settings {
+            min_area: 0.,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(contours.len(), 2);
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let gpu =
+        pollster::block_on(Gpu::new(&instance, None, wgpu::TextureFormat::Rgba8Unorm)).unwrap();
+    let image = gpu.thumbnail(&contours).unwrap();
+    let red = |x: usize, y: usize| image[(y * 128 + x) * 4];
+    assert!(red(25, 64) < 80);
+    assert!(red(64, 64) > 240);
+    assert!(red(2, 64) > 240);
+}
