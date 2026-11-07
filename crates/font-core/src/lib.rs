@@ -279,7 +279,7 @@ impl FontDocument {
         if !self.imported_layout.is_empty() && self.schema_version < 5 {
             return Err(Error::InvalidDocument);
         }
-        if !matches!(self.schema_version, 1..=6) {
+        if !matches!(self.schema_version, 1..=8) {
             return Err(Error::UnsupportedVersion);
         }
         if self.family.trim().is_empty()
@@ -382,7 +382,7 @@ pub struct Editor {
 }
 impl Editor {
     pub fn new(mut document: FontDocument) -> Result<Self> {
-        if !matches!(document.schema_version, 1..=6) {
+        if !matches!(document.schema_version, 1..=8) {
             return Err(Error::UnsupportedVersion);
         }
         identity::upgrade(&mut document)?;

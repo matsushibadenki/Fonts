@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub struct Model {
+    pub master_origin: Point,
+    pub master_edit: Option<(font_core::identity::Uuid, Glyph)>,
     pub component_edit: Option<crate::component_edit::Editing>,
     pub parked: std::collections::BTreeMap<u64, Box<Model>>,
     pub document_id: u64,
@@ -85,6 +87,7 @@ pub struct SelectionSummary {
 }
 #[derive(Serialize)]
 pub struct Snapshot {
+    master_edit: Option<font_core::identity::Uuid>,
     source_font: Option<font_core::source_font::Summary>,
     imported_layout: font_core::imported_layout::Summary,
     components: crate::components::Summary,
@@ -322,6 +325,8 @@ impl Model {
             polygon(&[[235., 300.], [405., 300.], [320., 565.]]),
         ];
         Self {
+            master_origin: [0.; 2],
+            master_edit: None,
             component_edit: None,
             parked: Default::default(),
             document_id: 1,
@@ -370,6 +375,8 @@ impl Model {
         self.images = Default::default();
         self.proof = crate::proof::Proof::default();
         self.component_edit = None;
+        self.master_edit = None;
+        self.master_origin = [0.; 2];
         self.editor = editor;
         self.epoch = epoch;
         self.glyph = glyph;
@@ -477,6 +484,7 @@ impl Model {
         let g = self.editing_glyph();
         let linked = self.locked_contours();
         Snapshot {
+            master_edit: self.master_edit.as_ref().map(|e| e.0),
             source_font: doc.source_font.as_ref().map(|s| s.summary()),
             imported_layout: doc.imported_layout.summary(),
             components: self.component_summary(),
@@ -614,7 +622,16 @@ impl Model {
         }
     }
     pub fn action(&mut self, a: Action) -> Result<(), String> {
-        if self.editor.document().source_font.is_some() && matches!(&a, Action::Tool { .. }) {
+        if self.editor.document().source_font.is_some()
+            && matches!(&a, Action::Tool { .. })
+            && !(self.master_edit.is_some()
+                && matches!(
+                    &a,
+                    Action::Tool {
+                        tool: Tool::Nodes | Tool::Pan
+                    }
+                ))
+        {
             return Err("SourceFontLocked".into());
         }
         if self.component_edit.is_some()
@@ -964,6 +981,17 @@ impl Model {
                 self.exit_component_edit()?;
                 if !self.editor.document().glyphs.contains_key(&id) {
                     return Err("missing_glyph".into());
+                }
+                if let Some((master, _)) = &self.master_edit {
+                    self.editor
+                        .edit_source_master(
+                            self.editor.revision(),
+                            font_core::source_font::master_project::Edit::Capture {
+                                id: *master,
+                                glyph: id,
+                            },
+                        )
+                        .map_err(|e| e.to_string())?;
                 }
                 self.glyph = id;
                 self.selected = None;
@@ -1325,6 +1353,7 @@ impl Model {
             }
         }
         self.refresh_component_edit();
+        self.refresh_master_edit();
         Ok(())
     }
     pub fn pointer(&mut self, phase: &str, x: f64, y: f64) -> Result<(), String> {
@@ -1353,7 +1382,7 @@ impl Model {
         if !x.is_finite() || !y.is_finite() {
             return Err("invalid_point".into());
         }
-        if self.editor.document().source_font.is_some() {
+        if self.editor.document().source_font.is_some() && self.master_edit.is_none() {
             return Ok(());
         }
         if self.proof.active {
@@ -1398,6 +1427,21 @@ impl Model {
         if self.tool == Tool::Pen {
             return self.pen_pointer(phase, [x, y], false);
         }
+        let master_topology = self
+            .master_edit
+            .as_ref()
+            .and_then(|_| {
+                self.editor
+                    .document()
+                    .source_font
+                    .as_ref()?
+                    .masters
+                    .as_ref()?
+                    .topologies
+                    .get(&(self.glyph as u16))
+            })
+            .cloned();
+        let shift = shift && master_topology.is_none();
         let p = self.viewport().document([x, y]);
         let valid_point = p.iter().all(|v| v.is_finite() && v.abs() <= 1_000_000.);
         if matches!(phase, "down" | "move") && !valid_point {
@@ -1423,7 +1467,7 @@ impl Model {
                         (distance < 10.).then_some((ci, point, distance))
                     })
                     .min_by(|a, b| a.2.total_cmp(&b.2));
-                if found.is_none() {
+                if found.is_none() && master_topology.is_none() {
                     self.begin_marquee(p, shift);
                     return Ok(());
                 }
@@ -1496,6 +1540,20 @@ impl Model {
                     return Ok(());
                 }
                 if let Some(d) = self.drag.as_mut() {
+                    if let Some(topology) = &master_topology {
+                        d.draft.contours = topology
+                            .move_node(
+                                &d.original.contours,
+                                d.contour,
+                                d.anchor,
+                                [
+                                    d.position[0] + p[0] - d.origin[0],
+                                    d.position[1] + p[1] - d.origin[1],
+                                ],
+                            )
+                            .map_err(|e| e.to_string())?;
+                        return Ok(());
+                    }
                     if d.points.len() + d.controls.len() > 1 {
                         let mut contours = d.original.contours.clone();
                         font_core::point_transform::transform(

@@ -74,6 +74,28 @@ fn solved_physical_corrections_and_metrics_match_preview_and_preserve_unedited_m
         }
         let masters = Masters { entries };
         let advances: Vec<_> = samples.iter().map(|s| s.advance).collect();
+        let exported = font_core::source_font::master_export::export(
+            bytes,
+            &masters,
+            &[(1, glyph.topology.clone())].into(),
+        )
+        .unwrap();
+        let output_glyph = master_glyf::read(&exported.metrics.bytes, 0, 1)
+            .unwrap()
+            .unwrap();
+        let output_face = ttf_parser::Face::parse(&exported.metrics.bytes, 0).unwrap();
+        let output_tuples = master_gvar::read(
+            output_face
+                .raw_face()
+                .table(ttf_parser::Tag::from_bytes(b"gvar"))
+                .unwrap(),
+            &["wght".into(), "wdth".into()],
+            4,
+            1,
+            8,
+        )
+        .unwrap();
+        let mut output_sampler = Sampler::new(Arc::new(exported.metrics.bytes.clone()), 0).unwrap();
         let corrections =
             master_correction::solve(&glyph, 1, &masters, &tuples, &advances).unwrap();
         assert_eq!(corrections[0].support, Support::default());
@@ -109,6 +131,27 @@ fn solved_physical_corrections_and_metrics_match_preview_and_preserve_unedited_m
                 }
             }
             assert!((advance - preview.advance).abs() < 1e-9);
+            let output_points = output_glyph
+                .sample_points(&output_tuples, &location)
+                .unwrap();
+            let bound = exported.outline_error(1, &location).unwrap();
+            for (actual, expected) in output_points.iter().zip(&points) {
+                for axis in 0..2 {
+                    assert!((actual[axis] - expected[axis]).abs() <= bound + 1e-6);
+                }
+            }
+            let actual = output_sampler
+                .sample_normalized(1, &location)
+                .unwrap()
+                .shape
+                .advance;
+            assert!(
+                (actual - preview.advance).abs()
+                    <= exported.metrics.error_bound(1, &location, false).unwrap() + 0.52,
+                "{actual} {}",
+                preview.advance
+            );
+
             assert_eq!(glyph.topology.contours(&points).unwrap(), preview.contours);
         }
         let untouched = master_correction::solve(&glyph, 3, &masters, &tuples, &advances).unwrap();

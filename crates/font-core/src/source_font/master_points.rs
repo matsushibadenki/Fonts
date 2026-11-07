@@ -36,10 +36,122 @@ type Bindings = BTreeMap<EditPoint, Binding>;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Topology {
+    #[serde(default)]
+    cubic: bool,
     rings: Vec<Vec<bool>>,
     identities: Vec<Identities>,
 }
 impl Topology {
+    pub(crate) fn point_ids(&self) -> Result<Vec<crate::identity::Uuid>> {
+        let points = vec![[0.; 2]; self.point_count()?];
+        let (mut contours, maps) = self.bound(&points)?;
+        let mut ids = vec![None; points.len()];
+        for ((c, map), identity) in contours.iter_mut().zip(maps).zip(&self.identities) {
+            c.identity = identity.clone();
+            for (point, binding) in map {
+                if let Binding::Physical(index) = binding {
+                    ids[index] = identity::node_id(c, point);
+                }
+            }
+        }
+        ids.into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or(Error::InvalidGeometry)
+    }
+    pub(crate) fn adopt(&mut self, contours: &[Contour]) -> Result<()> {
+        if contours.len() != self.identities.len() {
+            return Err(Error::InvalidGeometry);
+        }
+        self.identities = contours.iter().map(|c| c.identity.clone()).collect();
+        self.physical_points(contours)?;
+        Ok(())
+    }
+    pub(crate) fn align(&self, contours: &mut [Contour]) -> Result<()> {
+        if contours.len() != self.identities.len() {
+            return Err(Error::InvalidGeometry);
+        }
+        for (c, id) in contours.iter_mut().zip(&self.identities) {
+            c.identity = id.clone();
+        }
+        self.physical_points(contours)?;
+        Ok(())
+    }
+    pub(crate) fn quadratic(contours: &[Contour]) -> Result<(Self, Vec<Point>)> {
+        let mut rings = vec![];
+        let mut points = vec![];
+        for c in contours {
+            if !c.closed
+                || c.segments.last().map(|s| match s {
+                    Segment::Line { end }
+                    | Segment::Quadratic { end, .. }
+                    | Segment::Cubic { end, .. } => *end,
+                }) != Some(c.start)
+            {
+                return Err(Error::InvalidGeometry);
+            }
+            let mut ring = vec![true];
+            points.push(c.start);
+            for (i, s) in c.segments.iter().enumerate() {
+                let last = i + 1 == c.segments.len();
+                match s {
+                    Segment::Line { end } => {
+                        if !last {
+                            ring.push(true);
+                            points.push(*end);
+                        }
+                    }
+                    Segment::Quadratic { control, end } => {
+                        ring.push(false);
+                        points.push(*control);
+                        if !last {
+                            ring.push(true);
+                            points.push(*end);
+                        }
+                    }
+                    _ => return Err(Error::InvalidGeometry),
+                }
+            }
+            rings.push(ring);
+        }
+        let mut topology = Self::new(rings)?;
+        topology.adopt(contours)?;
+        Ok((topology, points))
+    }
+    pub fn is_cubic(&self) -> bool {
+        self.cubic
+    }
+    pub fn path(contours: &[Contour]) -> Result<Self> {
+        let mut rings = vec![];
+        for c in contours {
+            let mut ring = vec![true];
+            if !c.closed
+                || !matches!(c.segments.last(), Some(Segment::Line {end}) if *end == c.start)
+            {
+                return Err(Error::InvalidGeometry);
+            }
+            for s in &c.segments[..c.segments.len() - 1] {
+                match s {
+                    Segment::Line { .. } => ring.push(true),
+                    Segment::Cubic { .. } => ring.extend([false, false, true]),
+                    _ => return Err(Error::InvalidGeometry),
+                }
+            }
+            rings.push(ring);
+        }
+        let count = checked_count(&rings)?;
+        let (mut model, _) = path_layout(&rings, &vec![[0.; 2]; count])?;
+        for c in &mut model {
+            identity::ensure_contour(c)?;
+        }
+        Ok(Self {
+            cubic: true,
+            rings,
+            identities: model.into_iter().map(|c| c.identity).collect(),
+        })
+    }
+    pub fn on_curve_flags(&self) -> Vec<bool> {
+        self.rings.iter().flatten().copied().collect()
+    }
     pub(crate) fn rings(&self) -> &[Vec<bool>] {
         &self.rings
     }
@@ -50,6 +162,7 @@ impl Topology {
             identity::ensure_contour(contour)?;
         }
         Ok(Self {
+            cubic: false,
             rings,
             identities: contours.into_iter().map(|c| c.identity).collect(),
         })
@@ -158,7 +271,11 @@ impl Topology {
         if self.identities.len() != self.rings.len() {
             return Err(Error::InvalidGeometry);
         }
-        let result = layout(&self.rings, points)?;
+        let result = if self.cubic {
+            path_layout(&self.rings, points)?
+        } else {
+            layout(&self.rings, points)?
+        };
         let mut seen = HashSet::new();
         for (c, ids) in result.0.iter().zip(&self.identities) {
             let mut c = c.clone();
@@ -265,6 +382,75 @@ fn layout(rings: &[Vec<bool>], points: &[Point]) -> Result<(Vec<Contour>, Vec<Bi
         contours.push(c);
         maps.push(map);
         offset += n;
+    }
+    Ok((contours, maps))
+}
+
+fn path_layout(rings: &[Vec<bool>], points: &[Point]) -> Result<(Vec<Contour>, Vec<Bindings>)> {
+    if checked_count(rings)? != points.len()
+        || points
+            .iter()
+            .flatten()
+            .any(|v| !v.is_finite() || v.abs() > 1_000_000.)
+    {
+        return Err(Error::InvalidGeometry);
+    }
+    let mut contours = vec![];
+    let mut maps = vec![];
+    let mut offset = 0;
+    for ring in rings {
+        if ring.first() != Some(&true) {
+            return Err(Error::InvalidGeometry);
+        }
+        let mut c = Contour {
+            start: points[offset],
+            segments: vec![],
+            closed: true,
+            identity: Default::default(),
+            smooth: Default::default(),
+        };
+        let mut map = Bindings::from([(EditPoint::Anchor(0), Binding::Physical(offset))]);
+        let mut i = 1;
+        while i < ring.len() {
+            let segment = c.segments.len();
+            if ring[i] {
+                c.segments.push(Segment::Line {
+                    end: points[offset + i],
+                });
+                map.insert(
+                    EditPoint::Anchor(segment + 1),
+                    Binding::Physical(offset + i),
+                );
+                i += 1;
+            } else {
+                if ring.get(i..i + 3) != Some(&[false, false, true]) {
+                    return Err(Error::InvalidGeometry);
+                }
+                c.segments.push(Segment::Cubic {
+                    control1: points[offset + i],
+                    control2: points[offset + i + 1],
+                    end: points[offset + i + 2],
+                });
+                map.insert(EditPoint::Control1(segment), Binding::Physical(offset + i));
+                map.insert(
+                    EditPoint::Control2(segment),
+                    Binding::Physical(offset + i + 1),
+                );
+                map.insert(
+                    EditPoint::Anchor(segment + 1),
+                    Binding::Physical(offset + i + 2),
+                );
+                i += 3;
+            }
+        }
+        c.segments.push(Segment::Line { end: c.start });
+        map.insert(
+            EditPoint::Anchor(c.segments.len()),
+            Binding::Physical(offset),
+        );
+        contours.push(c);
+        maps.push(map);
+        offset += ring.len();
     }
     Ok((contours, maps))
 }

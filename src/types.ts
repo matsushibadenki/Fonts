@@ -14,7 +14,8 @@ export interface SnippetEntry {key:string;builtin:boolean;info:SnippetInfo;conto
 export interface KerningClass {id:number;name:string;glyphs:number[]}
 export interface ClassKerning {next_id:number;left:KerningClass[];right:KerningClass[];pairs:{left:number;right:number;value:number}[]}
 export interface Snapshot {
-  source_font?:{kind:"color"|"variable";extension:string;palette:number;palettes:number;colors:[number,number,number,number][];sample:string;variable?:{axes:{tag:string;name:string;min:number;default:number;max:number;hidden:boolean}[];instances:{id:number;name:string;names:Record<string,string>;coordinates:Record<string,number>}[];settings:{ranges:Record<string,{min:number;default:number;max:number}>;coordinates:Record<string,number>}}|null}|null;
+  master_edit?:string|null;
+  source_font?:{master_editable?:boolean;masters?:{id:string;name:string;coordinates:Record<string,number>;glyphs:number}[];kind:"color"|"variable";extension:string;palette:number;palettes:number;colors:[number,number,number,number][];sample:string;variable?:{axes:{tag:string;name:string;min:number;default:number;max:number;hidden:boolean}[];instances:{id:number;name:string;names:Record<string,string>;coordinates:Record<string,number>}[];settings:{ranges:Record<string,{min:number;default:number;max:number}>;coordinates:Record<string,number>}}|null}|null;
   imported_layout?:{present:boolean;positioning:boolean;substitution:boolean;vertical:boolean;variations:boolean};
   components:{editing?:{id:string;name:string}|null;children:{parent:string;id:string;definition:string;name:string;placement:ReferenceImage|null;can_remove:boolean}[];active:boolean;selected:string|null;definitions:{id:string;info:SnippetInfo;uses:number;source:boolean;thumbnail:number}[];instances:{affected:boolean;id:string;definition:string;glyph:number;name:string}[]};
   document_uuid:string;

@@ -1,6 +1,9 @@
 use super::*;
 /// A simple glyf record with unchanged point topology and no stale glyph instructions.
 pub struct Encoded {
+    pub(crate) remap: Option<Vec<Option<usize>>>,
+    pub(crate) topology: Topology,
+    pub(crate) overlap: bool,
     pub bytes: Vec<u8>,
     pub points: Vec<Point>,
     pub bounds: [i16; 4],
@@ -90,6 +93,9 @@ impl Glyph {
             bytes.push(0);
         }
         Ok(Encoded {
+            remap: None,
+            topology: self.topology.clone(),
+            overlap: self.overlap,
             bytes,
             points: rounded,
             bounds,

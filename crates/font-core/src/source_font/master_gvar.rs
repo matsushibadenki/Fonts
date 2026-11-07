@@ -388,6 +388,15 @@ pub fn replace_many(
     glyph_count: u16,
     replacements: &std::collections::BTreeMap<u16, (usize, &[Tuple])>,
 ) -> Result<Vec<u8>> {
+    replace_reindexed(table, axes, glyph_count, replacements, None)
+}
+pub fn replace_reindexed(
+    table: &[u8],
+    axes: &[String],
+    glyph_count: u16,
+    replacements: &std::collections::BTreeMap<u16, (usize, &[Tuple])>,
+    source_counts: Option<&std::collections::BTreeMap<u16, usize>>,
+) -> Result<Vec<u8>> {
     if replacements.is_empty() {
         return Ok(table.to_vec());
     }
@@ -395,7 +404,11 @@ pub fn replace_many(
     let mut encoded = std::collections::BTreeMap::new();
     let mut encoded_size = 0usize;
     for (&glyph, &(point_count, tuples)) in replacements {
-        parsed.glyph(glyph, point_count)?;
+        let source_count = match source_counts {
+            Some(counts) => *counts.get(&glyph).ok_or(Error::InvalidGeometry)?,
+            None => point_count,
+        };
+        parsed.glyph(glyph, source_count)?;
         let bytes = encode_glyph(tuples, axes, point_count)?;
         encoded_size = encoded_size
             .checked_add(bytes.len())
@@ -453,6 +466,44 @@ pub fn replace_many(
     out.extend(peaks);
     out.extend(payload);
     Ok(out)
+}
+
+/// Metrics-only variable TrueType fonts may not have a gvar table yet.
+pub(super) fn ensure(bytes: &[u8]) -> Result<Vec<u8>> {
+    let face = ttf_parser::Face::parse(bytes, 0).map_err(|_| Error::InvalidFile)?;
+    let raw = face.raw_face();
+    if raw.table(ttf_parser::Tag::from_bytes(b"glyf")).is_none()
+        || raw.table(ttf_parser::Tag::from_bytes(b"gvar")).is_some()
+    {
+        return Ok(bytes.to_vec());
+    }
+    let axes = face.variation_axes().len();
+    if axes == 0 || axes > 63 {
+        return Err(Error::InvalidFile);
+    }
+    let count = face.number_of_glyphs();
+    let offset = 20 + (usize::from(count) + 1) * 4;
+    let mut gvar = vec![0, 1, 0, 0];
+    gvar.extend(axes.to_be_bytes());
+    gvar.extend(0u16.to_be_bytes());
+    gvar.extend((offset as u32).to_be_bytes());
+    gvar.extend(count.to_be_bytes());
+    gvar.extend(1u16.to_be_bytes());
+    gvar.extend((offset as u32).to_be_bytes());
+    gvar.resize(offset, 0);
+    let mut tables: std::collections::BTreeMap<_, _> = raw
+        .table_records
+        .into_iter()
+        .map(|r| {
+            Ok((
+                r.tag.to_bytes(),
+                raw.table(r.tag).ok_or(Error::InvalidFile)?.to_vec(),
+            ))
+        })
+        .collect::<Result<_>>()?;
+    tables.insert(*b"gvar", gvar);
+    tables.remove(b"DSIG");
+    crate::color_fonts::assemble(tables, false).map_err(|_| Error::InvalidFile)
 }
 
 #[cfg(test)]

@@ -81,6 +81,32 @@ pub struct Store<'a> {
     header: usize,
 }
 impl<'a> Store<'a> {
+    pub fn region_count(&self) -> usize {
+        self.regions.len()
+    }
+    pub fn regions_for_data(&self, index: u16) -> Result<Vec<u16>> {
+        let at = *self
+            .offsets
+            .get(usize::from(index))
+            .ok_or(Error::InvalidFile)?;
+        let mut r = Reader {
+            bytes: self.bytes,
+            at,
+        };
+        r.word()?;
+        r.word()?;
+        let count = usize::from(r.word()?);
+        let mut out = Vec::with_capacity(count);
+        for _ in 0..count {
+            let region = r.word()?;
+            if usize::from(region) >= self.regions.len() {
+                return Err(Error::InvalidFile);
+            }
+            out.push(region);
+        }
+        Ok(out)
+    }
+
     pub fn support(&self, index: u16) -> Result<Support> {
         let region = self
             .regions
@@ -261,6 +287,52 @@ pub struct Builder<'a> {
     rows: Vec<Vec<u8>>,
 }
 impl<'a> Builder<'a> {
+    /// CFF2 variation-data records contain region indices without item rows.
+    pub fn add_regions(&mut self, supports: &[Support]) -> Result<u16> {
+        let outer = self.store.offsets.len() + self.rows.len();
+        if outer >= 65535 || supports.len() > 510 {
+            return Err(Error::TooLarge);
+        }
+        let mut bytes = vec![0, 0, 0, 0];
+        bytes.extend((supports.len() as u16).to_be_bytes());
+        for support in supports {
+            let peak = support
+                .axes
+                .iter()
+                .map(|(tag, v)| (tag.clone(), v[1]))
+                .collect();
+            support.weight(&peak)?;
+            if support.axes.keys().any(|a| !self.store.axes.contains(a)) {
+                return Err(Error::InvalidGeometry);
+            }
+            let mut region = vec![];
+            for axis in &self.store.axes {
+                let values = support.axes.get(axis).copied().unwrap_or([0.; 3]);
+                let mut fixed = [0i16; 3];
+                for (i, value) in values.into_iter().enumerate() {
+                    let f = value * 16384.;
+                    if f.round() != f {
+                        return Err(Error::InvalidGeometry);
+                    }
+                    fixed[i] = f as i16;
+                }
+                region.push(fixed);
+            }
+            let index = if let Some(index) = self.store.regions.iter().position(|v| *v == region) {
+                index
+            } else {
+                if self.store.regions.len() >= 32767 {
+                    return Err(Error::TooLarge);
+                }
+                self.store.regions.push(region);
+                self.store.regions.len() - 1
+            };
+            bytes.extend((index as u16).to_be_bytes());
+        }
+        self.rows.push(bytes);
+        Ok(outer as u16)
+    }
+
     pub fn new(store: Store<'a>) -> Self {
         Self {
             store,

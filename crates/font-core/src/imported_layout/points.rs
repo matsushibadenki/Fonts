@@ -158,7 +158,7 @@ fn gpos(bytes: &mut Vec<u8>) -> IO<bool> {
     }
     Ok(a.changed)
 }
-fn coverage(b: &[u8], p: usize) -> IO<Vec<u16>> {
+pub(crate) fn coverage(b: &[u8], p: usize) -> IO<Vec<u16>> {
     let n = usize::from(word(b, p + 2)?);
     let mut out = vec![];
     match word(b, p)? {
@@ -188,7 +188,7 @@ fn coverage(b: &[u8], p: usize) -> IO<Vec<u16>> {
     }
     Ok(out)
 }
-fn gdef(bytes: &mut Vec<u8>, source: &[u8], index: u32) -> IO<bool> {
+fn gdef(bytes: &mut Vec<u8>, source: &[u8], index: u32, native_origin: bool) -> IO<bool> {
     let Some(list) = relative(bytes, 0, 8)? else {
         return Ok(false);
     };
@@ -278,7 +278,18 @@ fn gdef(bytes: &mut Vec<u8>, source: &[u8], index: u32) -> IO<bool> {
                         }
                     }
                     let point = usize::from(word(bytes, caret + 2)?);
-                    let x = *coordinates[&glyph].get(point).ok_or("layout_invalid")?;
+                    let mut x = *coordinates[&glyph].get(point).ok_or("layout_invalid")?;
+                    if is_glyf && native_origin {
+                        let face =
+                            ttf_parser::Face::parse(source, index).map_err(|_| "layout_invalid")?;
+                        let id = ttf_parser::GlyphId(glyph);
+                        if let (Some(b), Some(lsb)) =
+                            (face.glyph_bounding_box(id), face.glyph_hor_side_bearing(id))
+                        {
+                            x += i32::from(lsb) - i32::from(b.x_min);
+                        }
+                    }
+
                     let x = i16::try_from(x).map_err(|_| "layout_anchor_unsupported")?;
                     row.extend(1u16.to_be_bytes());
                     row.extend(x.to_be_bytes());
@@ -486,15 +497,33 @@ fn base(bytes: &mut Vec<u8>) -> IO<bool> {
     }
     Ok(a.changed)
 }
-pub(super) fn normalize(layout: &mut ImportedLayout, source: &[u8], index: u32) -> IO<()> {
+pub(super) fn normalize(
+    layout: &mut ImportedLayout,
+    source: &[u8],
+    index: u32,
+    native_origin: bool,
+) -> IO<()> {
     if let Some(table) = layout.tables.get_mut("GPOS") {
         layout.normalized_points |= gpos(Arc::make_mut(&mut table.data))?;
     }
     if let Some(table) = layout.tables.get_mut("GDEF") {
-        layout.normalized_points |= gdef(Arc::make_mut(&mut table.data), source, index)?;
+        layout.normalized_points |=
+            gdef(Arc::make_mut(&mut table.data), source, index, native_origin)?;
     }
     if let Some(table) = layout.tables.get_mut("BASE") {
         layout.normalized_points |= base(Arc::make_mut(&mut table.data))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn materialize_edit_anchors(
+    tables: &mut BTreeMap<[u8; 4], Vec<u8>>,
+) -> crate::Result<()> {
+    if let Some(bytes) = tables.get_mut(b"GPOS") {
+        gpos(bytes).map_err(|_| crate::Error::InvalidFile)?;
+    }
+    if let Some(bytes) = tables.get_mut(b"BASE") {
+        base(bytes).map_err(|_| crate::Error::InvalidFile)?;
     }
     Ok(())
 }
@@ -518,7 +547,7 @@ mod tests {
         .unwrap();
         for source in [source.as_slice(), cff.as_slice()] {
             b = original.clone();
-            assert!(gdef(&mut b, source, 0).unwrap());
+            assert!(gdef(&mut b, source, 0, false).unwrap());
             let list = usize::from(word(&b, 8).unwrap());
             let mut coords = vec![];
             for i in 0..2 {

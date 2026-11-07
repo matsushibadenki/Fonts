@@ -133,7 +133,7 @@ pub fn validate_document(doc: &FontDocument) -> Result<()> {
     Ok(())
 }
 pub fn upgrade(doc: &mut FontDocument) -> Result<bool> {
-    if !matches!(doc.schema_version, 1..=6) {
+    if !matches!(doc.schema_version, 1..=8) {
         return Err(Error::UnsupportedVersion);
     }
     let mut changed = doc.schema_version < 2

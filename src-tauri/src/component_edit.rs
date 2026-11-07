@@ -19,9 +19,10 @@ impl Model {
             .map_or(doc.units_per_em, |id| doc.components.definitions[&id].upm)
     }
     pub fn editing_glyph(&self) -> &Glyph {
-        self.component_edit
+        self.master_edit
             .as_ref()
-            .map(|e| &e.glyph)
+            .map(|e| &e.1)
+            .or_else(|| self.component_edit.as_ref().map(|e| &e.glyph))
             .unwrap_or(&self.editor.document().glyphs[&self.glyph])
     }
     pub fn locked_contours(&self) -> std::collections::BTreeSet<Uuid> {
@@ -42,7 +43,22 @@ impl Model {
         if glyph.id != self.glyph {
             return Err("Conflict".into());
         }
-        if let Some(id) = self.editing_id() {
+        if let Some((id, _)) = &self.master_edit {
+            let id = *id;
+            let mut glyph = glyph;
+            crate::masters::translate(&mut glyph, [-self.master_origin[0], -self.master_origin[1]]);
+            self.editor
+                .edit_source_master(
+                    revision,
+                    font_core::source_font::master_project::Edit::Replace {
+                        id,
+                        glyph: glyph.id,
+                        shape: font_core::source_font::masters::Shape::from_glyph(&glyph),
+                    },
+                )
+                .map_err(|e| e.to_string())?;
+            self.refresh_master_edit();
+        } else if let Some(id) = self.editing_id() {
             self.editor
                 .edit_component_contours(revision, id, glyph.contours)
                 .map_err(|e| e.to_string())?;

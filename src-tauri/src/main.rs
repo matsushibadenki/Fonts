@@ -17,6 +17,7 @@ mod font_output;
 mod font_paths;
 mod font_store;
 mod hinting;
+mod masters;
 mod menu;
 mod menu_actions;
 mod model;
@@ -107,22 +108,21 @@ fn snapshot(window: WebviewWindow, state: tauri::State<AppState>) -> Result<Snap
     Ok(state.0.lock().map_err(|_| "state_poisoned")?.snapshot())
 }
 #[tauri::command]
-fn edit(
-    window: WebviewWindow,
-    state: tauri::State<AppState>,
-    action: Action,
-    epoch: u64,
-) -> Result<u64, String> {
+async fn edit(window: WebviewWindow, action: Action, epoch: u64) -> Result<u64, String> {
     allowed(&window)?;
-    let (layout_changed, revision) = {
+    let app = window.app_handle().clone();
+    let (layout_changed, revision) = tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
         let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
         if m.epoch != epoch {
             return Err("Conflict".into());
         }
         let before = m.workspace.revision;
         m.action(action)?;
-        (m.workspace.revision != before, m.editor.revision())
-    };
+        Ok::<_, String>((m.workspace.revision != before, m.editor.revision()))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     publish(window.app_handle());
     if layout_changed {
         persist(window.app_handle());
@@ -153,59 +153,62 @@ struct PointerRequest {
     y: f64,
 }
 #[tauri::command]
-fn pointer(
-    window: WebviewWindow,
-    state: tauri::State<AppState>,
-    request: PointerRequest,
-) -> Result<(), String> {
-    let PointerRequest {
-        phase,
-        revision,
-        glyph,
-        shift,
-        alt,
-        token,
-        epoch,
-        x,
-        y,
-    } = request;
+async fn pointer(window: WebviewWindow, request: PointerRequest) -> Result<(), String> {
     if window.label() != "main" {
         return Err("main_window_only".into());
     }
-    {
-        let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
-        if m.epoch != epoch {
-            return Err("Conflict".into());
-        }
-        if m.snippets.draft.is_some() && !m.proof.active {
-            if m.glyph != glyph || m.editor.revision() != revision {
+    let app = window.app_handle().clone();
+    let phase = tauri::async_runtime::spawn_blocking(move || {
+        let PointerRequest {
+            phase,
+            revision,
+            glyph,
+            shift,
+            alt,
+            token,
+            epoch,
+            x,
+            y,
+        } = request;
+        {
+            let state = app.state::<AppState>();
+            let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
+            if m.epoch != epoch {
                 return Err("Conflict".into());
             }
-            m.snippet_pointer(&phase, [x, y], shift, &token)?;
-        } else if m.tool == font_core::workspace::Tool::Images && !m.proof.active {
-            m.image_context(epoch, revision, glyph)?;
-            m.image_pointer(&phase, [x, y], shift, &token)?;
-        } else {
-            if m.glyph != glyph || m.editor.revision() != revision {
-                return Err("Conflict".into());
-            }
-            if m.tool == font_core::workspace::Tool::Pen && !m.proof.active {
-                if alt {
-                    m.pen_pointer_modified(&phase, [x, y], shift, true)?;
-                } else {
-                    m.pen_pointer(&phase, [x, y], shift)?;
+            if m.snippets.draft.is_some() && !m.proof.active {
+                if m.glyph != glyph || m.editor.revision() != revision {
+                    return Err("Conflict".into());
                 }
+                m.snippet_pointer(&phase, [x, y], shift, &token)?;
+            } else if m.tool == font_core::workspace::Tool::Images && !m.proof.active {
+                m.image_context(epoch, revision, glyph)?;
+                m.image_pointer(&phase, [x, y], shift, &token)?;
             } else {
-                if shift {
-                    m.pointer_input(&phase, x, y, alt, true)?;
-                } else if alt {
-                    m.pointer_modified(&phase, x, y, true)?;
+                if m.glyph != glyph || m.editor.revision() != revision {
+                    return Err("Conflict".into());
+                }
+                if m.tool == font_core::workspace::Tool::Pen && !m.proof.active {
+                    if alt {
+                        m.pen_pointer_modified(&phase, [x, y], shift, true)?;
+                    } else {
+                        m.pen_pointer(&phase, [x, y], shift)?;
+                    }
                 } else {
-                    m.pointer(&phase, x, y)?;
+                    if shift {
+                        m.pointer_input(&phase, x, y, alt, true)?;
+                    } else if alt {
+                        m.pointer_modified(&phase, x, y, true)?;
+                    } else {
+                        m.pointer(&phase, x, y)?;
+                    }
                 }
             }
         }
-    }
+        Ok::<_, String>(phase)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     // Pointer moves redraw on demand but do not broadcast document snapshots.
     if phase == "up" || phase == "down" || phase == "cancel" {
         publish(window.app_handle());
@@ -665,6 +668,9 @@ fn main() {
             color_fonts::color_font_action,
             source_font::source_font_preview,
             source_font::source_font_static,
+            masters::source_master_edit,
+            masters::source_master_open,
+            masters::source_master_points,
             variations::variation_axes,
             variations::variation_catalog,
             variations::variation_action,

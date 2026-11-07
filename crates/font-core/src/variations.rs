@@ -318,7 +318,34 @@ pub fn instantiate(
         })
         .collect::<Result<Vec<_>, String>>()?;
     let frozen = font_hinting_native::variations::subset(bytes, index, &ranges)?;
-    doc.imported_layout = crate::imported_layout::ImportedLayout::import(&doc, &frozen, 0)?;
+    // Import the rasterizer's unhinted origin frame, including moving phantom
+    // origins and component metric inheritance. Raw glyf coordinates alone do
+    // not describe the glyph position relative to its pen origin.
+    let mut sampler =
+        crate::source_font::master_sample::Sampler::new(std::sync::Arc::new(frozen.clone()), 0)
+            .map_err(|e| e.to_string())?;
+    let mut total = 0usize;
+    for (&id, glyph) in &mut doc.glyphs {
+        let shape = sampler
+            .sample_design(id, &Coordinates::new())
+            .map_err(|e| e.to_string())?
+            .shape;
+        total = total
+            .checked_add(
+                shape
+                    .contours
+                    .iter()
+                    .map(|c| c.segments.len())
+                    .sum::<usize>(),
+            )
+            .ok_or("font_too_large")?;
+        if total > font_io::MAX_OUTLINE_SEGMENTS {
+            return Err("font_too_large".into());
+        }
+        glyph.advance = shape.advance;
+        glyph.contours = shape.contours;
+    }
+    doc.imported_layout = crate::imported_layout::ImportedLayout::import_native(&doc, &frozen, 0)?;
     if !doc.imported_layout.is_empty() {
         doc.schema_version = doc.schema_version.max(5);
     }

@@ -13,9 +13,35 @@ pub struct Glyph {
     pub topology: Topology,
     pub points: Vec<Point>,
     ends: Vec<usize>,
-    overlap: bool,
+    pub(crate) overlap: bool,
 }
 impl Glyph {
+    pub(crate) fn verify_encoded(encoded: &Encoded) -> Result<Encoded> {
+        let mut glyph =
+            Self::from_points(encoded.topology.rings().to_vec(), encoded.points.clone())?;
+        if encoded.topology.is_cubic() {
+            return Err(Error::InvalidGeometry);
+        }
+        glyph.overlap = encoded.overlap;
+        glyph.encode_base(&encoded.points)
+    }
+    pub(crate) fn from_points(rings: Vec<Vec<bool>>, points: Vec<Point>) -> Result<Self> {
+        let topology = Topology::new(rings.clone())?;
+        topology.contours(&points)?;
+        let mut at = 0;
+        let mut ends = vec![];
+        for ring in rings {
+            at += ring.len();
+            ends.push(at - 1);
+        }
+        Ok(Self {
+            topology,
+            points,
+            ends,
+            overlap: false,
+        })
+    }
+
     /// Physical design coordinates. Phantom coordinates are not used for outline IUP.
     pub fn sample_points(&self, tuples: &[Tuple], location: &Location) -> Result<Vec<Point>> {
         let count = self.topology.point_count()?;

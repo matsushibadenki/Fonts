@@ -32,7 +32,14 @@ impl Sampler {
         if bytes.len() as u64 > font_io::MAX_FONT_BYTES || index > 65535 {
             return Err(Error::TooLarge);
         }
-        let axes = variations::axes(&bytes, index).map_err(|_| Error::InvalidDocument)?;
+        let variable = ttf_parser::Face::parse(&bytes, index)
+            .map_err(|_| Error::InvalidDocument)?
+            .is_variable();
+        let axes = if variable {
+            variations::axes(&bytes, index).map_err(|_| Error::InvalidDocument)?
+        } else {
+            vec![]
+        };
         let library = freetype::Library::init().map_err(|_| Error::InvalidDocument)?;
         let face = library
             .new_memory_face2(Bytes(bytes), index as isize)
@@ -44,6 +51,13 @@ impl Sampler {
         })
     }
     pub fn sample_design(&mut self, glyph: GlyphId, location: &Location) -> Result<Sample> {
+        if self.axes.is_empty() {
+            return if location.is_empty() {
+                self.sample(glyph)
+            } else {
+                Err(Error::InvalidGeometry)
+            };
+        }
         if location
             .keys()
             .any(|tag| !self.axes.iter().any(|a| &a.tag == tag))
@@ -79,6 +93,13 @@ impl Sampler {
         self.sample(glyph)
     }
     pub fn sample_normalized(&mut self, glyph: GlyphId, location: &Location) -> Result<Sample> {
+        if self.axes.is_empty() {
+            return if location.is_empty() {
+                self.sample(glyph)
+            } else {
+                Err(Error::InvalidGeometry)
+            };
+        }
         if location.len() != self.axes.len()
             || location
                 .keys()
@@ -216,6 +237,13 @@ impl Sampler {
             contours: builder.contours,
         };
         shape.validate()?;
+        if self.axes.is_empty() {
+            return Ok(Sample {
+                shape,
+                design_location: Location::new(),
+                location: Location::new(),
+            });
+        }
         let mut design = vec![0 as ffi::FT_Fixed; self.axes.len()];
         let mut normalized = design.clone();
         // SAFETY: Both output arrays have exactly the face's validated axis count.

@@ -1,14 +1,19 @@
 //! Project-owned source fonts. Specialized editing preserves tables ordinary outline editing cannot.
+pub mod master_cff;
+pub mod master_composite;
 pub mod master_correction;
+pub mod master_export;
 pub mod master_glyf;
 pub mod master_gvar;
 pub mod master_metric_variations;
 pub mod master_points;
+pub mod master_project;
 pub mod master_quantize;
 pub mod master_rebase;
 pub mod master_sample;
 pub mod master_store;
 pub mod master_tables;
+pub mod master_topology;
 pub mod master_tuple;
 pub mod masters;
 mod names;
@@ -28,6 +33,8 @@ pub enum Kind {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFont {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub masters: Option<Arc<master_project::Project>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variable: Option<variable::Variable>,
     pub kind: Kind,
@@ -103,6 +110,15 @@ impl SourceFont {
             || !doc.components.is_empty()
         {
             return Err(Error::InvalidDocument);
+        }
+        if let Some(m) = &self.masters {
+            if doc.schema_version < 7 || self.variable.is_none() {
+                return Err(Error::InvalidDocument);
+            }
+            if m.advanced(&self.bytes)? && doc.schema_version < 8 {
+                return Err(Error::InvalidDocument);
+            }
+            m.validate(&self.bytes)?;
         }
         if let Some(v) = &self.variable {
             v.validate(&self.bytes)
@@ -182,6 +198,7 @@ impl SourceFont {
         };
         doc.schema_version = 6;
         doc.source_font = Some(Self {
+            masters: None,
             variable,
             kind,
             bytes: Arc::new(bytes),
@@ -205,15 +222,25 @@ impl SourceFont {
             _ => Err("source_font_format".into()),
         }
     }
-    pub fn export(&self) -> crate::font_io::Result<Vec<u8>> {
+    fn edited_bytes(&self) -> crate::font_io::Result<Vec<u8>> {
         let bytes = palette::apply(&self.bytes, &self.colors)?;
+        match &self.masters {
+            Some(project) => project
+                .export(&bytes)
+                .map(|e| e.metrics.bytes)
+                .map_err(|e| e.to_string()),
+            None => Ok(bytes),
+        }
+    }
+    pub fn export(&self) -> crate::font_io::Result<Vec<u8>> {
+        let bytes = self.edited_bytes()?;
         match &self.variable {
             Some(v) => v.export(&bytes),
             None => Ok(bytes),
         }
     }
     pub fn static_bytes(&self) -> crate::font_io::Result<Vec<u8>> {
-        let bytes = palette::apply(&self.bytes, &self.colors)?;
+        let bytes = self.edited_bytes()?;
         self.variable
             .as_ref()
             .ok_or("variation_unsupported")?
@@ -222,7 +249,7 @@ impl SourceFont {
     pub fn static_document(&self) -> crate::font_io::Result<FontDocument> {
         match self.kind {
             Kind::Variable => crate::variations::instantiate(
-                &self.bytes,
+                &self.edited_bytes()?,
                 0,
                 &self
                     .variable
@@ -305,6 +332,8 @@ impl Editor {
 
 #[derive(Serialize)]
 pub struct Summary {
+    pub masters: Vec<MasterSummary>,
+    pub master_editable: bool,
     pub kind: Kind,
     pub extension: String,
     pub palette: u16,
@@ -317,6 +346,19 @@ impl SourceFont {
     pub fn summary(&self) -> Summary {
         let info = crate::color_fonts::info(&self.bytes, 0).ok();
         Summary {
+            master_editable: self.variable.is_some(),
+            masters: self
+                .masters
+                .as_ref()
+                .into_iter()
+                .flat_map(|p| &p.masters.entries)
+                .map(|m| MasterSummary {
+                    id: m.id,
+                    name: m.name.clone(),
+                    coordinates: m.design_location.clone(),
+                    glyphs: m.glyphs.len(),
+                })
+                .collect(),
             variable: self
                 .variable
                 .as_ref()
@@ -336,4 +378,12 @@ impl SourceFont {
                 .unwrap_or_else(|| "ABC あいう 中文 0123456789".into()),
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct MasterSummary {
+    pub id: crate::identity::Uuid,
+    pub name: String,
+    pub coordinates: masters::Location,
+    pub glyphs: usize,
 }

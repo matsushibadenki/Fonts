@@ -1,5 +1,5 @@
 //! Project-owned source shaping tables, retained only with compatible glyph indexing and units.
-mod points;
+pub(crate) mod points;
 mod sfnt;
 use crate::{
     class_kerning::ClassKerning, kerning::Kerning, Change, Editor, Error, FontDocument, GlyphId,
@@ -110,6 +110,21 @@ impl ImportedLayout {
                     .take(self.glyphs.len())))
     }
     pub fn import(doc: &FontDocument, bytes: &[u8], index: u32) -> crate::font_io::Result<Self> {
+        Self::import_frame(doc, bytes, index, false)
+    }
+    pub(crate) fn import_native(
+        doc: &FontDocument,
+        bytes: &[u8],
+        index: u32,
+    ) -> crate::font_io::Result<Self> {
+        Self::import_frame(doc, bytes, index, true)
+    }
+    fn import_frame(
+        doc: &FontDocument,
+        bytes: &[u8],
+        index: u32,
+        native_origin: bool,
+    ) -> crate::font_io::Result<Self> {
         let raw = ttf_parser::RawFace::parse(bytes, index).map_err(|_| "layout_invalid")?;
         let mut tables = BTreeMap::new();
         for &tag in TAGS {
@@ -164,7 +179,7 @@ impl ImportedLayout {
             kerning: doc.kerning.clone(),
             classes: doc.class_kerning.clone(),
         };
-        points::normalize(&mut value, bytes, index)?;
+        points::normalize(&mut value, bytes, index, native_origin)?;
         value.validate().map_err(|_| "layout_invalid")?;
         Ok(value)
     }

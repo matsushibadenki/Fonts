@@ -1,5 +1,7 @@
 //! Batch default-glyph updates with ancestor bounds and base metric origins preserved.
+mod layout;
 mod metrics;
+mod remap;
 use super::{master_glyf, master_gvar, master_rebase::Rebased};
 use crate::{Error, Result};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -179,9 +181,15 @@ pub fn apply(bytes: &[u8], plans: &BTreeMap<u16, Rebased>) -> Result<Vec<u8>> {
         .collect::<Result<Vec<_>>>()?;
     let mut affected = BTreeSet::new();
     let mut queue = VecDeque::new();
+    let mut source_counts = BTreeMap::new();
     for (&id, plan) in plans {
-        let source = master_glyf::read(bytes, 0, id)?.ok_or(Error::InvalidGeometry)?;
-        let verified = source.encode_base(&plan.base.points)?;
+        let old_count = if let Some(g) = master_glyf::read(bytes, 0, id)? {
+            g.points.len()
+        } else {
+            component_records(&records[usize::from(id)])?.0.len()
+        };
+        source_counts.insert(id, old_count + 4);
+        let verified = master_glyf::Glyph::verify_encoded(&plan.base)?;
         if verified.bytes != plan.base.bytes || verified.bounds != plan.base.bounds {
             return Err(Error::InvalidGeometry);
         }
@@ -197,6 +205,7 @@ pub fn apply(bytes: &[u8], plans: &BTreeMap<u16, Rebased>) -> Result<Vec<u8>> {
             }
         }
     }
+    remap::apply(bytes, plans, &mut records, &affected, &mut tables)?;
     // Parent glyph instructions can depend on the moved child points, so remove them as well.
     for &id in &affected {
         let record = &mut records[usize::from(id)];
@@ -216,6 +225,19 @@ pub fn apply(bytes: &[u8], plans: &BTreeMap<u16, Rebased>) -> Result<Vec<u8>> {
         .map_err(|_| Error::InvalidFile)?;
     for &id in &affected {
         let shape = shapes.get(&id).ok_or(Error::InvalidFile)?;
+        let composite = records[usize::from(id)].get(..2) == Some(&[255, 255]);
+        let point_count: usize = shape.rings.iter().map(Vec::len).sum();
+        let maxp = tables.get_mut(b"maxp").ok_or(Error::InvalidFile)?;
+        for (at, value) in [
+            (if composite { 10 } else { 6 }, point_count),
+            (if composite { 12 } else { 8 }, shape.rings.len()),
+        ] {
+            let old = word(maxp, at)?;
+            let value = u16::try_from(value).map_err(|_| Error::TooLarge)?;
+            maxp.get_mut(at..at + 2)
+                .ok_or(Error::InvalidFile)?
+                .copy_from_slice(&old.max(value).to_be_bytes());
+        }
         let mut bbox: Option<[f64; 4]> = None;
         for (p, _) in shape.rings.iter().flatten() {
             let b = bbox.get_or_insert([p[0], p[1], p[0], p[1]]);
@@ -265,7 +287,13 @@ pub fn apply(bytes: &[u8], plans: &BTreeMap<u16, Rebased>) -> Result<Vec<u8>> {
             .iter()
             .map(|(&id, plan)| (id, (plan.base.points.len() + 4, plan.tuples.as_slice())))
             .collect();
-        let gvar = master_gvar::replace_many(source, &axes, count as u16, &replacements)?;
+        let gvar = master_gvar::replace_reindexed(
+            source,
+            &axes,
+            count as u16,
+            &replacements,
+            Some(&source_counts),
+        )?;
         tables.insert(*b"gvar", gvar);
     } else if plans.values().any(|p| !p.tuples.is_empty()) {
         return Err(Error::InvalidFile);
@@ -358,6 +386,34 @@ pub(super) fn set_bearings(
             .copy_from_slice(&value.to_be_bytes());
     }
     Ok(())
+}
+
+pub(super) fn update_outline_bounds(
+    tables: &mut Tables,
+    old: &[Option<[i32; 4]>],
+    new: &[Option<[i32; 4]>],
+    affected: &BTreeSet<u16>,
+) -> Result<()> {
+    metrics::update(tables, old, new, affected, false)?;
+    metrics::update(tables, old, new, affected, true)?;
+    metrics::clear_sidebearing_maps(tables)?;
+    let head = tables.get_mut(b"head").ok_or(Error::InvalidFile)?;
+    let mut bbox = None::<[i32; 4]>;
+    for b in new.iter().flatten() {
+        let union = bbox.get_or_insert(*b);
+        for axis in 0..2 {
+            union[axis] = union[axis].min(b[axis]);
+            union[axis + 2] = union[axis + 2].max(b[axis + 2]);
+        }
+    }
+    for (i, value) in bbox.unwrap_or([0; 4]).into_iter().enumerate() {
+        set(head, 36 + i * 2, value)?;
+    }
+    Ok(())
+}
+
+pub(super) fn protect_cff_point_references(bytes: &[u8], affected: &BTreeSet<u16>) -> Result<()> {
+    layout::protect_cff_points(bytes, affected)
 }
 
 #[cfg(test)]

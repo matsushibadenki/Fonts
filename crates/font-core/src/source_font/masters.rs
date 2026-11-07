@@ -208,7 +208,7 @@ impl Masters {
             {
                 return Err(Error::InvalidGeometry);
             }
-            if (m.support.weight(&m.location)? - 1.).abs() > 1e-6 {
+            if m.support.weight(&m.location)? <= 1e-6 {
                 return Err(Error::InvalidGeometry);
             }
             if m.support.axes.values().all(|s| s[1] == 0.) {

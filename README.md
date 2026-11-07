@@ -85,7 +85,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 参照部品の登録・配置・共有更新・参照解除にも対応します。平坦な参照部品はv3、入れ子を含む文書はv4で保存し、旧v1〜v3も読み込めます。各形式には対応版アプリが必要です。[部品の仕様](docs/linked-components.md)・[入れ子と循環参照検査](docs/nested-components.md)。[TrueType合成グリフの取り込み・出力](docs/truetype-components.md)にも対応します。[取り込み済み組版情報・縦組み・IVS](docs/imported-layout.md)はプロジェクトv5で保存し、旧v1〜v4も読み込めます。[部品定義の専用編集](docs/component-definition-editing.md)では、編集元グリフがなくてもペン・点・パスを加工し、共有更新・Undo/Redo・保存・復旧できます。
 
-[カラープロジェクト](docs/color-projects.md)ではCPALの色と透明度を編集し、元フォントとパレット選択をv6へ保存・復旧できます。Undo／Redo、wgpuプレビュー、カラー保持出力に対応します。旧v1〜v5も読み込めます。[可変プロジェクト](docs/variable-projects.md)では軸の範囲・既定値とプレビュー座標を保存し、可変出力・静的コピーに対応します。
+[カラープロジェクト](docs/color-projects.md)ではCPALの色と透明度を編集し、元フォントとパレット選択をv6へ保存・復旧できます。Undo／Redo、wgpuプレビュー、カラー保持出力に対応します。旧v1〜v5も読み込めます。[可変プロジェクト](docs/variable-projects.md)では軸の範囲・既定値とプレビュー座標を保存し、可変出力・静的コピーに対応します。[マスター編集](docs/variable-masters.md)ではTrueType／CFF2・合成グリフ、全マスターでの中間点追加・終点削除、Undo/Redo・v8保存・復旧に対応します。旧v1〜v7も読み込めます。
 
 ## ライセンス
 

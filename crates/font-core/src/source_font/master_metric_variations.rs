@@ -136,5 +136,60 @@ pub fn edit(
     })
 }
 
+pub(super) struct Frozen {
+    pub bytes: Vec<u8>,
+    pub origins: BTreeMap<u16, [f64; 2]>,
+    pub advances: BTreeMap<u16, [f64; 2]>,
+}
+pub(super) fn freeze_inherited(bytes: &[u8]) -> Result<Frozen> {
+    let face = ttf_parser::Face::parse(bytes, 0).map_err(|_| Error::InvalidFile)?;
+    let axes: Vec<_> = face
+        .variation_axes()
+        .into_iter()
+        .map(|a| a.tag.to_string())
+        .collect();
+    let bounds: Vec<_> = (0..face.number_of_glyphs())
+        .map(|i| {
+            face.glyph_bounding_box(ttf_parser::GlyphId(i)).map(|b| {
+                [
+                    i32::from(b.x_min),
+                    i32::from(b.y_min),
+                    i32::from(b.x_max),
+                    i32::from(b.y_max),
+                ]
+            })
+        })
+        .collect();
+    let mut tables: BTreeMap<_, _> = face
+        .raw_face()
+        .table_records
+        .into_iter()
+        .map(|r| {
+            Ok((
+                r.tag.to_bytes(),
+                face.raw_face()
+                    .table(r.tag)
+                    .ok_or(Error::InvalidFile)?
+                    .to_vec(),
+            ))
+        })
+        .collect::<Result<_>>()?;
+    let report = inheritance::apply(
+        &face,
+        &axes,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &bounds,
+        &mut tables,
+        true,
+    )?;
+    tables.remove(b"DSIG");
+    Ok(Frozen {
+        bytes: crate::color_fonts::assemble(tables, false).map_err(|_| Error::InvalidFile)?,
+        origins: report.origins,
+        advances: report.advances,
+    })
+}
+
 #[cfg(test)]
 mod tests;

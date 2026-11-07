@@ -27,6 +27,9 @@ pub async fn source_font_preview(
         if m.epoch != epoch || m.editor.revision() != revision {
             return Err("Conflict".into());
         }
+        if m.master_edit.is_some() {
+            return Err("Conflict".into());
+        }
         if m.has_draft() {
             return Err("edit_in_progress".into());
         }
@@ -82,7 +85,11 @@ pub async fn source_font_preview(
     .map_err(|e| e.to_string())??;
     let state = app.state::<AppState>();
     let mut m = state.0.lock().map_err(|_| "state_poisoned")?;
-    if m.epoch != epoch || m.editor.revision() != revision || m.proof.generation != generation {
+    if m.epoch != epoch
+        || m.editor.revision() != revision
+        || m.proof.generation != generation
+        || m.master_edit.is_some()
+    {
         return Err("Conflict".into());
     }
     match preview {

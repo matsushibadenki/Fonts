@@ -152,3 +152,104 @@ fn thumbnails_show_unencoded_outlines_holes_and_empty_glyphs_without_guides() {
         "empty glyph must not show editor guides"
     );
 }
+
+#[test]
+#[ignore = "Requires access to a real GPU adapter; run explicitly on a desktop host"]
+fn variable_master_edit_and_static_export_render_identically() {
+    use font_core::{
+        source_font::{master_project::Edit, SourceFont},
+        Editor,
+    };
+    for (bytes, glyph) in [
+        (
+            include_bytes!("../../font-core/tests/data/variations/gvar.ttf").as_slice(),
+            1,
+        ),
+        (
+            include_bytes!("../../font-core/tests/data/variations/nested-blend-cff2.otf")
+                .as_slice(),
+            1,
+        ),
+        (
+            include_bytes!("../../font-core/tests/data/variations/composite-gvar.ttf").as_slice(),
+            3,
+        ),
+    ] {
+        let mut editor =
+            Editor::new(SourceFont::variable_document(bytes, 0, None).unwrap()).unwrap();
+        editor
+            .edit_source_master(
+                0,
+                Edit::Register {
+                    name: "Default".into(),
+                },
+            )
+            .unwrap();
+        let id = editor
+            .document()
+            .source_font
+            .as_ref()
+            .unwrap()
+            .masters
+            .as_ref()
+            .unwrap()
+            .masters
+            .entries[0]
+            .id;
+        editor
+            .edit_source_master(editor.revision(), Edit::Capture { id, glyph })
+            .unwrap();
+        let original = {
+            let s = editor.document().source_font.as_ref().unwrap();
+            s.masters.as_ref().unwrap().shape(s, id, glyph).unwrap()
+        };
+        editor
+            .edit_source_master(
+                editor.revision(),
+                Edit::Point {
+                    id,
+                    glyph,
+                    index: 0,
+                    position: [120., 30.],
+                },
+            )
+            .unwrap();
+        let source = editor.document().source_font.as_ref().unwrap();
+        let edited = source
+            .masters
+            .as_ref()
+            .unwrap()
+            .shape(source, id, glyph)
+            .unwrap();
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let gpu =
+            pollster::block_on(Gpu::new(&instance, None, wgpu::TextureFormat::Rgba8Unorm)).unwrap();
+        let before = gpu.thumbnail(&original.contours).unwrap();
+        let after = gpu.thumbnail(&edited.contours).unwrap();
+        assert_ne!(before, after);
+        let output = source.static_document().unwrap();
+        let exported = gpu.thumbnail(&output.glyphs[&glyph].contours).unwrap();
+        let max = after
+            .iter()
+            .zip(exported)
+            .map(|(&a, b)| a.abs_diff(b))
+            .max()
+            .unwrap();
+        assert!(max <= 1, "maximum channel error {max}");
+        editor.undo(editor.revision()).unwrap();
+        let source = editor.document().source_font.as_ref().unwrap();
+        assert_eq!(
+            gpu.thumbnail(
+                &source
+                    .masters
+                    .as_ref()
+                    .unwrap()
+                    .shape(source, id, glyph)
+                    .unwrap()
+                    .contours
+            )
+            .unwrap(),
+            before
+        );
+    }
+}

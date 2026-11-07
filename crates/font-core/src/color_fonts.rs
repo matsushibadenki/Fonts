@@ -128,7 +128,10 @@ pub(crate) fn assemble(tables: BTreeMap<[u8; 4], Vec<u8>>, cff: bool) -> Result<
     let mut payload = Vec::new();
     let base = 12 + tables.len() * 16;
     let mut head = None;
-    for (tag, data) in tables {
+    for (tag, mut data) in tables {
+        if &tag == b"head" {
+            data.get_mut(8..12).ok_or("color_invalid")?.fill(0);
+        }
         let at = base + payload.len();
         if &tag == b"head" {
             head = Some(at);
