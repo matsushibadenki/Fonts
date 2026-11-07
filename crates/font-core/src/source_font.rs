@@ -1,4 +1,7 @@
 //! Project-owned source fonts. Specialized editing preserves tables ordinary outline editing cannot.
+pub mod master_sample;
+pub mod master_tuple;
+pub mod masters;
 mod names;
 mod palette;
 pub mod variable;
