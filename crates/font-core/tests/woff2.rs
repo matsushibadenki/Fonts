@@ -59,15 +59,17 @@ fn both_outline_formats_keep_unicode_names_metrics_and_gpos() {
             assert_eq!(&bytes[..4], b"wOF2");
             assert_eq!(bytes.len() % 4, 0);
             let decoded = woff2::decode(&bytes).unwrap();
-            if quality == 9 {
-                if let Some(dir) = std::env::var_os("FONTS_WOFF2_FIXTURES") {
-                    let root = std::path::PathBuf::from(dir);
-                    std::fs::create_dir_all(&root).unwrap();
-                    let name = if outline == Outline::TrueType {
-                        "truetype"
-                    } else {
-                        "cff"
-                    };
+            if let Some(dir) = std::env::var_os("FONTS_WOFF2_FIXTURES") {
+                let root = std::path::PathBuf::from(dir);
+                std::fs::create_dir_all(&root).unwrap();
+                let name = if outline == Outline::TrueType {
+                    "truetype"
+                } else {
+                    "cff"
+                };
+                std::fs::write(root.join(format!("{name}-{quality}.woff2")), &bytes).unwrap();
+                std::fs::write(root.join(format!("{name}-{quality}.sfnt")), &decoded).unwrap();
+                if quality == 9 {
                     std::fs::write(root.join(format!("{name}.woff2")), &bytes).unwrap();
                     std::fs::write(root.join(format!("{name}.sfnt")), &decoded).unwrap();
                 }

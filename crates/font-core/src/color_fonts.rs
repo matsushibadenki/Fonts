@@ -205,6 +205,44 @@ fn verify_profile(
     if face.raw_face().table_records.len() as usize != original_count {
         return Err("color_invalid_output".into());
     }
+    // Collections use absolute SFNT offsets; rebuild the selected face for the semantic check.
+    let selected = if woff2
+        && original
+            .raw_face()
+            .table(Tag::from_bytes(b"glyf"))
+            .is_some()
+        && (source.starts_with(b"ttcf")
+            || original
+                .raw_face()
+                .table(Tag::from_bytes(b"DSIG"))
+                .is_some())
+    {
+        let tables = original
+            .raw_face()
+            .table_records
+            .into_iter()
+            .filter(|r| r.tag != Tag::from_bytes(b"DSIG"))
+            .map(|r| {
+                Ok((
+                    r.tag.to_bytes(),
+                    original
+                        .raw_face()
+                        .table(r.tag)
+                        .ok_or("color_invalid")?
+                        .to_vec(),
+                ))
+            })
+            .collect::<Result<std::collections::BTreeMap<_, _>, String>>()?;
+        Some(assemble(tables, false)?)
+    } else {
+        None
+    };
+    let transformed = woff2
+        && original
+            .raw_face()
+            .table(Tag::from_bytes(b"glyf"))
+            .is_some()
+        && font_hinting_native::woff2::equivalent(selected.as_deref().unwrap_or(source), output);
     for r in original.raw_face().table_records {
         let tag = r.tag.to_bytes();
         if &tag == b"DSIG" {
@@ -220,13 +258,16 @@ fn verify_profile(
                 let value = u16::from_be_bytes([flags[0], flags[1]]) | 0x0800;
                 flags.copy_from_slice(&value.to_be_bytes());
             }
+            if transformed && expected.len() >= 52 && b.len() >= 52 {
+                expected[50..52].copy_from_slice(&b[50..52]);
+            }
             if expected.len() != b.len()
                 || expected.get(..8) != b.get(..8)
                 || expected.get(12..) != b.get(12..)
             {
                 return Err("color_invalid_output".into());
             }
-        } else if a != b {
+        } else if a != b && !(transformed && (&tag == b"glyf" || &tag == b"loca")) {
             return Err("color_invalid_output".into());
         }
     }

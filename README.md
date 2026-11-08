@@ -91,7 +91,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 
 ## ライセンス
 
-2026-10-20確認。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
+2026-10-20確認、2026-11-08にWOFF2エンジンの告知を追加。**Fontsの独自コードには[MIT License](LICENSE)を採用します。** LumaPaint由来のうち権利者自身が作成したコードも、権利者の確認に基づき、このリポジトリ内のコピーをMITの対象とします。第三者のコード・ライブラリ・フォント・素材は、それぞれのライセンスを維持します。配布物全体を一律にMITへ変更するものではありません。
 
 `Cargo.lock`に解決されたRust 591パッケージと、`package-lock.json`内のnpm 81パッケージについて、バージョン・上流の宣言・本プロジェクトでの選択を[依存ライセンス一覧](docs/license-inventory.json)に記録しています。この件数には開発・テスト・任意機能・他OS向けの依存も含み、実際のバイナリに含まれる件数ではありません。`OR`は選択式、`AND`は両方の条件を満たす必要があります。
 
@@ -120,6 +120,7 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | Unicode 17.0 Vertical_Orientationデータ | Unicode-3.0 | 🟢 [Done] [公式データ](vendor/unicode/VerticalOrientation-17.0.0.txt)と[ライセンス本文](vendor/unicode/LICENSE.txt)を保持し、配布用の第三者告知へ収録。アプリ本体のMITとは適用範囲を区別する。 |
 | FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。MVARのゼロ差分復元の修正は[変更記録](docs/vendor-font-engine.json)へ明記。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
+| WOFF2参照エンジン／Brotli APIヘッダー | MIT | 🟢 [Done] Google WOFF2を固定コミットで同梱。Brotliはヘッダーのみ、圧縮・展開は既存Rust実装。著作権告知・変更記録を保持。[記録](docs/vendor-woff2.json)。 |
 | freetype-rs／freetype-sys | MIT | 🟢 [Done] Rustバインディングのライセンス。FreeType本体のFTLとは区別する。vendor内の変更点は[同梱エンジンの記録](docs/vendor-font-engine.json)に保持する。 |
 | vendor内のlibpng 1.6.59ソース | PNG Reference Library License version 2等の原条件 | 🟢 [Done] 原文を保持。現在の同梱FreeTypeビルドではPNGデコーダーを有効化・コンパイルしていない。アタリ画像のPNG処理はRust側のimage／pngを使用する。 |
 | 調査用FontForge checkout | 上流全体はGPL-3.0-or-later、一部はBSD-3-Clause等 | 🟢 [Done] 現行アプリのビルド・実行・配布に組み込まない。調査用checkoutは独立検証後の2026-11-04に削除済み。参照commitと流用記録は製品側で保持。将来のコード移植・同梱時はファイルと依存先ごとに再確認する。 |

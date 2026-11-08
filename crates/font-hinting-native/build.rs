@@ -21,6 +21,34 @@ fn main() {
         .file("shape_wrapper.cc")
         .file("variation_wrapper.cc")
         .compile("fonts_harfbuzz");
+    let woff = PathBuf::from("../../vendor/woff2");
+    let mut codec = cc::Build::new();
+    codec
+        .cpp(true)
+        .std("c++17")
+        .warnings(false)
+        .include(woff.join("include"))
+        .include(woff.join("src"))
+        .include(woff.join("brotli/c/include"))
+        .define("BrotliEncoderCompress", "fonts_woff2_brotli_encode")
+        .define("BrotliDecoderDecompress", "fonts_woff2_brotli_decode");
+    for file in [
+        "font.cc",
+        "glyph.cc",
+        "normalize.cc",
+        "transform.cc",
+        "woff2_common.cc",
+        "table_tags.cc",
+        "variable_length.cc",
+        "woff2_enc.cc",
+        "woff2_dec.cc",
+        "woff2_out.cc",
+    ] {
+        codec.file(woff.join("src").join(file));
+    }
+    codec.file("woff2_wrapper.cc").compile("fonts_woff2");
+    println!("cargo:rerun-if-changed=woff2_wrapper.cc");
+    println!("cargo:rerun-if-changed={}", woff.display());
     let mut build = cc::Build::new();
     build
         .warnings(false)

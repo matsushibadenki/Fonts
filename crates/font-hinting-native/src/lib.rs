@@ -1,5 +1,6 @@
 pub mod shape;
 pub mod variations;
+pub mod woff2;
 // Small ownership boundary around bundled HarfBuzz, ttfautohint and Adobe psautohint.
 pub mod color;
 use std::ffi::{c_int, c_uint};

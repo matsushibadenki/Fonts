@@ -28,3 +28,5 @@ Rustワークスペース506テスト成功（実GPU等の16件は通常実行�
 独自のCOLRv1可変テスト書体で、VarStoreによる透明度・可変輪郭・パレット編集を確認。保存・復旧後のgvar／CFF2カラーを実Metal GPUで読み戻して成功。Clippy、TypeScript／Vite、自己完結検査、三言語×通常幅／380px幅の操作も成功した。
 
 ⭕️ [Pending] 広範な実書体・外部組版アプリ、Windows／Linux実機、ネイティブ保存ダイアログを含む画面全体の手動操作。
+
+WOFF2のTrueType専用変換では、glyf／locaの記録とheadのindexToLocFormat・チェックサムは再構成され得る。物理点の順序・座標・ヒント命令・合成参照を厳密に比較し、gvar・カラー・組版など他テーブルのバイト一致を検証する。[変換と検証](woff2.md)。

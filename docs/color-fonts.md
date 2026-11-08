@@ -64,3 +64,5 @@ COLRv0は同梱FreeTypeでラスタライズする。COLRv1は同梱HarfBuzz 15.
 ## カラーのコピーを編集
 
 🟢 [Done] CPALの色・透明度を編集し、元フォントとパレット選択をプロジェクトに格納する。Undo／Redo・保存・復旧・wgpu描画・カラー保持出力に接続。[専用文書の仕様と制約](color-projects.md)。
+
+WOFF2のTrueType専用変換では、glyf／locaの記録とheadのindexToLocFormat・チェックサムは再構成され得る。物理点の順序・座標・ヒント命令・合成参照を厳密に比較し、gvar・カラー・組版など他テーブルのバイト一致を検証する。[変換と検証](woff2.md)。

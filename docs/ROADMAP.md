@@ -1,6 +1,6 @@
 # ROADMAP
 
-2026-11-07更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
+2026-11-08更新。現在の優先順位をここに集約する。implementation-status.mdの各工程は実装時点の履歴として残し、古い未実装表記より本書とfont-formats.mdを優先する。
 
 ## 現在まで
 
@@ -63,12 +63,14 @@
 - 🟢 [Done] CFF1／CID-CFF／CFF2と単体CFFのヒント除去、ttfautohintによるTrueType命令生成、TTF／WOFF2への接続。[エンジンと検証](autohint-engines.md)。
 - 🟢 [Done] Adobe psautohintによる静的CFF1／CID-CFFの自動ヒント生成。OTF／単体CFF／CFF WOFF2、三言語UI、輪郭・文字対応の保持検証。
 - 🟢 [Done] 小サイズ比較。元のヒント／ヒントなし／自動生成を9・12・16・24ppemで並べ、サンプル入力、1×／2×、未収録文字数、三言語UIを実装。[仕様](hinting-comparison.md)。
-- 🔴 [Later] Type 1の直接dehint、CFF2用ヒント生成、命令編集。
+- 🟠 [Next] Type 1の直接dehint。
+- 🔴 [Later] CFF2用ヒント生成、命令編集。
 - ⭕️ [Pending] Windows/Linux実機、外部アプリでの小サイズ表示。
 
 17. 🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。
 
-- 🟠 [Next] WOFF2圧縮率の最適化。
+- 🟢 [Done] WOFF2の可逆Brotli圧縮候補を自動比較。従来以下のサイズを選び、復号後の全テーブル保持を検証。[仕様](woff2.md)。
+- 🟢 [Done] WOFF2のglyf／loca／hmtx専用変換。物理点・ヒント・可変・カラー情報を保持し、無変換より小さく意味比較を通る場合のみ採用。[仕様](woff2.md)。
 - ⭕️ [Pending] Windows/Linuxのネイティブ描画と実機検証、複数モニター・DPI、署名・公証。
 
 FontForgeは仕様・挙動の調査元として使用し、現行の変換エンジンはプロジェクト内のRust実装と同梱FreeTypeで動作する。FontForge backendの導入を、実装済みの入出力を使うための必須工程にはしない。
@@ -296,7 +298,7 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 - 🟢 [Done] 可変軸の範囲・既定値編集、可変出力、軸状態の保存・復旧。[仕様](variable-projects.md)。
 - 🟢 [Done] TrueType／CFF2・合成グリフのマスター編集、全マスターの点構成変更、原点保持・出力検証。[操作と保護条件](variable-masters.md)。
 - 🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。
-- 🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2用ヒント生成・命令編集。
+- 🟢 [Done] WOFF2のglyf／loca／hmtx専用変換。物理点・ヒント・可変・カラー情報を保持し、無変換より小さく意味比較を通る場合のみ採用。[仕様](woff2.md)。🔴 [Later] Type 1直接dehint・CFF2用ヒント生成・命令編集。
 - ⭕️ [Pending] 実機・周辺機器・外部アプリが必要な検証は各項目の条件を維持し、未検証のままDoneに変更しない。
 
 ## 外部組版情報・縦組み・IVS（2026-11-06）
@@ -317,7 +319,7 @@ Rust全体テスト253件と追加の容量事前検証1件、Clippy（全target
 
 Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2幅のUI操作が成功。保存後のgvar／CFF2カラーを実GPUで読み戻して成功。可変カーニング・合字・IVSの静的化も検証した。
 
-🟢 [Done] 可変輪郭・マスター編集（後続のv8工程まで実装）。🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。🔴 [Later] WOFF2圧縮率の最適化、Type 1直接dehint・CFF2ヒント生成・命令編集。
+🟢 [Done] 可変輪郭・マスター編集（後続のv8工程まで実装）。🟢 [Done] 画像トレース。白黒輪郭抽出・簡略化、三言語UI、wgpuプレビュー、Undo/Redo、保存・復旧へ接続。[仕様](image-tracing.md)。🟢 [Done] WOFF2専用変換。🟠 [Next] Type 1直接dehint。🔴 [Later] CFF2ヒント生成・命令編集。
 
 ## マスター編集の実装履歴
 
@@ -373,3 +375,21 @@ Rust506テスト、Clippy、型検査／Vite、自己完結検査、三言語×2
 ⭕️ [Pending] Windows/Linux実機と幅広い実画像による追加確認。
 
 画像トレースの最終検証：Rust571件成功・失敗0件（除外18件）、別途Metal GPUの輪郭・穴の描画成功。三言語×2幅UI 6ケース、Clippy全target、TypeScript／Vite、整形・自己完結検査、macOSデバッグ版アプリ生成が成功。
+
+## WOFF2圧縮率の改善（Brotli比較段階の履歴、2026-11-08）
+
+🟢 [Done] 従来・入力長に合わせた汎用・フォント向けBrotli設定を比較し、小さい圧縮結果を選ぶ。従来より大きくなる変更を防ぎ、元の全テーブルを復号して照合する。既存の三言語出力設定・worker・保存後検証・カラー／可変・一括変換へ共通適用。[仕様と検証](woff2.md)。
+
+🟠 [Next] glyf／loca／hmtxを組み合わせた専用変換。hmtx単独の試作はChromeでの互換性問題が判明したため製品に含めない。最適化の全工程を完了したとは扱わず、専用変換を次の優先項目に残す。
+
+最終検証：Rust574件成功・失敗0件（除外18件）。ChromeのTrueType／CFF×4品質と512グリフで幅・描画画素一致。Clippy・整形・自己完結検査、TypeScript／Vite、macOSデバッグ版アプリ生成も成功。
+
+## WOFF2専用変換（2026-11-08）
+
+🟢 [Done] MITのWOFF2参照実装を固定コミットで同梱し、glyf／locaにhmtxを組み合わせた専用変換を追加。圧縮・展開はRust Brotliを使い、外部ツール不要。従来の無変換候補より小さく、点の順序・座標・輪郭・bbox・ヒント命令・合成参照と他テーブルを保持する場合だけ採用する。可変／カラー／コレクション・マスター出力、既存の三言語UI・worker・保存後検証へ接続。512グリフで8,384B→3,400B、Chromeで全幅・全描画画素一致。[対応範囲](woff2.md)。
+
+🟠 [Next] Type 1の直接dehint。🔴 [Later] CFF2用ヒント生成、命令編集。⭕️ [Pending] 別OS・ブラウザー・広範な実書体の追加確認。
+
+専用変換の最終検証：Rust578件成功・失敗0件（除外18件）、Clippy全target警告なし。Chromeの4品質×2形式と512グリフの幅・画素比較、整形・差分・自己完結検査・MIT告知収集が成功。
+
+macOSデバッグ版アプリ生成とMIT告知の同梱照合も成功。外部WOFF2／Brotli／Homebrewライブラリへリンクせず、自己完結して動作する。

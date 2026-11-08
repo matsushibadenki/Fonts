@@ -1,4 +1,6 @@
-//! WOFF2 export and strict validation of our null-transform profile (not a general importer).
+//! WOFF2 export with coupled TrueType transforms and verified lossless fallback.
+mod compression;
+mod transformed;
 const TAGS: [[u8; 4]; 63] = [
     *b"cmap", *b"head", *b"hhea", *b"hmtx", *b"maxp", *b"name", *b"OS/2", *b"post", *b"cvt ",
     *b"fpgm", *b"glyf", *b"loca", *b"prep", *b"CFF ", *b"VORG", *b"EBDT", *b"EBLC", *b"gasp",
@@ -130,7 +132,10 @@ pub fn export(doc: &FontDocument, options: Options) -> Result<Vec<u8>> {
     encode_sfnt(sfnt, options.quality)
 }
 /// Package an already validated SFNT, retaining generated hinting bytecode.
-pub fn encode_sfnt(mut sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
+pub fn encode_sfnt(sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
+    encode_profile(sfnt, quality, true)
+}
+fn encode_profile(mut sfnt: Vec<u8>, quality: u32, allow_transforms: bool) -> Result<Vec<u8>> {
     if !(1..=11).contains(&quality) {
         return Err("woff2_options_invalid".into());
     }
@@ -181,11 +186,7 @@ pub fn encode_sfnt(mut sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
         base128(&mut directory, data.len().try_into().map_err(|_| bad())?);
         stream.extend(data);
     }
-    let mut compressed = Vec::new();
-    {
-        let mut writer = brotli::CompressorWriter::new(&mut compressed, 65536, quality, 22);
-        writer.write_all(&stream).map_err(|_| bad())?;
-    }
+    let compressed = compression::compress(&stream, quality)?;
     let length = (48 + directory.len() + compressed.len() + 3) & !3;
     if length > LIMIT {
         return Err("font_too_large".into());
@@ -209,10 +210,26 @@ pub fn encode_sfnt(mut sfnt: Vec<u8>, quality: u32) -> Result<Vec<u8>> {
     if sfnt_tables(&decoded)? != tables {
         return Err(bad());
     }
+    // The old profile is retained unless the coupled reference transforms are smaller
+    // and preserve physical points, instructions, components and every other table.
+    if allow_transforms && sfnt.starts_with(b"\0\x01\0\0") {
+        if let Ok(candidate) = font_hinting_native::woff2::encode(&sfnt, quality) {
+            if candidate.len() < out.len() && transformed::present(&candidate).unwrap_or(false) {
+                if let Ok(decoded) = transformed::decode(&candidate) {
+                    if font_hinting_native::woff2::equivalent(&sfnt, &decoded) {
+                        return Ok(candidate);
+                    }
+                }
+            }
+        }
+    }
     Ok(out)
 }
-/// Decode only this application's output profile, with bounded expansion. No transformed/external import.
+/// Decode the application's null or coupled TrueType transform profiles with bounded expansion.
 pub fn decode(b: &[u8]) -> Result<Vec<u8>> {
+    if transformed::present(b)? {
+        return transformed::decode(b);
+    }
     if b.len() < 48
         || b.len() > LIMIT
         || b.get(..4) != Some(b"wOF2")

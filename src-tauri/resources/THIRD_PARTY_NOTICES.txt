@@ -96947,7 +96947,7 @@ Repository: https://github.com/sveltejs/zimmerframe
 
 
 ========================================================================
-Native sources and data: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib); libpng source license (decoder not compiled); Unicode data (Unicode-3.0)
+Native sources and data: FreeType (FTL, internal MIT/Old MIT and Zlib notices); zlib (Zlib); libpng source license (decoder not compiled); Unicode data (Unicode-3.0); WOFF2 and Brotli API headers (MIT)
 
 --- vendor/freetype-sys/freetype2/LICENSE.TXT ---
 FREETYPE LICENSES
@@ -97730,6 +97730,50 @@ Except as contained in this notice, the name of a copyright holder shall
 not be used in advertising or otherwise to promote the sale, use or other
 dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
+
+
+--- vendor/woff2/LICENSE ---
+Copyright (c) 2013-2017 by the WOFF2 Authors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+--- vendor/woff2/brotli/LICENSE ---
+Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 
 
 --- zlib/LICENSE ---
@@ -103804,3 +103848,280 @@ Copyright 2014 Adobe Systems Incorporated. All rights reserved.
  * The file `COPYING' mentioned in the previous paragraph is distributed
  * with the ttfautohint library.
  */
+
+--- vendor/woff2/brotli/c/include/brotli/decode.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/**
+ * @file
+ * API for Brotli decompression.
+ */
+
+--- vendor/woff2/brotli/c/include/brotli/encode.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/**
+ * @file
+ * API for Brotli compression.
+ */
+
+--- vendor/woff2/brotli/c/include/brotli/port.h ---
+/* Copyright 2016 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Macros for compiler / platform specific API declarations. */
+
+--- vendor/woff2/brotli/c/include/brotli/shared_dictionary.h ---
+/* Copyright 2017 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* (Opaque) Shared Dictionary definition and utilities. */
+
+--- vendor/woff2/brotli/c/include/brotli/types.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/**
+ * @file
+ * Common types used in decoder and encoder API.
+ */
+
+--- vendor/woff2/include/woff2/decode.h ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Library for converting WOFF2 format font files to their TTF versions. */
+
+--- vendor/woff2/include/woff2/output.h ---
+/* Copyright 2016 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Output buffer for WOFF2 decompression. */
+
+--- vendor/woff2/src/buffer.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* The parts of ots.h & opentype-sanitiser.h that we need, taken from the
+   https://code.google.com/p/ots/ project. */
+
+--- vendor/woff2/src/file.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* File IO helpers. */
+
+--- vendor/woff2/src/font.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Font management utilities */
+
+--- vendor/woff2/src/font.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Data model for a font file in sfnt format, reading and writing functions and
+   accessors for the glyph data. */
+
+--- vendor/woff2/src/glyph.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Glyph manipulation */
+
+--- vendor/woff2/src/glyph.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Data model and I/O for glyph data within sfnt format files for the purpose of
+   performing the preprocessing step of the WOFF 2.0 conversion. */
+
+--- vendor/woff2/src/normalize.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Glyph normalization */
+
+--- vendor/woff2/src/normalize.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Functions for normalizing fonts. Since the WOFF 2.0 decoder creates font
+   files in normalized form, the WOFF 2.0 conversion is guaranteed to be
+   lossless (in a bitwise sense) only for normalized font files. */
+
+--- vendor/woff2/src/port.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Helper function for bit twiddling and macros for branch prediction. */
+
+--- vendor/woff2/src/round.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Helper for rounding */
+
+--- vendor/woff2/src/store_bytes.h ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Helper functions for storing integer values into byte streams.
+   No bounds checking is performed, that is the responsibility of the caller. */
+
+--- vendor/woff2/src/table_tags.cc ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Font table tags */
+
+--- vendor/woff2/src/transform.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Library for preprocessing fonts as part of the WOFF 2.0 conversion. */
+
+--- vendor/woff2/src/transform.h ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Library for preprocessing fonts as part of the WOFF 2.0 conversion. */
+
+--- vendor/woff2/src/variable_length.cc ---
+/* Copyright 2015 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Helper functions for woff2 variable length types: 255UInt16 and UIntBase128 */
+
+--- vendor/woff2/src/woff2_common.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Helpers common across multiple parts of woff2 */
+
+--- vendor/woff2/src/woff2_common.h ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Common definition for WOFF2 encoding/decoding */
+
+--- vendor/woff2/src/woff2_compress.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* A commandline tool for compressing ttf format files to woff2. */
+
+--- vendor/woff2/src/woff2_decompress.cc ---
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* A very simple commandline tool for decompressing woff2 format files to true
+   type font files. */
+
+--- vendor/woff2/src/woff2_enc.cc ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Library for converting TTF format font files to their WOFF2 versions. */
+
+--- vendor/woff2/src/woff2_info.cc ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* A commandline tool for dumping info about a woff2 file. */
+
+--- vendor/woff2/src/woff2_out.cc ---
+/* Copyright 2014 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
+/* Output buffer for WOFF2 decompression. */
