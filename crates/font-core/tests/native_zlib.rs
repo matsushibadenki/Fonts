@@ -35,7 +35,7 @@ extern "C" fn resize(
 fn freetype_uses_stable_zlib_and_reads_gzip_font_data() {
     // SAFETY: zlibVersion returns a process-lifetime, NUL-terminated version string.
     let version = unsafe { CStr::from_ptr(zlibVersion()) }.to_str().unwrap();
-    assert_eq!(version, "1.3.2");
+    assert_eq!(version, "1.4");
     let library = Library::init().unwrap();
     // Project-authored minimal 8x8 BDF fixture, gzip-compressed with mtime=0.
     let compressed = include_bytes!("fixtures/dependency-zlib.bdf.gz");

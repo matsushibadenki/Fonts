@@ -6,7 +6,7 @@ Fonts is based in part on the work of the FreeType Team and the ttfautohint libr
 
 ライブラリのヒンティングアイコンで「ヒントを除去」を選ぶ。OpenType CFF1／CID-CFF／可変CFF2と、単体CFF／CID-CFFに対応する。
 
-HarfBuzz 15.0.0のNO_HINTING処理を使用し、stem命令、hintmask／cntrmask、Private DICTのBlueValues・StemSnap等を取り除く。局所／大域サブルーチンやCIDのFDArray／FDSelectはエンジンが解析・再構築する。全グリフを保持し、変更済みのCFFテーブルだけを元のSFNTへ戻すため、組版・メトリクス・カラー・可変テーブルのバイト列を維持する。DSIGは除去しheadのチェックサム調整値は更新する。
+HarfBuzz 15.1.0のNO_HINTING処理を使用し、stem命令、hintmask／cntrmask、Private DICTのBlueValues・StemSnap等を取り除く。局所／大域サブルーチンやCIDのFDArray／FDSelectはエンジンが解析・再構築する。全グリフを保持し、変更済みのCFFテーブルだけを元のSFNTへ戻すため、組版・メトリクス・カラー・可変テーブルのバイト列を維持する。DSIGは除去しheadのチェックサム調整値は更新する。
 
 出力時に全グリフの輪郭、送り幅、グリフ名・CID、Unicode対応を元データと比較する。単体CFFは一時SFNTへ格納して処理後に取り出し、FreeTypeで読み戻した文書の一致を確認する。
 

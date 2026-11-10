@@ -114,9 +114,9 @@ cargo test -p font-renderer --test gpu --offline -- --ignored
 | cssparser、cssparser-macros、dtoa-short、option-ext、selectors | MPL-2.0 | 🟢 [Done] 対象部分はMPLを維持。Cargo.lockのチェックサムと一致する変更前ソース5件を、配布リソースの[ソースアーカイブ](src-tauri/resources/licenses/sources/)へ収録。取得・展開方法とMPL本文も同梱する。将来これらを改変する場合は、その変更を含む対象ソースの提供が必要。 |
 | lightningcssとそのプラットフォーム別npmパッケージ | MPL-2.0 | 🟢 [Done] ビルド依存として原条件を維持。Fontsアプリへ開発ツールの実行ファイルは同梱しない。開発ツール自体を再配布する場合は、対応ソースと告知の提供を別途行う。 |
 | i_overlay 9.1.0／i_float／i_shape／i_tree／i_key_sort | MIT | 🟢 [Done] Rustのパス・ブール演算。上流のMIT本文・著作権告知を第三者告知へ収録。曲線の細分化と入力・作業量の制限はFonts側で実装。 |
-| resvg／usvg 0.48.1、tiny-skia／tiny-skia-path 0.12.0 | MIT／Apache-2.0の選択式からMIT、tiny-skia系はBSD-3-Clause | 🟢 [Done] SVG-in-OpenTypeのRust描画。上流告知を第三者告知へ収録。埋め込みPNG／JPEGは制限付きで有効。テキスト・システムフォントは無効。[対応範囲](docs/svg-preview.md)。 |
+| resvg／usvg 0.49.0、tiny-skia／tiny-skia-path 0.12.0 | MIT／Apache-2.0の選択式からMIT、tiny-skia系はBSD-3-Clause | 🟢 [Done] SVG-in-OpenTypeのRust描画。上流告知を第三者告知へ収録。埋め込みPNG／JPEGは制限付きで有効。テキスト・システムフォントは無効。[対応範囲](docs/svg-preview.md)。 |
 | psautohint 2.4.0 | Apache-2.0 | 🟢 [Done] 静的CFF1／CID-CFF自動ヒンティングの同梱Cエンジン。[実装と検証](docs/autohint-engines.md)。 |
-| ttfautohint 1.8.4／HarfBuzz 15.0.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去・COLRv1プレビュー・組版・可変軸変換の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
+| ttfautohint 1.8.4／HarfBuzz 15.1.0 | FTL（選択、生成命令の例外を含む）／Old MITと個別条件 | 🟢 [Done] 自動ヒンティング・CFF除去・COLRv1プレビュー・組版・可変軸変換の同梱エンジン。[出典と変更点](vendor/font-hinting/manifest.json)、[ライセンスと実装](docs/autohint-engines.md)。Fontsはttfautohint libraryとFreeType Teamの成果に一部基づく。 |
 | Unicode 17.0 Vertical_Orientationデータ | Unicode-3.0 | 🟢 [Done] [公式データ](vendor/unicode/VerticalOrientation-17.0.0.txt)と[ライセンス本文](vendor/unicode/LICENSE.txt)を保持し、配布用の第三者告知へ収録。アプリ本体のMITとは適用範囲を区別する。 |
 | FreeType 2.15.0 | FTL（FreeType License）を選択 | 🟢 [Done] GPLとの選択式からFTLを採用。[既存のFreeType告知](src-tauri/resources/FONT_ENGINE_NOTICES.txt)と原文を保持。MVARのゼロ差分復元の修正は[変更記録](docs/vendor-font-engine.json)へ明記。本ソフトウェアはFreeType Teamの成果に一部基づく。 |
 | FreeType内部のBDF／PCF／ハッシュ等、HarfBuzz由来部分、gzip | MIT系／Old MIT／Zlibなど、各ファイルの条件 | 🟢 [Done] FreeType全体のFTLだけで上書きせず、該当する内部告知も第三者告知へ収録。 |
