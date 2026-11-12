@@ -17,8 +17,8 @@ import type {IconName} from './icons';
 import type {Edit,Layout,Panel as PanelId,Snapshot} from './types';
 import type {Key} from './i18n';
 type T=(key:Key)=>string;
-export function IconButton({icon,label,onClick,active=false,disabled=false}:{icon:IconName;label:string;onClick:()=>void;active?:boolean;disabled?:boolean}){
-  return <button type="button" className={`icon-button ${active?'selected':''}`} title={label} aria-label={label} aria-pressed={active} onClick={onClick} disabled={disabled}><Icon name={icon}/></button>;
+export function IconButton({icon,label,onClick,active=false,disabled=false,buttonRef}:{icon:IconName;label:string;onClick:()=>void;active?:boolean;disabled?:boolean;buttonRef?:React.Ref<HTMLButtonElement>}){
+  return <button ref={buttonRef} type="button" className={`icon-button ${active?'selected':''}`} title={label} aria-label={label} aria-pressed={active} onClick={onClick} disabled={disabled}><Icon name={icon}/></button>;
 }
 export function Panel({id,state,t,edit,layout,floating=false,onDrag}:{id:PanelId;state:Snapshot;t:T;edit:(a:Edit)=>Promise<void>;layout:(a:Layout)=>Promise<void>;floating?:boolean;onDrag?:(p:PanelId|null)=>void}){
   const [arranging,setArranging]=useState(false);

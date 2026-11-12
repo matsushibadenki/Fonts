@@ -1,3 +1,4 @@
+import {FinishPage,SpacingPage,workflowLabels} from './WorkflowPages';
 import {pathError} from './path-i18n';
 import {FontImport,fontImportError} from './FontImport';
 import {DocumentTabs,documentError} from './DocumentTabs';
@@ -30,6 +31,10 @@ function DropZone({dock,t,onDrop}:{dock:Dock;t:(k:Key)=>string;onDrop:(p:PanelId
 }
 export default function App(){
   const {state,error,setError,edit,layout,run,refresh}=useWorkspace();
+  const [stage,setStage]=useState<'space'|'export'|null>(null);
+  const [navigating,setNavigating]=useState(false);
+  const exportButton=useRef<HTMLButtonElement>(null);
+  const propertiesButton=useRef<HTMLButtonElement>(null);
   const [overlayOpen,setOverlayOpen]=useState(false);
   const [dragging,setDragging]=useState<PanelId|null>(null);
   const dragRef=useRef<PanelId|null>(null);
@@ -49,6 +54,16 @@ export default function App(){
   const move=async(p:PanelId,d:Dock)=>{await layout({type:'dock',panel:p,dock:d});setDrag(null);};
   const actLayout=async(a:Layout)=>{await layout(a);setDrag(null);};
   if(!state)return <div className="startup"><span className="brand-mark">F</span><p>{error==='native_required'?t('startup'):error||t('loading')}</p>{error!=='native_required'&&<button onClick={()=>void refresh()}>{t('retry')}</button>}</div>;
+  const page=stage==='space'&&(state.source_font||state.components.editing)?null:stage;
+  const active=page??(state.proof.active?'test':'draw');
+  const navigate=async(k:'draw'|'space'|'test'|'export')=>{
+    if(k==='space'||k==='export'){setStage(k);setError('');return;}
+    if(k==='draw'&&state.source_font){setStage(null);return;}
+    setNavigating(true);
+    try{await proofCommand(state,k==='test'?{type:'prepare',settings:state.proof.settings}:{type:'close'});setStage(null);setError('');}
+    catch(e){setError(proofError(state,String(e)));}
+    finally{setNavigating(false);}
+  };
   if(label==='font-library')return <FontLibrary state={state}/>;
   return <div className={`app ${floating?'floating-app':''}`} onPointerUp={e=>{
     if(!dragRef.current)return;
@@ -62,7 +77,7 @@ export default function App(){
     {floating?<Panel id={floating} state={state} t={t} edit={edit} layout={actLayout} floating/>:<>
       <header className="app-header">
         <span className="brand"><img className="brand-icon" src="/app-icon.svg" alt=""/>Fonts<span className="slash">/</span></span><span className="family">{state.family}{state.dirty&&<span className="dirty-dot" title={t('draft')}>●</span>}</span>
-        <nav className="workflow" aria-label="Workflow">{(['draw','space','test','export'] as const).map(k=><button key={k} className={(state.proof.active?k==='test':k==='draw')?'active':''} disabled={k==='space'||k==='export'||(!!state.source_font&&(k==='draw'||k==='test'))||(k==='test'&&!!state.components.editing)} title={k==='space'||k==='export'?t('pending'):t(k)} onClick={()=>void proofCommand(state,k==='test'?{type:'prepare',settings:state.proof.settings}:{type:'close'}).then(()=>setError('')).catch(e=>setError(proofError(state,String(e))))}>{t(k)}</button>)}</nav>
+        <nav className="workflow" aria-label={workflowLabels[state.workspace.locale].workflow}>{(['draw','space','test','export'] as const).map(k=><button key={k} className={active===k?'active':''} aria-current={active===k?'page':undefined} disabled={navigating||((k==='test'||k==='space')&&(!!state.source_font||!!state.components.editing))} title={t(k)} onClick={()=>void navigate(k)}>{t(k)}</button>)}</nav>
         <div className="app-actions">
           <IconButton icon="undo" label={t('undo')} disabled={!state.can_undo} onClick={()=>void edit({type:'undo',revision:state.revision})}/>
           <IconButton icon="redo" label={t('redo')} disabled={!state.can_redo} onClick={()=>void edit({type:'redo',revision:state.revision})}/>
@@ -72,22 +87,24 @@ export default function App(){
           <FontImport state={state} onError={setError} onOpenChange={setOverlayOpen}/>
           <span className="action-divider" aria-hidden="true"/>
           <IconButton icon="save" label={t('save')} onClick={()=>void run('save_project')}/>
-          <FontExport state={state} onOpenChange={setOverlayOpen}/>
+          <FontExport buttonRef={exportButton} state={state} onOpenChange={setOverlayOpen}/>
           <Recovery locale={state.workspace.locale} onOpenChange={setOverlayOpen}/>
           <span className="action-divider" aria-hidden="true"/>
           <IconButton icon="library" label={libraryMessages[state.workspace.locale].library} onClick={()=>void run('open_font_library')}/>
-          <FontProperties state={state} onOpenChange={setOverlayOpen}/>
+          <FontProperties buttonRef={propertiesButton} state={state} onOpenChange={setOverlayOpen}/>
           <span className="action-divider" aria-hidden="true"/>
           <Preferences state={state} onOpenChange={setOverlayOpen}/>
         </div>
       </header>
       <DocumentTabs state={state} onError={setError} onNew={()=>void run('new_project')}/>
-      <main className="workspace">
-        <DockArea dock="left" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>
-        <div className="center-column"><Canvas state={state} t={t} edit={edit} dragging={!!dragging||overlayOpen} onError={setError}/>
-          <DockArea dock="bottom" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>
+      <main className={`workspace workflow-workspace ${page==='space'?'workflow-space-layout':''}`}>
+        {!page&&<DockArea dock="left" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>}
+        <div className={`center-column ${page==='export'?'workflow-hidden':''}`} inert={page==='export'}><Canvas state={state} t={t} edit={edit} dragging={!!dragging||overlayOpen||page==='export'} onError={setError}/>
+          {!page&&<DockArea dock="bottom" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>}
         </div>
-        <DockArea dock="right" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>
+        {!page&&<DockArea dock="right" state={state} t={t} edit={edit} layout={actLayout} onDrag={setDrag} onDrop={move} dragging={dragging}/>}
+        {page==='space'&&<SpacingPage key={state.epoch} state={state} edit={edit} onError={setError}/>}
+        {page==='export'&&<FinishPage state={state} onProperties={()=>propertiesButton.current?.click()} onExport={()=>exportButton.current?.click()}/>}
         {!!dragging&&<div className="drop-overlay">{(['left','right','bottom'] as const).map(d=><DropZone dock={d} key={d} t={t} onDrop={(p,d)=>void move(p,d)}/>)}</div>}
       </main>
       <footer className="statusbar"><span>{state.codepoints.length?glyphLabel(state.character):state.name} · {state.codepoints.map(unicodeCode).join(', ')}</span><span>{t('baseline')} 0 <b>·</b> {t('ascender')} {state.ascender} <b>·</b> {t('descender')} {state.descender}</span><span>{state.contours.length} {t('contours')} <b>·</b> {t(state.reviewed?'reviewed':'draft')}</span></footer>

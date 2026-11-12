@@ -179,3 +179,36 @@ fieldset.metrics-form{min-width:0;margin:0;border:0}fieldset.metrics-form:disabl
 .master-point-tools label{display:flex;align-items:center;gap:4px}
 .master-point-tools input{width:76px}
 .image-trace{border-top:1px solid var(--border);margin-top:6px;padding-top:5px;min-width:0}.image-trace summary{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px}.image-trace .reference-fields{margin-top:6px}.image-trace .reference-actions label{display:flex;align-items:center;gap:4px;font-size:11px}
+
+.workflow-workspace{position:relative;min-width:0}
+.workflow-hidden{visibility:hidden}
+.workflow-spacing{flex:0 1 340px;min-width:220px;overflow:auto;padding:14px 16px;border-left:1px solid var(--border)}
+.workflow-spacing h1,.workflow-finish h1{font-size:15px;margin:0 0 14px}
+.workflow-spacing label{display:grid;gap:4px;margin:0 0 8px;font-size:11px}
+.workflow-spacing label input,.workflow-spacing label select{width:100%;min-width:0;padding:5px}
+.workflow-spacing form{display:flex;align-items:end;gap:6px;margin-bottom:10px}
+.workflow-spacing form label{flex:1;margin:0}
+.workflow-spacing form button{height:28px;padding:3px 7px}
+.workflow-finish{position:absolute;inset:0;overflow:auto;padding:24px 16px;background:var(--paper,#f7f5f1)}
+.workflow-finish-content{max-width:760px;margin:0 auto}
+.workflow-finish h2{font-size:24px;margin:0 0 18px;overflow-wrap:anywhere}
+.workflow-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.workflow-overview section{min-width:0;border:1px solid var(--border);border-radius:5px;padding:12px}
+.workflow-overview h3{margin:0 0 8px;font-size:13px}
+.workflow-overview dl{margin:0}
+.workflow-overview dl div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:12px}
+.workflow-overview dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.workflow-finish-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.workflow-finish-actions button{display:flex;align-items:center;gap:6px;padding:7px 10px}
+.workflow-finish-actions .primary{background:var(--accent);color:white}
+.workflow-spacing-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}
+.workflow-spacing-heading button{display:flex;padding:4px}
+.workflow-spacing-heading button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
+@media(max-width:640px){
+ .workflow-space-layout{flex-direction:column}
+ .workflow-space-layout>.center-column{flex:1 1 42%}
+ .workflow-spacing{flex:1 1 58%;min-width:0;border-left:0;border-top:1px solid var(--border)}
+}
+.workflow button{white-space:nowrap;flex-shrink:0}
+.family{min-width:0}
+@media(max-width:900px){.workflow button{padding-inline:6px}}
